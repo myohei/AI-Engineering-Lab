@@ -213,6 +213,7 @@ def render(m: dict, sizes: dict[str, tuple[int, int]]) -> str:
 <div class="nav"><div class="wrap">
 <a class="mark mono" href="#top">AI ENGINEERING <span>LAB</span></a>
 <ul>{links}</ul>
+<a class="gh mono" href="{BLOB}/README.ja.md">日本語ガイド</a>
 <a class="gh mono" href="{REPO}">GitHub</a>
 </div></div>
 

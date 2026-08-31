@@ -1,5 +1,7 @@
 # Week 01: Exercises & Checklist
 
+> **日本語版:** [exercises.ja.md](exercises.ja.md)
+
 ## Graded exercises
 
 1. **Easy**: Run `notebooks/01-environment-and-tools.ipynb` end-to-end. It prints a

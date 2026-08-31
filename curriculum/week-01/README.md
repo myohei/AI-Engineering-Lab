@@ -1,5 +1,7 @@
 # Week 01: Python Foundations & the AI Engineering Landscape
 
+> **日本語版:** [README.ja.md](README.ja.md)
+>
 > Part of AI Engineering Lab · Developed by Zorost Intelligence AI Lab · Week 01 of 24 · Section: Foundations · Category: Python & Environment
 > 🎯 Use case: Generate the seeded ZoroLogistics synthetic dataset (shipments, carriers, lanes) that every future week reuses.
 

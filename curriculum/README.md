@@ -1,5 +1,7 @@
 # AI Engineering Lab: 24-Week AI Engineering Program
 
+> **日本語版:** [curriculum/README.ja.md](README.ja.md)
+>
 > **Find the Signal. Act with Intelligence.** · Developed by [Zorost Intelligence AI Lab](https://zorost.com)
 
 This is the heart of AI Engineering Lab: a 24-week, week-by-week path from Python

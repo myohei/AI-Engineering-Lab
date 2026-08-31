@@ -1,5 +1,7 @@
 # Week 01: Quiz (10 questions, 8/10 to pass)
 
+> **日本語版:** [quiz.ja.md](quiz.ja.md)
+
 Answer all ten, then check against the answer key. A question marked *(see Concepts §X)* points at a README subsection; *(see notebook cell Y)* points at a cell in `01-environment-and-tools.ipynb` or `02-zorologistics-data-generator.ipynb`.
 
 1. **Multiple choice.** Which of the following *correctly* names the four skills in Andrew Ng's AI Engineering Skills Map? *(see Concepts §1)*

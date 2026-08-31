@@ -7,6 +7,7 @@
 [![Notebooks](https://img.shields.io/badge/notebooks-43%20runnable-0E9384.svg)](curriculum/README.md)
 [![Site](https://img.shields.io/badge/site-zorost.github.io-4260E8.svg)](https://zorost.github.io/AI-Engineering-Lab/)
 
+**[日本語で学ぶ](README.ja.md)** ·
 **[Start here](START-HERE.md)** ·
 [Browse all 24 weeks](https://zorost.github.io/AI-Engineering-Lab/#weeks) ·
 [Curriculum](curriculum/README.md) ·

@@ -3,6 +3,8 @@
 > Never written a line of Python? Never touched an LLM API? This page is for you.
 > Read it top to bottom once, it takes about 15 minutes, and you will know exactly
 > how to start, what to expect, and what to do when you get stuck.
+>
+> **日本語版:** [START-HERE.ja.md](START-HERE.ja.md)
 
 **Part of AI Engineering Lab · Developed by [Zorost Intelligence AI Lab](https://zorost.com) · zorost.com**
 
