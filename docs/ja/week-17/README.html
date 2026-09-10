@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 17: OpenClaw、HermesとAgent Operations</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 17</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-17/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-17-openclawhermesagent-operations">Week 17: OpenClaw、HermesとAgent Operations</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-17/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 17 of 24 · Section: Agents · Category: Personal Agents &amp; Ops
+🎯 <strong>Use case:</strong> あなたのMCP serverに接続し、Hermes-class modelで駆動する個人用ZoroLab assistant（OpenClaw）をdeployし、その上にtracing、evals、costを載せる。
+· Notebook: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-17/notebooks/01-agent-ops-observability.ipynb">01-agent-ops-observability.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>あなたはもうagentをbuildできるようになりましたが、まだ<em>運用</em>はしていません。これまでのagentはすべて、notebookの中で、cellの長さだけ、on demandで動いていました。本物のassistantは三つの点で異なります。第一に<strong>always-on</strong>です。あなたがすでに使っているmessaging channelの中に住んでいるため、質問はどんな時間にでも届き、あなたが再invokeしなくても答え続けなければなりません。第二に<strong>personal</strong>です。<em>あなたの</em>device上で動く<em>あなたの</em>assistantであり、「役に立つ」と「危険」の境界、すなわちどのcommandを実行してよいか、どのfileに触れてよいか、何を記憶するかは、<em>あなた自身</em>がconfigureして責任を負うものです。第三に、<strong>defaultでは観測されていません</strong>。notebookは答えをprintしますが、always-on assistantの答えは誰も読まないchat logの中へ消えていき、tokenのspendは静かに積み上がり、codeを変えなくても品質は劣化します。そして三週間後に、model providerが下層の何かをupdateしたせいでshipment statusをずっとhallucinateしていた、と気づくのです。</p>
+<p>今週はこのgapを三つの手で埋めます。第一に、<strong>OpenClaw</strong>が本物のassistant runtimeを与えてくれます。messaging channelを所有するlocal Gateway、skills system、memory model、tiered化されたpermission modeであり、これをWeek 16のMCP serverに接続して、ZoroLogisticsのtoolを実際に呼べるようにします。第二に、Ollama経由で<strong>Hermes-classのopen model</strong>に差し替え、Hermes <em>model family</em>とHermes <em>Agent framework</em>を区別できるようになります。第三に、always-on agentがなければshipできない<strong>operations layer</strong>を追加します。tracing、cost dashboard、production-eval sampling、ops runbook、そして実際にtrafficのどれだけを見ているかを数字で示す<strong>coverage metric</strong>です。Deliverableはまた別のdemoではなく、自分が責任を負うagentを運用するためのstanding disciplineです。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、<strong>OpenClaw</strong>をlocalにinstall・configureし、channel（WebChat）を接続し、そのGateway、skills、memory、permission-modeのmodelを説明できる。</li>
+<li>☐ 金曜日までに、<strong>二つのOpenClaw skill</strong>（YAML frontmatter付きの<code>SKILL.md</code> file）を書き、Week 16のMCP serverを接続して、assistantがZoroLogisticsのtoolを呼べるようにできる。</li>
+<li>☐ 金曜日までに、Ollama経由で<strong>Hermes-class model</strong>に差し替え、Hermes <em>model family</em>（Nous Research、open-weight、function-calling-tuned）と<em>Hermes Agent framework</em>を区別できる。</li>
+<li>☐ 金曜日までに、<strong>production layer</strong>を追加できる。JSONLのspan/trace logger、syntheticなusage logからのcost dashboard、production-eval samplingのdemo、そしてops runbookとcoverage metricの発行。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run / build</th>
+<th>Ship</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/agents/openclaw.md"><code>reference/agents/openclaw.md</code></a>と<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/agents/hermes.md"><code>reference/agents/hermes.md</code></a>を読む。context loopについては<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/10-agents-multiagent.md"><code>reference/knowledge-base/10-agents-multiagent.md</code></a> §5も（約1.5時間）</td>
+<td>「Hermes = 二つのもの」というdisambiguationを自分の言葉で書く</td>
+<td>一行のdisambiguationとpermission-modeのtier list</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>OpenClawのarchitecture、channels、memory（約1時間）</td>
+<td>OpenClawをinstall、onboard、WebChatを接続、<code>openclaw gateway status</code></td>
+<td>WebChatで答える、動いているassistant</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>SkillsとMCP登録（約45分）</td>
+<td>二つの<code>SKILL.md</code> fileを書く。Week 16のMCP serverを登録。toolが見えることを確認</td>
+<td>loadされた二つのskillと、見えるMCP tools</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>Hermes modelsとOllama（約45分）</td>
+<td><code>ollama pull hermes4</code>。OpenClawを<code>baseUrl: http://localhost:11434</code>に向ける（<code>/v1</code>なし）</td>
+<td>local modelから答えるassistant</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>n/a</td>
+<td>observability notebookをend-to-endで実行。runbookを書く</td>
+<td>cost dashboard、sampling結果、runbook、そして<code>COVERAGE</code>の数字</td>
+</tr>
+<tr>
+<td><strong>Sat</strong></td>
+<td>n/a</td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-17/quiz.md"><code>quiz.md</code></a>を受ける（8/10で合格）</td>
+<td>scoreをtrackerのNotesに記録する</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p>これは「自分のものにして、生き延びさせる」週です。hands-on guideとしては<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/agents/openclaw.md"><code>reference/agents/openclaw.md</code></a>と<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/agents/hermes.md"><code>reference/agents/hermes.md</code></a>を読んでください。以下は概念的な背骨です。</p>
+<h3 id="openclaw-assistant-runtime">OpenClaw: 個人assistant runtime</h3>
+<p><strong>OpenClaw</strong>はopen-sourceの<em>個人用</em>AI assistantです。<em>あなたの</em>device上で動き、あなたがすでに使っているchannel（WhatsApp、Telegram、Discord、Slack、Signal、iMessage、WebChat）であなたと出会います。中心は<strong>Gateway</strong>です。すべてのmessaging surfaceを所有するlocal daemonで、<code>127.0.0.1:18789</code>上にtypedなWebSocket APIを公開します（live docsで確認してください）。四つのconceptがこの週を支えます。</p>
+<ul>
+<li><strong>Skills</strong>: YAML frontmatter付きのMarkdown <code>SKILL.md</code> file。toolを<em>いつ・どのように</em>使うかをagentに教えるもので、定義された優先順位でlayeredなsource（workspace → project → personal → managed → bundled）からloadされます。</li>
+<li><strong>Memory</strong>: plainなMarkdown file群（stableなpreferenceには<code>USER.md</code>、durableなfactには<code>MEMORY.md</code>、毎日のnoteには<code>memory/YYYY-MM-DD.md</code>）。統治するruleはこれです。<strong>modelが覚えているのはdiskに保存されたものだけ。hidden stateは存在しない。</strong></li>
+<li><strong>The context loop</strong>: runのためにmodelに送られるすべて（system prompt、history、tool calls/results）。windowがいっぱいになると自動的に<strong>compact</strong>され、古いturnは要約されつつ、最近のturnとtool-call/resultのpairはそのまま保たれます。これはWeek 14の「context engineering」というideaが、動くsystemになったものです。</li>
+<li><strong>Permission modes</strong>: 最も制限的から最も許容的までのtier:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>挙動</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>deny</code></td>
+<td>すべてのhost commandをblock</td>
+</tr>
+<tr>
+<td><code>allowlist</code></td>
+<td>明示的にlistされたcommandだけが実行される</td>
+</tr>
+<tr>
+<td><code>ask</code></td>
+<td>allowlist + 未listのものには人間にpromptする</td>
+</tr>
+<tr>
+<td><code>auto</code></td>
+<td>allowlist + auto-reviewerがmissを判断（人間にfallback）</td>
+</tr>
+<tr>
+<td><code>full</code></td>
+<td>promptなし、trusted hostのみ</td>
+</tr>
+</tbody>
+</table>
+<p>このtieringは、Week 14の<strong>least privilege + 不可逆操作でのhuman checkpoint</strong>の具体的なreference implementationです。押さえるべきnamingの事実: OpenClawは以前は<em>Clawdbot</em>、その次は<em>Moltbot</em>という名前でした。独立したopen-source projectであり、LLM APIsの<em>consumer</em>であって、<strong>Anthropicのproductではありません</strong>。</p>
+<h3 id="hermes-artifact">Hermes: 一つの名前、二つのartifact</h3>
+<p>「Hermes」はoverloadされた名前で、このdisambiguationが今週のtrap questionです。どちらも<strong>Nous Research</strong>によるものです。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Hermes model family</th>
+<th>Hermes Agent framework</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>それが何か</td>
+<td>function/tool callingに強く向いた、open-weightでinstruction-tunedなLLMs</td>
+<td>自己改善するagent <em>runtime/application</em></td>
+</tr>
+<tr>
+<td>世代</td>
+<td>Hermes 2（Llama 3/Mistral/Mixtral）、Hermes 3（Llama 3.1）、Hermes 4（Qwen3、14B/70B、Apache-2.0）</td>
+<td>単一のopen-source project（<code>NousResearch/hermes-agent</code>、MIT）</td>
+</tr>
+<tr>
+<td>実行方法</td>
+<td>Ollama/vLLM/HF経由のlocal、またはhosted endpoint</td>
+<td>subagents、learning loop、A2A supportを持つgateway process</td>
+</tr>
+<tr>
+<td>関係</td>
+<td>frameworkの中に入れる<em>脳</em></td>
+<td>modelを動かす<em>framework</em></td>
+</tr>
+</tbody>
+</table>
+<p>one-linerで言えば、<strong>Hermes modelは脳であり、Hermes Agentはmodelを動かしてlearning loop、gateway、subagentsを与えるframeworkです。</strong> 両者は独立しており、Hermes modelはLangGraph、OpenClaw、その他どんなframeworkの中にも入れられます。今週はHermes modelを<em>OpenClawの中の</em>脳として使い、<strong>Ollama</strong>がserveします（gotchaに注意: OpenClawはOllamaのnativeな<code>/api/chat</code>と通信します。OpenAI互換の<code>/v1</code> endpointでは<em>なく</em>、そちらはtool callingを壊します）。Hermes modelは信頼できるstructured tool call向けにtuneされており、agent loopがまさに必要とする性質です。ただしfrontier modelではありません。long-horizon reasoningとself-correctionは弱いと想定してください。それをまさに測るのが、swap-and-compare exerciseです。</p>
+<h3 id="agent-operations-tracingcostevals">Agent operations: tracing、cost、evals</h3>
+<p>後半は、demoを運用し守れるものへ変えるlayer、すなわちWeek 11のevals disciplineを<em>agent</em>に適用したものです。</p>
+<ul>
+<li><strong>Tracing</strong>: structuredな<strong>span</strong>（各一 step: model call、tool call）をinputs、outputs、latency、tokens付きで記録し、runごとの<strong>trace</strong>へlinkするもの。悪い答えは<em>process</em>であり、どのstepが失敗したかを見つける場所がtraceです。</li>
+<li><strong>Cost dashboards</strong>: model/dayごとのusageとspend。always-on assistantは<em>cost</em>であり、meterしていないものはoptimizeできないからです。</li>
+<li><strong>Production-eval sampling</strong>: cadenceを決めてlive trafficのsampleをthresholdに対して採点するもの。systemはcodeを変えなくてもdriftするからです。</li>
+</ul>
+<p>この三つの習慣は、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/07-evals-error-analysis.md"><code>reference/knowledge-base/07-evals-error-analysis.md</code></a>にあるWeek 11のdiscipline、trace、threshold、drift monitoringを、単一のmodel outputではなく<em>process</em>へ移植したものです。agentは答えではなくstepで失敗します。だからtraceこそがevalであり、coverage metricはそのevalの正直なscopeです。</p>
+<p>Deliverableはこれらを一つにまとめます。<strong>ops runbook</strong>（threshold、watchすべきdashboard、what-to-do-when）と、実際にinstrumentされているagent operationの割合である<strong>coverage metric</strong>です。runbookはdocumentationではありません。agentを運用するstanding disciplineであり、coverageの数字は「実際にどれだけ見えているか」への正直な答えです。</p>
+<h3 id="scheduledelegationsecurity-perimeter">週の先へ: schedule、delegation、security perimeter</h3>
+<p>assistantが動き始めると、三つのoperationalな話題が自然に広がります。金曜日のdeliverableの後に学んでください。（Sourcesにあるfree video masterclassが、real installation上でこれらをend-to-endでカバーしています。以下はZorostのsynthesisです。）</p>
+<p><strong>Scheduled automation（agentのためのcron）。</strong> always-on assistantは、scheduleで実行できるようになったとき<em>proactive</em>になります。朝のbriefing、inboxのtriage sweep、週次report digestなどです。engineering ruleは<code>agent-ops-handoff</code>と同じものです。off-peakの分を選ぶ（<code>:00</code>や<code>:30</code>は絶対に避ける。何千ものjobがtop of the hourに殺到します）、timezoneは常に明示的に名前を付ける（UTCのserverとDCの人間は、DSTで年に二回食い違います）、missしたrunのcatch-up policyを書き留める、skipはするがstampedeはしない、です。すべてのscheduled jobは、interactiveなrunと同じ四つのalertを持ちます。failure、cost-cap trip、refusal、そして<em>silence</em>です。reportしないjobは成功ではなくfailure modeです。</p>
+<p><strong>Delegationとsubagents。</strong> OpenClaw-classのassistantもHermes Agent frameworkも、<strong>subagent</strong>をspawnできます。一つの狭いjob（これを調査、あれをreview）を与えられたisolatedなhelper contextで、main conversationのcontext windowをcleanに保つためのものです。これはWeek 16のmulti-agentのideaをpersonal scaleにしたものであり、doctrineは変わらず引き継がれます。delegationは<em>measured trade</em>であって、defaultではありません。subtaskのcontextがmain loopを汚す場合（長いweb research session）や、別のmodelが必要な場合（summarizationには安いlocal model、最後のcallにはfrontier model）にdelegateします。runtimeが簡単だからという理由でdelegateしないでください。すべてのhopはlatency、token、そしてcontextが失われるboundaryというcostを払います。</p>
+<p><strong>個人agentのsecurity perimeter。</strong> 個人assistantはprivilegedなprocessです。あなたのAPI keyを持ち、あなたのmessageを読み、host commandを実行します。perimeterには四つの壁があり、いずれも別々にすでに出会っています。<strong>permission modes</strong>（上のblast-radiusのtier list。real workに使うmachineでは<code>ask</code>/<code>auto</code>に留める）、<strong>secrets hygiene</strong>（credentialはenv varかsecret storeへ。<code>SKILL.md</code>や<code>MEMORY.md</code>には決して書かない。それらのfileはmodelに送られます）、<strong>channel pairing</strong>（明示的にpairされapproveされていないmessaging channelはopen doorです。pairingはapproveし、毎月auditします）、そして<strong>skill provenance</strong>（<code>SKILL.md</code>はproxy経由で実行されるinstruction textです。読んだことのあるskillだけを、信頼するsourceからinstallし、reload前にupdateをdiffします）。masterclassのsecurity moduleは、まねする価値のある習慣をもう一つ加えています。assistant自身のlogとmemory fileをsensitive artifactとして扱うこと。それらにはassistantがこれまで見たすべてが含まれています。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    U[You in WebChat/Telegram] --&gt; G[OpenClaw Gateway]
+    G --&gt; M[Hermes model via Ollama]
+    G --&gt; S[Skills SKILL.md]
+    G --&gt; C[MCP client]
+    C --&gt;|stdio / HTTP| MS[&quot;MCP server: Week 16 tools&quot;]
+    MS --&gt; Z[(ZoroLogistics data)]
+    G --&gt; T[&quot;Span logger: JSONL traces&quot;]
+    G --&gt; D[Cost dashboard]
+    G --&gt; E[Prod-eval sampling]
+    T --&gt; R[Ops runbook + coverage metric]
+</div>
+<h3 id="_5">うまくいかない理由</h3>
+<p>always-onな個人assistantは、notebookでは決して起きない形で失敗します。<strong>Permission modeが緩すぎる</strong>（real workに使うmachineでの<code>full</code>）はblast-radiusの失敗です。agentがtaskのallowlistの外のresourceに触れます。<strong>Context starvation</strong>、すなわち会話の途中でcompactionが<em>たった一つの</em>重要なfactを追い出すことは、Week 14のcontext-engineeringの失敗が、自動化され不可視になったものです。<strong>Ollamaの<code>/v1</code> endpointでtool callingが壊れる</strong>のが、最も多い初回実行時の失敗です。modelは有効なcallを出すのをやめ、assistantは静かに劣化します。<strong>「何も覚えていない」</strong>は、factが<code>MEMORY.md</code>に一度も書かれていないか、compactionで消えたことを意味します。memoryはpersistしたものだけです。そして<strong>instrumentされていないcall path</strong>は、tracerが決して見なかった場所で失敗が起きることを意味します。coverage metricは0.85と読めますが、失われた15%こそ、まさにbugが隠れている場所です。それぞれが<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/10-agents-multiagent.md"><code>reference/knowledge-base/10-agents-multiagent.md</code></a> §10の名前付きclassに対応し、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/agents/openclaw.md"><code>reference/agents/openclaw.md</code></a> §9.1に具体的なfixがあります。</p>
+<h3 id="1-cost-dashboard">実例1: cost dashboard</h3>
+<p>observability notebookは、三つのmodel（<code>gpt-4o-mini</code> 50%、<code>gpt-4o</code> 30%、<code>hermes-4-14b</code> 20%）にわたる<strong>200 call</strong>のseed付きlogを生成し、例示用のpriceでspendを集計します。<code>gpt-4o-mini</code>は1Mあたり$0.15/$0.60、<code>gpt-4o</code>は$2.50/$10、そしてlocalのHermes modelはtokenあたり<strong>$0.00</strong>です（代わりにhardwareとlatencyで支払います）。dashboardはmodelごとの<code>calls</code>、<code>tokens</code>、<code>cost</code>、<code>avg_latency</code>をprintし、続いてtotalとASCIIのcost-share barを表示します。tableが教えるlesson: <code>gpt-4o</code>はcallの少数しか占めないのに、通常<strong>最大のcost share</strong>を占めます。これこそ、runbookの「cost spike → 最も高価なmodelのcall countを確認する」というplayで使うinsightです。</p>
+<h3 id="2-coverageproduction-sampling">実例2: coverageとproduction sampling</h3>
+<p>二つの数字が週を締めくくります。<strong>production-eval sampling</strong>のcellは、30個のsampled traceをpass threshold <strong>0.85</strong>に対して採点し、<strong>95% confidence interval</strong>（<code>p ± 1.96·√(p(1−p)/n)</code>）付きのpass rateをreportしてから、SHIP/HOLD decisionをprintします。<strong>coverage</strong>のcellは100個のoperationを実行します。85%は<code>@logger.trace("agent_step")</code>wrapper経由、15%はそれをbypassする<code>untraced_step</code>経由で、<code>COVERAGE = 0.85</code>をprintします。そしてrunbookはtargetを宣言します。<em>agent callの100%をinstrumentしたcoverage</em>。traceしていない0.15のtrafficこそ、silent regressionが隠れる0.15だからです。どちらの数字も意図的に小さくdeterministicにしてあるので、手で再計算してmachineryを信頼できます。</p>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><code>notebooks/01-agent-ops-observability.ipynb</code>は、seed付きsynthetic dataに対してops layerをbuildする、key不要の単一notebookで、14 cellからなります。Cell [0]〜[2]はrequirements（<code>pip install numpy pandas</code>）とimportsを設定します。Cell [3]〜[5]は<strong><code>SpanLogger</code></strong>をbuildします。<code>trace_id</code>/<code>span_id</code>のlinkingを持つJSONL span loggerと<code>@logger.trace("…")</code>decoratorで、二つのfake agent step（<code>retrieve</code>、<code>generate</code>）をwrapして三回のcallを実行し、最初の二つのspan recordをprintして<code>latency_ms</code>と<code>tokens</code>のfieldを見られるようにします。Cell [6]〜[9]は200-callのusage log（<code>gen_usage</code>）を生成し、<strong>cost dashboard</strong>（model別table + ASCII bar）をrenderします。Cell [10]〜[11]は、confidence intervalとSHIP/HOLD decision付きの<strong>production-eval sampling</strong>を実行します。Cell [12]〜[13]は、測定された数字から<strong>ops runbook</strong>のmarkdownを生成し（threshold、dashboard、what-to-do-when）、temp fileに書き出します。Cell [14]は、100個のoperation（85%がtraced）を実行して<strong>coverage metric</strong>を計算し、<code>COVERAGE</code>をprintします。</p>
+<p>変更するcell: [9]（<code>PRICES</code>や<code>gen_usage</code>のmodel mixを変えてcost shareが動くのを見る）、[11]（<code>THRESHOLD</code>を変えてSHIPがHOLDにflipするのを見る）、そして[14]（<code>0.85</code>のsampling確率を変えてcoverageが動くのを見る）。「正しい」出力は、logger内の6つのspan record、total付きのmodel別cost table、pass-rate + CI + decision行、previewされたrunbook、そして0と1の間の最終<code>COVERAGE</code>（seed付きrunでは≈0.85）です。すべてのgeneratorがseed付き（<code>gen_usage(seed=123)</code>、<code>sample_eval(seed=7)</code>、coverage cellの<code>default_rng(7)</code>）なので、dashboardのtotal、pass rate、<code>COVERAGE</code>の値はすべてreproduce可能です。一つを手で再計算してmachineryを信頼してください。<code>SpanLogger</code>は<code>zoro_w17_spans.jsonl</code>へ、runbookは<code>zoro_w17_runbook.md</code>へ書き出します。どちらもtemp directoryの中です。JSONLを開いて、各spanが<code>trace_id</code>、<code>span_id</code>、<code>name</code>、<code>latency_ms</code>、<code>tokens</code>を持つことを確認してください。<code>COVERAGE</code>が<code>0.85</code>をprintしたなら、それはseed付きのsampling確率であってbugではありません。loop内の<code>0.85</code>を変えてmetricが動くのを見てください。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> 二つのcustom skillとWeek 16のMCP serverを組み込んだ、動くOpenClaw assistant（WebChat）。加えて、<code>notebooks/01-agent-ops-observability.ipynb</code>を最後まで実行して得られるcost dashboard、sampling結果、ops runbook、coverage metric。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人がassistantにmessageを送ると、あなたのskillの一つがtriggerされ、→MCP経由でZoroLogisticsのtoolを呼び、→その全体がtraceに現れること。そしてあなたはrunbookとcoverage metricを開いて、<em>どの割合のtrafficがinstrumentされているか、cost-per-dayはいくらか、alert thresholdは何か</em>を数字で言えること。runbookがなければ、shipはありません。</p>
+<p><strong>Stretch variant:</strong> Ollama経由でHermes-class modelに差し替えます（<code>ollama pull hermes4</code>、そしてOpenClawを<strong><code>/v1</code>なし</strong>の<code>baseUrl: http://localhost:11434</code>に向ける）。前のmodelで使った同じ三つのpromptを実行します。Hermesがどのpromptをうまく扱い、どれをしくじったか、そしてtool useにfunction-calling tuningがなぜ重要かを書き留めてください。deliverableはmodelではなく、この比較です。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>見た目</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>/v1</code>でtool callingが壊れる</strong></td>
+<td>assistantが有効なtool callを出さなくなる</td>
+<td>Ollamaのnative <code>/api/chat</code>を使う。<code>/v1</code>なしの<code>baseUrl</code></td>
+</tr>
+<tr>
+<td><strong>Permission modeが緩すぎる</strong></td>
+<td>real-work machineで<code>full</code></td>
+<td><code>ask</code>/<code>auto</code>に留める。<code>full</code>は使い捨てhost専用</td>
+</tr>
+<tr>
+<td><strong>「何も覚えていない」</strong></td>
+<td>factがturnをまたいで消える</td>
+<td><code>MEMORY.md</code>に書く。compactionが追い出していないか確認</td>
+</tr>
+<tr>
+<td><strong>skillが発動しない</strong></td>
+<td>agentが<code>SKILL.md</code>を無視する</td>
+<td>frontmatterの<code>description</code>を具体的にする。tool descriptionと同じで、これがtrigger</td>
+</tr>
+<tr>
+<td><strong>Context starvation</strong></td>
+<td>会話の途中で品質が崩壊する</td>
+<td><code>/usage tokens</code>を見る。手動でcompactするか、古いcontextをtrim</td>
+</tr>
+<tr>
+<td><strong>Silent channel</strong></td>
+<td>DMへのmessageが無視される</td>
+<td>pairingをapproveする（<code>openclaw pairing approve &lt;channel&gt; &lt;code&gt;</code>）</td>
+</tr>
+<tr>
+<td><strong>Coverageが1.0未満</strong></td>
+<td>tracerが見ない場所で失敗が起きる</td>
+<td>すべてのcall pathをtracer経由にする。metricを追う</td>
+</tr>
+<tr>
+<td><strong>skills/memoryにsecrets</strong></td>
+<td>API keyがmodelに送られるfileに入る</td>
+<td>credentialはenv varかsecret storeへ。<code>SKILL.md</code>/<code>MEMORY.md</code>には決して</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>OpenClaw</strong>: あなたのdevice上で動き、messaging channelであなたと出会う、open-sourceの個人AI assistant。</li>
+<li><strong>Gateway</strong>: messaging surfaceとWebSocket APIを所有するOpenClawのlocal daemon。</li>
+<li><strong>Skill</strong>: toolをいつ・どのように使うかをagentに教える<code>SKILL.md</code> file（YAML frontmatter + Markdown）。</li>
+<li><strong>Compaction</strong>: windowがいっぱいのとき、最近のturnとtool-call pairを保ちつつ古いturnを要約すること。</li>
+<li><strong>Permission mode</strong>: host commandの実行を制御するtier（<code>deny</code> → <code>allowlist</code> → <code>ask</code> → <code>auto</code> → <code>full</code>）。</li>
+<li><strong>Hermes (model)</strong>: Nous Researchのopen-weightでfunction-calling-tunedなmodel family（Hermes 4 = Qwen3、Apache-2.0）。</li>
+<li><strong>Hermes Agent</strong>: Nous Researchの自己改善するagent <em>framework</em>（modelとは別物）。</li>
+<li><strong>Ollama</strong>: GGUF quantum化をnative chat APIでserveするlocal model runner。</li>
+<li><strong>Span</strong>: inputs、outputs、latency、tokensを持つ、instrumentされた一 step（model call、tool call）。</li>
+<li><strong>Trace</strong>: 一つのend-to-end runに対するspanの列。</li>
+<li><strong>Coverage metric</strong>: 実際にinstrumentされているagent operationの割合。</li>
+<li><strong>Ops runbook</strong>: agent運用のためのthreshold、dashboard、incident手順を記したstanding document。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-17/quiz.md"><code>quiz.md</code></a>を受けてください。OpenClawのmodel、Hermesのdisambiguation、observability notebookの数字を問う10問です。<strong>8/10</strong>で合格です。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exerciseがあります。<strong>Easy</strong>（observability notebookを実行しcoverageを記録）、<strong>Standard</strong>（二つの<code>SKILL.md</code> skillを書き、loadされることを確認）、<strong>Stretch</strong>（Ollama経由でHermes modelに差し替え、tool-calling品質を比較）、そして<strong>Portfolio</strong>（skills + runbook + coverageをcommit）です。全文と<strong>Hints</strong>は<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-17/exercises.md"><code>exercises.md</code></a>にあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>OpenClaw repository: https://github.com/openclaw/openclaw</li>
+<li>OpenClaw documentation: https://docs.openclaw.ai （architecture: /concepts/architecture · skills: /tools/skills · memory: /concepts/memory · permission modes: /tools/permission-modes · Ollama: /providers/ollama）</li>
+<li>Nous Research: https://nousresearch.com</li>
+<li>NousResearch/Hermes-4-14B model card: https://huggingface.co/NousResearch/Hermes-4-14B</li>
+<li>NousResearch/hermes-agent framework: https://github.com/NousResearch/hermes-agent</li>
+<li>Ollama: https://ollama.com</li>
+<li>MCP specification: https://modelcontextprotocol.io</li>
+<li>Langfuse (tracing reference): https://langfuse.com</li>
+<li>LangSmith (tracing reference): https://smith.langchain.com</li>
+</ul>
+<p><strong>Further study（個人agent operationsに関するfree video course）:</strong></p>
+<ul>
+<li>Hermes Agent Masterclass（10 module: installation、VPS deployment、memory/plugins、skills、providers/models、tools/MCP、cron automation、subagents、profiles、security）: https://hermesatlas.com/masterclass/</li>
+<li>Hermes Agent Full Course: Build &amp; Sell（3時間のbuild-and-operate walkthrough）: https://www.youtube.com/watch?v=8yE6G1Lup1s</li>
+<li>
+<p>The Complete Guide to the Hermes Agent Desktop App: https://www.youtube.com/watch?v=3ObcurqJJA0</p>
+</li>
+<li>
+<p>Zorost Intelligence: https://zorost.com</p>
+</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

@@ -7,11 +7,15 @@ the page while the README keeps the PNGs that GitHub renders everywhere.
 
 Usage: python scripts/build_site.py [--check]
   --check  exit 1 if docs/index.html is out of date instead of writing it
+
+Dependencies: Pillow (diagram WebP conversion) and Markdown (Japanese pages).
+  uv run --with markdown --with pillow scripts/build_site.py
 """
 from __future__ import annotations
 
 import html
 import json
+import posixpath
 import re
 import shutil
 import sys
@@ -214,7 +218,7 @@ def render(m: dict, sizes: dict[str, tuple[int, int]]) -> str:
 <div class="nav"><div class="wrap">
 <a class="mark mono" href="#top">AI ENGINEERING <span>LAB</span></a>
 <ul>{links}</ul>
-<a class="gh mono" href="{BLOB}/README.ja.md">日本語ガイド</a>
+<a class="gh mono" href="ja/index.html">日本語ガイド</a>
 <a class="gh mono" href="{REPO}">GitHub</a>
 </div></div>
 
@@ -426,6 +430,224 @@ document.querySelectorAll(".copy").forEach(function (b) {{
 """
 
 
+JA_CSS = """
+:root { --ink:#14213D; --mut:#5B6779; --line:#DDE3EC; --bg:#FFFFFF; --soft:#F5F8FC; --accent:#0E9384; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin:0; background:var(--bg); color:var(--ink);
+  font:16px/1.75 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Helvetica Neue",Arial,sans-serif; }
+.wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+a { color:#4260E8; text-decoration:none; }
+a:hover { text-decoration:underline; }
+.jnav { border-bottom:1px solid var(--line); background:#fff; position:sticky; top:0; z-index:5; }
+.jnav .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:56px; }
+.jnav .brand { font-weight:700; letter-spacing:.02em; color:var(--ink); }
+.jnav .brand .tag { font-weight:600; color:var(--accent); font-size:13px; margin-left:6px; }
+.jnav nav { display:flex; gap:14px; flex-wrap:wrap; font-size:14px; }
+.subnav { display:flex; gap:12px; align-items:center; padding:10px 0; font-size:14px;
+  border-bottom:1px solid var(--line); flex-wrap:wrap; }
+.subnav .wk { font-weight:700; }
+.subnav a.on { color:var(--ink); font-weight:700; }
+.ja { padding:28px 20px 60px; }
+.ja h1 { font-size:28px; line-height:1.35; margin:.2em 0 .6em; }
+.ja h2 { font-size:22px; margin:1.8em 0 .6em; padding-bottom:.25em; border-bottom:1px solid var(--line); }
+.ja h3 { font-size:18px; margin:1.5em 0 .5em; }
+.ja blockquote { margin:1em 0; padding:.6em 1em; background:var(--soft);
+  border-left:4px solid var(--accent); color:var(--mut); border-radius:0 6px 6px 0; }
+.ja blockquote p { margin:.2em 0; }
+.ja table { border-collapse:collapse; width:100%; margin:1em 0; font-size:14.5px;
+  display:block; overflow-x:auto; }
+.ja th, .ja td { border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top; }
+.ja th { background:var(--soft); }
+.ja pre { background:var(--soft); border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; overflow:auto; font-size:13.5px; line-height:1.6; }
+.ja code { background:rgba(20,33,61,.06); padding:.12em .35em; border-radius:4px; font-size:.92em; }
+.ja pre code { background:none; padding:0; font-size:inherit; }
+.ja ul, .ja ol { padding-left:1.4em; }
+.ja li { margin:.25em 0; }
+.ja img { max-width:100%; height:auto; border:1px solid var(--line); border-radius:8px; }
+.ja hr { border:none; border-top:1px solid var(--line); margin:2em 0; }
+.mermaid { background:var(--soft); border:1px solid var(--line); border-radius:8px;
+  padding:14px; margin:1em 0; text-align:center; overflow-x:auto; }
+.jfoot { border-top:1px solid var(--line); background:var(--soft); color:var(--mut); font-size:13px; }
+.jfoot .wrap { display:flex; gap:18px; flex-wrap:wrap; padding:18px 20px; }
+@media (max-width:640px){ .ja h1{font-size:23px} .ja h2{font-size:19px}
+  .jnav .wrap{flex-wrap:wrap; padding:10px 20px} }
+"""
+
+JA_TEMPLATE = """<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="{css}">
+{extra_css}
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="{index}">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="{overview}">概要</a>
+    <a href="{start}">START-HERE</a>
+    <a href="{github}">GitHub</a>
+    <a href="{en}">English site</a>
+  </nav>
+</div>
+{weeknav}</header>
+<main class="wrap ja">
+{body}
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+{scripts}
+</body>
+</html>
+"""
+
+_MERMAID_RE = re.compile(r'<pre><code class="language-mermaid">(.*?)</code></pre>', re.S)
+_TASK_RE = re.compile(r"(<li>)\[([ xX])\]\s")
+_HREF_RE = re.compile(r'(href|src)="([^"]+)"')
+IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif")
+
+
+def _md():
+    try:
+        import markdown
+    except ImportError:
+        print("markdown is required to build the Japanese pages.\n"
+              "Run: uv run --with markdown --with pillow scripts/build_site.py",
+              file=sys.stderr)
+        raise SystemExit(2)
+    return markdown
+
+
+def ja_sources() -> list[tuple[str, str]]:
+    pages = [
+        ("curriculum/README.ja.md", "docs/ja/index.html"),
+        ("README.ja.md", "docs/ja/overview.html"),
+        ("START-HERE.ja.md", "docs/ja/start-here.html"),
+    ]
+    for w in range(1, 25):
+        for src, dst in (("README.ja.md", "README.html"),
+                         ("exercises.ja.md", "exercises.html"),
+                         ("quiz.ja.md", "quiz.html")):
+            pages.append((f"curriculum/week-{w:02d}/{src}", f"docs/ja/week-{w:02d}/{dst}"))
+    return pages
+
+
+def _rel(out_rel: str, target_rel: str) -> str:
+    base = posixpath.dirname(out_rel) or "."
+    return posixpath.relpath(target_rel, base)
+
+
+class JaSite:
+    def __init__(self) -> None:
+        self.files: dict[str, str] = {}
+        self.assets: set[str] = set()
+
+
+def _rewrite_url(src_rel: str, out_rel: str, url: str, ja_map: dict[str, str],
+                 assets: set[str]) -> str | None:
+    if url.startswith(("http://", "https://", "mailto:", "data:", "//", "#")):
+        return None
+    frag = ""
+    if "#" in url:
+        url, _, f = url.partition("#")
+        frag = "#" + f
+    if not url or url.startswith("/"):
+        return None
+    repo_rel = posixpath.normpath(posixpath.join(posixpath.dirname(src_rel), url))
+    if repo_rel.startswith(".."):
+        return None
+    if repo_rel in ja_map:
+        return _rel(out_rel, ja_map[repo_rel]) + frag
+    stem = posixpath.splitext(posixpath.basename(repo_rel))[0]
+    if repo_rel.startswith("assets/diagrams/") and (IMG / f"{stem}.webp").exists():
+        return _rel(out_rel, f"docs/assets/img/{stem}.webp") + frag
+    if repo_rel.endswith(IMAGE_EXTS) and (ROOT / repo_rel).is_file():
+        assets.add(repo_rel)
+        return _rel(out_rel, f"docs/ja/{repo_rel}") + frag
+    return f"{BLOB}/{repo_rel}{frag}"
+
+
+def _postprocess(body: str) -> str:
+    body = _TASK_RE.sub(
+        lambda m: m.group(1) + ("☑ " if m.group(2).lower() == "x" else "☐ "), body)
+    return _MERMAID_RE.sub(lambda m: f'<div class="mermaid">{m.group(1)}</div>', body)
+
+
+def _ja_weeknav(src_rel: str, out_rel: str) -> str:
+    mm = re.match(r"curriculum/week-(\d{2})/", src_rel)
+    if not mm:
+        return ""
+    w = mm.group(1)
+    names = [("README.html", "本文"), ("exercises.html", "演習"), ("quiz.html", "クイズ")]
+    cur = posixpath.basename(out_rel)
+    links = []
+    for fn, label in names:
+        on = " class=\"on\"" if fn == cur else ""
+        links.append(f'<a href="{fn}"{on}>{label}</a>')
+    en = f"{BLOB}/curriculum/week-{w}/README.md"
+    return (f'<div class="wrap subnav"><span class="wk">Week {w}</span> '
+            + " ".join(links)
+            + f'<span class="sep">·</span><a href="{en}">原文 (EN)</a></div>')
+
+
+def render_ja() -> JaSite:
+    md = _md()
+    site = JaSite()
+    pages = ja_sources()
+    ja_map = {src: out for src, out in pages}
+    site.files["docs/ja/style.css"] = JA_CSS
+    for src_rel, out_rel in pages:
+        text = (ROOT / src_rel).read_text()
+        body = md.markdown(text,
+                           extensions=["tables", "fenced_code", "toc", "sane_lists", "attr_list"],
+                           output_format="html5")
+
+        def repl(m, src_rel=src_rel, out_rel=out_rel):
+            new = _rewrite_url(src_rel, out_rel, m.group(2), ja_map, site.assets)
+            return f'{m.group(1)}="{new}"' if new else m.group(0)
+
+        body = _HREF_RE.sub(repl, body)
+        body = _postprocess(body)
+        m = re.search(r"^#\s+(.+)$", text, re.M)
+        title = re.sub(r"[*`]", "", m.group(1)).strip() if m else src_rel
+        extra_css = ""
+        scripts = ""
+        if "<pre><code" in body:
+            extra_css = ('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/'
+                         '@highlightjs/cdn-assets@11.11.1/styles/github.min.css">')
+            scripts += ('<script src="https://cdn.jsdelivr.net/npm/@highlightjs/'
+                        'cdn-assets@11.11.1/highlight.min.js"></script>\n'
+                        '<script>document.querySelectorAll("pre code").forEach('
+                        'function (b) { hljs.highlightElement(b); });</script>\n')
+        if '<div class="mermaid"' in body:
+            scripts += ('<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/'
+                        'dist/mermaid.min.js"></script>\n'
+                        '<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>\n')
+        site.files[out_rel] = JA_TEMPLATE.format(
+            title=html.escape(title),
+            css=_rel(out_rel, "docs/ja/style.css"),
+            extra_css=extra_css,
+            index=_rel(out_rel, "docs/ja/index.html"),
+            overview=_rel(out_rel, "docs/ja/overview.html"),
+            start=_rel(out_rel, "docs/ja/start-here.html"),
+            github=REPO,
+            en=_rel(out_rel, "docs/index.html"),
+            weeknav=_ja_weeknav(src_rel, out_rel),
+            body=body,
+            scripts=scripts,
+        )
+    return site
+
+
 def main() -> int:
     m = json.loads((ROOT / "curriculum" / "manifest.json").read_text())
     check = "--check" in sys.argv
@@ -438,18 +660,42 @@ def main() -> int:
             sizes[p.stem] = (im.width // 2, im.height // 2)
     out = DOCS / "index.html"
     new = render(m, sizes)
+    ja = render_ja()
     if check:
+        stale: list[str] = []
         if not out.exists() or out.read_text() != new:
-            print("docs/index.html is out of date. Run: python scripts/build_site.py")
+            stale.append("docs/index.html")
+        for rel, content in ja.files.items():
+            p = ROOT / rel
+            if not p.exists() or p.read_text() != content:
+                stale.append(rel)
+        for repo_rel in sorted(ja.assets):
+            dest = ROOT / "docs" / "ja" / repo_rel
+            src = ROOT / repo_rel
+            if not dest.exists() or dest.read_bytes() != src.read_bytes():
+                stale.append(str(dest.relative_to(ROOT)))
+        if stale:
+            print("generated site is out of date. Run: python scripts/build_site.py")
+            for s in stale[:10]:
+                print(" -", s)
             return 1
-        print("docs/index.html is up to date.")
+        print("docs site (EN + JA) is up to date.")
         return 0
     DOCS.mkdir(exist_ok=True)
     (DOCS / ".nojekyll").touch()
     out.write_text(new)
+    for rel, content in ja.files.items():
+        p = ROOT / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content)
+    for repo_rel in sorted(ja.assets):
+        dest = ROOT / "docs" / "ja" / repo_rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / repo_rel, dest)
     weeks = sum(len(p["items"]) for p in m["phases"])
     print(f"wrote {out.relative_to(ROOT)}: {len(m['phases'])} phases, {weeks} weeks, "
           f"{len(sizes)} figures")
+    print(f"wrote docs/ja/: {len(ja.files)} pages, {len(ja.assets)} assets")
     return 0
 
 

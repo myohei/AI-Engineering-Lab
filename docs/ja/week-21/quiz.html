@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 21: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 21</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-21/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-21-quiz10810">Week 21: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-21/quiz.md">英語版</a> · <a href="README.html">Week 21 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>各問に答えてから、Answer keyで確認してください。各問の末尾には、出題元のConcepts section（§）またはnotebook cellへのpointerが付いています。</p>
+<ol>
+<li><strong>(MCQ)</strong> Unity Catalogの三段階namespace <code>catalog.schema.object</code> において、次のうち有効な <em>object</em> typeはどれですか？ <em>(Concepts §UC is governanceを参照)</em></li>
+</ol>
+<ul>
+<li>A) metastore</li>
+<li>B) volume</li>
+<li>C) workspace</li>
+<li>D) compute plane</li>
+</ul>
+<ol start="2">
+<li><strong>(MCQ)</strong> Delta tableにdefault設定で <code>VACUUM</code> を実行した後、<code>SELECT * FROM tbl TIMESTAMP AS OF '30 days ago'</code> を試します。どうなりますか？ <em>(Concepts §Delta gives time travelを参照)</em></li>
+</ol>
+<ul>
+<li>A) 常に動く。VACUUMはfileをcompact化するだけ</li>
+<li>B) 失敗する。7日より古いdata fileが恒久削除されているため</li>
+<li>C) errorなしで空のtableを返す</li>
+<li>D) tableがpartition済みの場合のみerrorを返す</li>
+</ul>
+<ol start="3">
+<li>
+<p><strong>(Short answer)</strong> Unity Catalogのprivilege modelが「additive-only」と記述されるのはなぜですか？また、<code>zrl_.silver.shipments</code> を読むためにprincipalが必要な <em>二つの</em> privilege種類は何ですか？ <em>(Concepts §privilege modelを参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> notebook <code>02-medallion-sql.ipynb</code> のsilver queryは、<code>ROW_NUMBER() OVER (PARTITION BY shipment_id ORDER BY planned_departure)</code> でdedupeし、<code>WHERE rn = 1</code> を残します。<code>carrier_id</code> でpartitionすると何が壊れますか？ <em>(Concepts §medallion、notebook 02 cell 4を参照)</em></p>
+</li>
+</ol>
+<ul>
+<li>A) 何も壊れない。carrier_idも行ごとに一意である</li>
+<li>B) 同じcarrierの別々のshipmentが一つにつぶされる</li>
+<li>C) imputationが動かなくなる</li>
+<li>D) time travelが失敗する</li>
+</ul>
+<ol start="5">
+<li><strong>(MCQ)</strong> managed tableとexternal tableについて正しい記述はどれですか？ <em>(Concepts §Unity Catalogを参照)</em></li>
+</ol>
+<ul>
+<li>A) <code>DROP TABLE</code> はどちらもdataを削除する</li>
+<li>B) <code>DROP TABLE</code> がdataを削除するのはmanaged tableだけである</li>
+<li>C) external tableはDeltaになれない</li>
+<li>D) managed tableには <code>LOCATION</code> 句が必要である</li>
+</ul>
+<ol start="6">
+<li>
+<p><strong>(Short answer)</strong> notebook <code>01-unity-catalog-and-delta-lab.ipynb</code> は最後に <code>bronze rows</code> と <code>time-travel versions</code> をprintします。labを実行した後、<code>time_travel_demo</code> tableのversionがちょうど <strong>2</strong> になる理由を説明してください。 <em>(Notebook walkthrough、notebook 01 cells 9〜12を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> filter column（<code>carrier_id</code>）でdata skippingを有効にしたいが、後でlayoutのkeyを打ち直す可能性もあります。新しいtableで使うべき機能はどれですか？ <em>(Concepts §Delta gives time travelを参照)</em></p>
+</li>
+</ol>
+<ul>
+<li>A) Hive partitioning</li>
+<li>B) <code>ZORDER BY</code> のみ</li>
+<li>C) liquid clustering（<code>CLUSTER BY</code>）</li>
+<li>D) <code>OPTIMIZE</code> のみ</li>
+</ul>
+<ol start="8">
+<li>
+<p><strong>(Short answer)</strong> 実例のGRANTで、<code>zrl_analysts</code> がtableへの <code>SELECT</code> だけではなく、<code>USE CATALOG ON CATALOG zrl_</code> <em>と</em> <code>USE SCHEMA</code> <em>と</em> <code>SELECT</code> を受け取る必要があるのはなぜですか？ <em>(Concepts §privilege modelを参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> notebookの <code>%sql</code> cell <code>CREATE OR REPLACE TABLE shipments_bronze AS SELECT * FROM read_files('/Volumes/zrl_/zorologistics/raw/shipments.csv', format =&gt; 'csv', header =&gt; true, inferSchema =&gt; true)</code> がDelta tableを生成するのはなぜですか？ <em>(Notebook walkthroughを参照)</em></p>
+</li>
+</ol>
+<ul>
+<li>A) <code>read_files</code> はDeltaしか出力しない</li>
+<li>B) 明示しない限り、Databricksのdefault table formatがDeltaであるため</li>
+<li>C) CSVがgeneratorで既に変換されていたため</li>
+<li>D) それがstreaming tableであるため</li>
+</ul>
+<ol start="10">
+<li><strong>(MCQ)</strong> 次のうち、Hive partitioningではなくliquid clusteringの <em>帰結</em> はどれですか？ <em>(Concepts §Delta gives time travelを参照)</em></li>
+</ol>
+<ul>
+<li>A) tableをrewriteせずにclustering keyを変更できる</li>
+<li>B) time travelが不可能になる</li>
+<li>C) deletion vectorの有効化が必要になる</li>
+<li>D) <code>VACUUM</code> と互換性がない</li>
+</ul>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>B: volume.</strong> volumeは <code>catalog.schema.object</code> レベルのgoverned objectです。metastoreはcatalogの<em>上</em>のregistryであり、workspace/compute planeはplatformの概念であってUC objectではありません。</p>
+</li>
+<li>
+<p><strong>B: 失敗します。</strong> VACUUMはretention窓（default 7日）より古いdata fileを恒久削除するため、その窓を超えたtime travelは不可能です。</p>
+</li>
+<li>
+<p><strong>additive-onlyとは <code>DENY</code> が存在しないこと</strong>です。principalはprivilegeを<em>得る</em>ことしかできず、defaultは「何もなし」です。tableを読むには、principalに <strong>traversal</strong>（<code>USE CATALOG zrl_</code> + <code>USE SCHEMA silver</code>）<strong>とaction</strong>（tableへの <code>SELECT</code>）が必要です。二種類とも必須です。</p>
+</li>
+<li>
+<p><strong>B.</strong> <code>carrier_id</code> でpartitionして各partition一行だけ残すと、一つのcarrierの別々のshipmentがすべて一行につぶれます。<code>shipment_id</code> が、一意のままでなければならない自然keyです。</p>
+</li>
+<li>
+<p><strong>B.</strong> <code>DROP TABLE</code> がdataを削除するのはmanaged tableだけです。external tableはmetadataのみdropします（dataはあなたのstorageに残ります）。</p>
+</li>
+<li>
+<p><strong>二つのversion = <code>CREATE OR REPLACE</code>（version 1、1,000行）と <code>INSERT</code>（version 2、さらに1,000行）です。</strong> 各writeが新しいtransaction log entryをappendするので、<code>DESCRIBE HISTORY</code> はちょうど二つのversionを示し、<code>VERSION AS OF
+   1</code> は1,000行のstateを読み、currentは2,000を読みます。</p>
+</li>
+<li>
+<p><strong>C: liquid clustering。</strong> <code>CLUSTER BY</code> はskippingのためのdataのcolocationと、rewriteなしのkey変更を両立させます。<code>ZORDER BY</code> 単独では、rewriteなしにkeyを打ち直すことはできません。</p>
+</li>
+<li>
+<p><strong>privilegeは下に継承されますが、traversalとactionは別物です。</strong> tableへの <code>SELECT</code> だけではそれ自体では不十分で、principalはまず <code>USE CATALOG</code> と <code>USE SCHEMA</code> でcontainerに<em>到達</em>しなければなりません。UCはtraversal連鎖にactionを加えたものを要求します。親への <code>USE</code> grantのない素の <code>SELECT</code> grantでは、読みは許可されません。</p>
+</li>
+<li>
+<p><strong>B.</strong> Deltaはdefaultのstorage layerであり、設定で変えない限りDatabricksで作られるすべてのtableがDelta tableなので、<code>CREATE … AS SELECT FROM read_files</code> はgoverned Delta tableとしてlandingします。</p>
+</li>
+<li>
+<p><strong>A.</strong> Hive partitioning/Z-orderに対するliquid clusteringの最大の利点は、tableをrewriteせずにclustering keyを変更できることです。</p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

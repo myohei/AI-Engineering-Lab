@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 22: 演習とチェックリスト</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 22</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-22/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-22">Week 22: 演習とチェックリスト</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-22/exercises.md">英語版</a> · <a href="README.html">Week 22 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-pyspark-data-engineering.ipynb</code> を最後まで実行する。最後にfinal on-time rateと、PySpark aggregationをSQL版と比較する <code>match: True/False</code> をprintします。両方をWeek 22のtracker sheetに記録してください。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: <code>01-pyspark-data-engineering.ipynb</code> で、<em>各月の中で</em> on-time rateによってcarrierをrankするwindow functionを追加する。連続する月をまたいで最も改善したcarrierと最も低下したcarrierを特定し、その理由を一文で仮説として書く（<code>carrier_name</code> と <code>region</code> をjoinして）。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: <code>02-streaming-and-dlt-pipeline.ipynb</code> で、silver materialized viewに三つ目のexpectationを追加する（例: <code>@dp.expect_or_fail("non_negative_delay", "delay_hours &gt;= 0")</code>）。pipelineを再実行し、制約に違反したときにupdateに何が起きるかを <code>@dp.expect_or_drop</code> と対比して（markdown cellで）記述する。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: <strong>ZoroLogistics streaming pipeline</strong> milestoneを進める: pipelineをscheduled <strong>Lakeflow Job</strong>（task type Pipeline、run-if <code>ALL_SUCCESS</code>）でwrapし、pipeline DAGのscreenshotと監視queryをportfolioにcaptureする。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: notebook 01を最初から最後まで実行する。記録する数字は <em>最後の</em> cell（<code>final on-time rate</code> と <code>enriched rows</code>）にあり、<code>match: True/False</code> はその直前のcross-check cellです。<code>match</code> が <code>False</code> なら、PySparkの <code>agg</code> をSQLの <code>CASE</code> とdiffしてください。</li>
+<li><strong>Standard</strong>: windowは既に存在します（<code>rank_in_month</code>）。最も改善/低下したcarrierを見つけるには、各月の <code>rank_in_month = 1</code> を前月のものと <code>carrier_id</code> でjoinし、<code>on_time_rate</code> をdiffする。</li>
+<li><strong>Stretch</strong>: <code>@dp.expect_or_fail</code> decoratorを <code>silver</code> の他のdecoratorの <em>上に</em> 追加し、<code>delay_hours &lt; 0</code> のrowを <code>events/</code> にdropして再実行する。対比: <code>expect_or_fail</code> はupdateを中断し、<code>expect_or_drop</code> ならrowを除去して続行したはずです。</li>
+<li><strong>Portfolio</strong>: Lakeflow Jobの <strong>Pipeline</strong> task typeがpipelineをwrapします。下流taskのrun-ifは <code>ALL_SUCCESS</code> に設定し、DAG screenshotと <code>system.lakeflow.jobs</code> の監視queryの両方をcaptureする。</li>
+</ol>
+<h2 id="checklistmanifestjson-excel-tracker">Checklist（manifest.json + Excel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: PySpark lab: DataFramesでshipment dataをtransformする。SQLと比較する。</li>
+<li>☐ Tue: Python（またはSQL）でDLT pipelineを書く。data qualityにexpectationを付ける。</li>
+<li>☐ Wed: live shipment event用のstreaming tableを追加する（Auto Loader/streaming source）。</li>
+<li>☐ Thu: Lakeflow Jobを作る: pipelineのscheduleとorchestrate。runとlineageを確認する。</li>
+<li>☐ Fri: Use case: streaming KPI pipelineがquality gateをpassする。監視queryをpublishする。</li>
+<li>☐ Sat: Week 22のquiz（quiz.md）を受ける。8/10で合格。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新し、pipeline codeをcommitする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

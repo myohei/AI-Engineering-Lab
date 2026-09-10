@@ -28,12 +28,14 @@ The first build takes a minute or two, and every later push to `main` republishe
 `scripts/build_site.py`, then run:
 
 ```bash
-python scripts/build_site.py
+uv run --with markdown --with pillow scripts/build_site.py
 ```
 
 The script reads the manifest so the week list on the site cannot drift from the curriculum, and it
-converts `assets/diagrams/lab-*.png` into WebP for the page. `docs/assets/style.css` and
-`docs/assets/hero-texture.jpg` are authored by hand.
+converts `assets/diagrams/lab-*.png` into WebP for the page. The same run renders the Japanese
+guide (the `*.ja.md` lessons plus the JA index, START-HERE, and overview) into `docs/ja/`, served
+at `/ja/`; links to notebooks, the reference library, and the English originals point at GitHub.
+`docs/assets/style.css` and `docs/assets/hero-texture.jpg` are authored by hand.
 
 ## Before you push
 
@@ -42,7 +44,7 @@ python scripts/build_tracker.py     # regenerate the Excel tracker from the mani
 python scripts/check_notebooks.py   # notebooks parse and follow conventions
 python scripts/check_links.py       # every internal markdown link resolves
 python scripts/check_mermaid.py     # every mermaid block is themed and parses
-python scripts/build_site.py --check  # docs/index.html matches the manifest
+uv run --with markdown --with pillow scripts/build_site.py --check  # docs (EN + JA) match the manifest
 ```
 
 ## Verify the public experience

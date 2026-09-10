@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 23: 演習とチェックリスト</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 23</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-23/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-23">Week 23: 演習とチェックリスト</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-23/exercises.md">英語版</a> · <a href="README.html">Week 23 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-mlflow-feature-engineering-training.ipynb</code> を最後まで実行する。championとchallengerのtest MAE、そして最終的な <code>@prod</code>/<code>@challenger</code> version mappingをprintします。四つともWeek 23のtracker sheetに記録してください。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: <code>notebooks/02-vector-search-rag.ipynb</code> で、inline corpusに五つ目のpolicy documentを追加し、再embedし、AI Search indexを再syncし、該当する質問が新しいdocumentをtop結果でretrieveするようになったことを確認する。古いscoreの隣に新しいgroundedness scoreを書き留める。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: <code>01-mlflow-feature-engineering-training.ipynb</code> で、time-series <code>FeatureLookup</code> を外した変種（static featureのみ）をtrainingする。test-MAEの劣化を定量化し、point-in-time featureの価値（leakage防止の測定値）について一文で書く。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: <strong>ZoroLogistics point-in-time ETA model</strong> milestoneを進める: <code>@prod</code> modelをModel Serving endpointでserveし、sample feature vectorでcallし、predictionとlatencyをportfolioに記録する。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: notebook 01を最後のcellまで実行する。二つのMAEs、<code>@prod</code>/<code>@challenger</code> mapping、<code>point-in-time gain</code> を記録する。autologgingがwarningを出しても安全です。metricはちゃんとrunに載ります。</li>
+<li><strong>Standard</strong>: 五つ目のdocは、<code>createDataFrame</code> による書き込みの <em>前に</em> inlineの <code>docs</code> listに追加する。embed → index（<code>pipeline_type="TRIGGERED"</code> にはsyncが必要）→ query を再実行し、新しいgroundedness scoreを古いものと比較する。</li>
+<li><strong>Stretch</strong>: notebook 01のchallenger pathを再利用するが、<code>create_training_set</code> からpoint-in-time lookupを <em>丸ごと</em> 外す。championとのtest-MAE差が、leakage防止の測定値です。</li>
+<li><strong>Portfolio</strong>: <code>@prod</code> をscale-to-zero endpointでserveし、<code>dataframe_records</code>（model signatureが期待するのと同じfeature dict）でcallし、predictionとcold/warm latencyを記録する。</li>
+</ol>
+<h2 id="checklistmanifestjson-excel-tracker">Checklist（manifest.json + Excel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: MLflow + feature tables: baselineをlogする。point-in-time featureをbuildする。</li>
+<li>☐ Tue: ETA model（XGBoostまたはPyTorch）をtrainingする。MLflowにregisterする。challengerと比較する。</li>
+<li>☐ Wed: serving endpoint + AI Gateway rate limitを作る。Pythonからcallする。</li>
+<li>☐ Thu: Vector Search: policy docsをindexする。ai_queryでRAG chainをbuildする。</li>
+<li>☐ Fri: Use case: gold tableでGenie space。SQLをverifyする。publishする。</li>
+<li>☐ Sat: Week 23のquiz（quiz.md）を受ける。8/10で合格。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新し、ML assetsをcommitする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

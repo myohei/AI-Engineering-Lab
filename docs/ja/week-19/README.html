@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 19: Google Vertex AIとGemini</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 19</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-19/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-19-google-vertex-aigemini">Week 19: Google Vertex AIとGemini</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-19/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 19 of 24 · Section: Cloud AI Platforms · Category: Google
+🎯 <strong>Use case:</strong> multimodalなbill-of-lading pipeline。Gemini OCR → structured JSON → BigQuery。さらにsupport agentをADKでrebuild。
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-19/notebooks/01-gemini-multimodal-ocr.ipynb">01-gemini-multimodal-ocr.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-19/notebooks/02-vertex-agent-and-eval.ipynb">02-vertex-agent-and-eval.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>先週、support agentはMicrosoftのgovernance機構の後ろで生きることを学びました。今週、同じagentをGoogleに移し、問題が反転します。Googleは<strong>同じGemini modelへの二つの扉</strong>を与えてくれます。keyをbrowserに入れるだけで済むfree sandbox（AI Studio）と、governedなenterprise platform（Vertex AI）です。片方はinstant gratification、もう片方はproductionです。ほとんどの人が犯す失敗は、この二つを交換可能として扱うことです。そしてその失敗のコストは現実です。<strong>free tierは、defaultであなたのdataをGoogle製品の改善に使う可能性がある</strong>からです。</p>
+<p>しかしGoogleはZoroLogisticsに、本当に別の仕事も渡してくれます。freightは紙の上で動きます。bill of lading、customs declaration、commercial invoiceです。それらの文書を読むことがbottleneckであり、Geminiのnativeな<strong>multimodal</strong>入力（一回のcallでimageとschema、返ってくるのはstructured JSON）は、「BoLをscanして打ち込む」をcomputer-vision projectから単一のAPI callに変えます。これがdocument作業における、他の二つのcloudに対するGoogleの正直なedgeであり、Week 19のuse caseが別のchat agentではなくOCRである理由です。</p>
+<p>つまり今週には二つのthreadがあります。第一にpipelineを証明します。synthetic bill of ladingをrenderし、Gemini visionで十fieldを抽出し、ground truthに対する<strong>per-field accuracy</strong>と<strong>cost per document</strong>を測ります。第二に、support agentを<strong>ADK</strong>でcode-firstにrebuildし、golden setで評価して、Foundry版と比較します。その比較がdeliverableの半分だからです。今週の前は「Gemini OCR」はTwitterで見たdemoです。後は、per-documentの価格とfree tier vs Vertexについての一行verdictを持つ、測られたpipelineです。per-fieldの数字のないpipelineは、JSON blobのscreenshotにすぎません。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、統一された<code>google-genai</code> SDKで、Google AI Studio（API key）とVertex AI（project + ADC）の両方からGeminiを呼べる。</li>
+<li>☐ 金曜日までに、multimodal BoL pipelineをbuildできる。syntheticなBoL imageをlocalでrenderし、Gemini visionでfieldをstructured JSONに抽出し、ground truthに対するper-field accuracyを測る。</li>
+<li>☐ 金曜日までに、support agentをADKでcode-firstにrebuildし、golden-set evaluationを実行できる。</li>
+<li>☐ 金曜日までに、cost per documentを推定し、機密dataにfree AI Studio tierを使えない理由を説明できる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run / build</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mon</td>
+<td>AI Studio vs Vertex。free-tierのdata rule</td>
+<td>API keyを取得。quotaを確認。<code>gcloud auth application-default login</code></td>
+<td>動くGemini call</td>
+<td>2〜3時間</td>
+</tr>
+<tr>
+<td>Tue</td>
+<td>Gemini multimodalとstructured output</td>
+<td>BoL PNGsをrender。JSONに抽出。per-field accuracyを測定</td>
+<td>accuracy table</td>
+<td>2〜3時間</td>
+</tr>
+<tr>
+<td>Wed</td>
+<td>ADK（code-first）vs Agent Builder vs Agent Engine</td>
+<td>support agentをADKでrebuild。Foundry版と比較</td>
+<td>ADK agent</td>
+<td>2〜3時間</td>
+</tr>
+<tr>
+<td>Thu</td>
+<td>Vertex evaluation。BigQuery ML</td>
+<td>golden-set evalを実行。結果をBigQueryにlog</td>
+<td>eval score + table</td>
+<td>2〜3時間</td>
+</tr>
+<tr>
+<td>Fri</td>
+<td>Pricing tierとquota</td>
+<td>end-to-end pipeline（images → clean table）。cost per documentを公開</td>
+<td>cost-per-documentの数字</td>
+<td>3〜4時間</td>
+</tr>
+<tr>
+<td>Sat</td>
+<td>復習</td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-19/quiz.md">quiz</a>を受ける（8/10）</td>
+<td>quiz scoreをNotesに記録</td>
+<td>1時間</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/12-cloud-platforms.md"><code>reference/knowledge-base/12-cloud-platforms.md</code></a> の共有mental modelと、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/google-vertex/README.md"><code>reference/platforms/google-vertex/README.md</code></a> のrunbookを読んでください。Googleはgenerative-AI surfaceを<strong>同じGemini modelへの二つのentry point</strong>に分けており、その分割が今週の最初のlessonです。</p>
+<p><strong>Google AI Studio</strong>（<code>aistudio.google.com</code>）は実験sandboxです。Google accountとAPI keyがあれば、infrastructureゼロで数分で動くGemini callが手に入ります。<strong>Vertex AI</strong>（Google Cloud Console）はenterprise platformで、同じmodelにcloud-project billing、IAM、VPC Service Controls、quota、MLOpsが付きます。移行pathは意図的です。AI Studioで始め、後で<em>同じcode</em>を別credential（<code>vertexai=True</code> + project/location）でVertexに向けます。早期に内部化して決して破らない一つのrule: <strong>AI Studioのfree tierは、defaultであなたのdataをGoogle製品の改善に使う可能性があるため、機密dataには使えません。</strong> ZoroLogisticsのdataはsyntheticなので安全ですが、分離する習慣こそが本当のdeliverableです。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Google AI Studio</th>
+<th>Vertex AI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>URL</td>
+<td><code>aistudio.google.com</code></td>
+<td>Google Cloud Console</td>
+</tr>
+<tr>
+<td>認証</td>
+<td>API key（Google account）</td>
+<td>GCP project + IAM / ADC</td>
+</tr>
+<tr>
+<td>課金</td>
+<td>free tier + 有料Gemini API</td>
+<td>cloud project billing</td>
+</tr>
+<tr>
+<td>Governance</td>
+<td>ほぼなし（dataがdefaultでGoogleをtrainする可能性）</td>
+<td>IAM、VPC-SC、CMEK、quota、audit</td>
+</tr>
+<tr>
+<td>向いている場面</td>
+<td>prototyping、学習</td>
+<td>production化</td>
+</tr>
+</tbody>
+</table>
+<h3 id="multimodalgemininativity">multimodal入力としてのGeminiのnativity</h3>
+<p>二番目のconceptは、use caseがOCRである理由です。Geminiは一回のcallでimageとtextを受け取り、<strong>response schemaに沿ったstructured JSON</strong>を返せます。これが「scanされたbill of ladingを読む」を、typedな出力を持つ単一のAPI callに畳み込みます。modelの梯子は単一の選択ではなくcost/quality dialです。</p>
+<table>
+<thead>
+<tr>
+<th>Model rung</th>
+<th>役割</th>
+<th>Trade-off</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gemini-2.5-flash-lite</code></td>
+<td>最安。大volume・単純な抽出</td>
+<td>最低cost、最低reasoning</td>
+</tr>
+<tr>
+<td><code>gemini-2.5-flash</code></td>
+<td>workhorse。本演習のdefault</td>
+<td>最良のcost/latency balance</td>
+</tr>
+<tr>
+<td><code>gemini-2.5-pro</code></td>
+<td>frontier reasoning。難しいlayout</td>
+<td>最高cost、最高品質</td>
+</tr>
+<tr>
+<td>"Thinking" variant</td>
+<td>予算付きのinternal reasoning</td>
+<td>token増、より深いreasoning</td>
+</tr>
+</tbody>
+</table>
+<p>Week 8の選択習慣がそのまま使えます。accuracy barをクリアする最も安いmodelを選び、数字で証明する。<strong>Model Garden</strong>はGeminiの周りのVertexのcatalog層で、Geminiが適切なtoolでないときにImagen（image）、Veo（video）、Chirp（speech）、open model（Llama、Mistral、Gemma）をsurfaceします。</p>
+<h3 id="agent-stack">三層のagent stack</h3>
+<p>Googleはagentをbuildする方法を、low-codeからcode-firstまで三つ与えてくれます。</p>
+<table>
+<thead>
+<tr>
+<th>層</th>
+<th>Style</th>
+<th>使うとき</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Agent Builder</strong></td>
+<td>no-code/low-code、grounded RAG</td>
+<td>高速prototype、非engineer</td>
+</tr>
+<tr>
+<td><strong>Agent Engine</strong></td>
+<td>agentをendpointとしてhostするmanaged runtime</td>
+<td>production deployment</td>
+</tr>
+<tr>
+<td><strong>ADK</strong></td>
+<td>code-first、open-source framework</td>
+<td>engineering control。本演習のdefault</td>
+</tr>
+</tbody>
+</table>
+<p><strong>ADK</strong>（Agent Development Kit）はcode-firstのopen-source frameworkです。<code>Agent(model,
+name, instruction, tools)</code> と<code>FunctionTool</code>でwrapしたfunction、LangGraph流のorchestration、multi-agent supportを持ちます。Week 14〜16のsupport agentをADKでrebuildし、<strong>Agent Engine</strong>にdeployして、Week 18のFoundry版と比較します。ADKとAgent EngineはどちらもMCPをsupportするので、Week 16のserverはそのまま移植できます。</p>
+<h3 id="bigquery-ml-warehouseai">BigQuery ML: warehouseから出ないAI</h3>
+<p>Google特有の動きが<strong>BigQuery ML</strong>です。MLを<em>warehouseの中でSQLで</em>実行します。生成やembeddingのためにGeminiへのremote callも含みます。ZoroLogisticsでは、OCR出力をBigQueryにloadし、SQLから出ずに<code>ML.GENERATE_TEXT</code>で行をclassifyできることを意味します。stretch exerciseの実例、抽出された各shipmentのfreight-terms riskをclassifyします。</p>
+<pre><code class="language-sql">SELECT
+  ml_generate_text_result['candidates'][0]['content']['parts'][0]['text'] AS risk_label
+FROM ML.GENERATE_TEXT(
+  MODEL `zorost.gemini_model`,
+  (SELECT CONCAT('Classify the freight risk of this shipment: ', commodity, ' from ',
+                 port_of_loading, ' to ', port_of_discharge) AS prompt
+   FROM `zorost.bol_extractions`)
+);
+</code></pre>
+<p>data/analytics teamがGCPに傾く理由がこれです。pipelineはwarehouseから出ません。end-to-endのWeek 19 pipelineをflowとして描くと次のとおりです。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    B[&quot;Synthetic BoL text&lt;br/&gt;zoro.data.bol_samples()&quot;] --&gt; R[&quot;render_bol_png&lt;br/&gt;Pillow&quot;]
+    R --&gt; IMG[&quot;BoL PNG image&quot;]
+    IMG --&gt; G[&quot;Gemini vision&lt;br/&gt;gemini-2.5-flash&quot;]
+    G --&gt;|&quot;response_mime_type: json&quot;| J[&quot;Structured JSON&lt;br/&gt;10 fields&quot;]
+    J --&gt; V[&quot;field_matches&lt;br/&gt;vs ground truth&quot;]
+    V --&gt; A[&quot;Per-field accuracy&quot;]
+    J --&gt; BQ[&quot;BigQuery&quot;]
+    BQ --&gt; ML[&quot;ML.GENERATE_TEXT&lt;br/&gt;classification&quot;]
+    A --&gt; C[&quot;Cost per document&quot;]
+</div>
+<p>左半分がOCR pipeline、右半分が任意のin-warehouse stepです。両方が測られた数字、per-field accuracyとcost per documentを生み、Week 20 matrixに着地します。</p>
+<h3 id="cost-per-documentfree-tier">cost per documentとfree-tierの境界</h3>
+<p>Vertexと有料Gemini APIはtokenごと、imageごとに課金します。AI Studioのfree tierはdollar budgetではなく、日次の<em>request</em> quotaです（歴史的にはmodelとtierにより数十〜約1,000 requests/day）。<strong>実例</strong>、<code>gemini-2.5-flash</code>でのBoL文書一枚。image一枚と約150 input token、約120 output token。placeholder priceをimage $0.000315、input $0.30 per 1M、output $2.50 per 1Mとすると:</p>
+<ul>
+<li>Image: $0.000315</li>
+<li>Input: 150 × $0.30 / 1,000,000 = $0.000045</li>
+<li>Output: 120 × $2.50 / 1,000,000 = $0.00030</li>
+<li><strong>合計 ≈ $0.00066 per document。</strong></li>
+</ul>
+<p>だからfree tierはlab scaleではfreeに感じます。しかし<em>binding</em>な制約はrequest quotaであり、<em>本当の</em>costはdollarではなくgovernanceです。productionの一日がGeminiに送る同じ100文書は、invoiceがほぼゼロでも、free tierではdata ruleに違反します。<code>429</code> error（code bugではなくquota問題）に注意し、batchの<em>前に</em>quotaを確認し、Vertex runの前にbilling budgetを設定してください。</p>
+<h3 id="_5">うまくいかない理由</h3>
+<p>Gemini pipelineは予測可能な形で壊れます。<strong>AI Studioに機密dataを送る:</strong> free tierはdefaultでそれをtrainに使う可能性があり、分離する習慣が脚注ではなくdeliverableです。<strong>batch途中の<code>429</code>:</strong> それはquota天井で、consoleでregionごと/modelごとに引き上げるものであり、codeで直すものではありません。<strong>Region不一致:</strong> Geminiの可用性はregionごとです。404sするmodelは大抵そのregionで無効化されています（<code>us-central1</code>が安全なdefault）。<strong>Auth混乱:</strong> 同じ<code>google-genai</code> clientは<code>vertexai=True</code> flagで挙動が変わります。<code>ADC</code> errorは、<code>gcloud auth application-default login</code>なしでVertex modeにいることを意味します。<strong>modelからのparseできないJSON:</strong> Geminiはmarkdown fenceや末尾のcommaを返すことがあります。fenceをstripし、採点の前にvalidateしてください。notebookがやる通りに。最後に、<strong>per-field accuracyではなく「動いた」を測ること:</strong> 正しそうに見えるJSON blobでもconsigneeが間違っていることがあり、per-fieldの数字だけが正直なmetricです。</p>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p>二つのnotebookがあります。local部分（image render、accuracy、cost、dry-runのagent loop）はkeyなしで動き、Gemini/Vertexのcallだけがcredentialを必要とします。</p>
+<p><strong><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-19/notebooks/01-gemini-multimodal-ocr.ipynb"><code>notebooks/01-gemini-multimodal-ocr.ipynb</code></a></strong>
+はrepoをbootstrapし、次に<code>render_bol_png</code>が各synthetic BoLのtextをPillowで白いPNGに描きます（<code>DejaVuSansMono.ttf</code>を試し、default fontにfallback）。<code>bol_images/</code> directoryへの書き出しで、Geminiはpromptのtextを読むのではなく<em>vision</em>をexerciseします。六つのsampleが<code>data.bol_samples(n=6, seed=5)</code>でloadされます。<code>EXTRACT_PROMPT_OCR</code>はちょうど十個のJSON keyを要求し、<code>gemini_extract</code>は<code>genai.Client(api_key=...)</code>を<code>config={"response_mime_type": "application/json"}</code>とimageを<code>inline_data</code>として呼びます。loopは<code>img_paths[:4]</code>に対して回り、markdown fenceをstripし、<code>field_matches</code>（Week 18と同じ十field、型awareな比較器）で採点します。最後のcellは<code>OVERALL_FIELD_ACCURACY</code>と、placeholder price（$0.000315/image、$0.30/M in、$2.50/M out）からの<code>COST_PER_DOCUMENT_USD</code>をprintします。正しい出力: accuracyは<code>[0, 1]</code>、costは一セント未満の値です。</p>
+<p><strong><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-19/notebooks/02-vertex-agent-and-eval.ipynb"><code>notebooks/02-vertex-agent-and-eval.ipynb</code></a></strong>
+は5,000件のshipmentと四つのpolicy docをloadし、<code>track_shipment</code>と<code>check_refund_policy</code>（$500超のrefund → "Requires human approval"）を定義し、ADK <code>Agent(model="gemini-2.5-flash", ...)</code>の中で<code>FunctionTool</code>としてwrapします。<code>vertex_client()</code> helperがenterprise pathを示します: <code>genai.Client(vertexai=True, project=..., location="us-central1")</code>。golden set（<code>Q1</code>〜<code>Q4</code>）はlocal loop（本当にtoolを使います。tracking質問は<code>track_shipment</code>を呼ぶ）で採点され、<code>EVAL_SCORE</code>をprintします。任意のBigQuery cellは、<code>GOOGLE_CLOUD_PROJECT</code>と<code>BIGQUERY_EVAL_TABLE</code>が設定されていれば<code>bigquery.Client().load_table_from_dataframe</code>でeval行をlogし、最後のcellが<code>EVAL_SCORE</code>を再printします。dry-runでのscoreは<code>1.000</code>（golden question四つすべてがpass）で、Foundryとの比較noteがWeek 20 matrixへの架け橋です。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> end-to-endのmultimodal pipeline。BoL image → Gemini structured JSON →（任意で）BigQuery。(a) Week 6のgolden setに対するper-field accuracy、(b) cost per document、(c) ADKでrebuildしgolden setで評価したsupport agent。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人があなたのnotebookを再実行し（同じseed、同じrender済みimage）、per-field accuracyとcost-per-documentの数字を再現できること。そしてあなたは、<em>Geminiが何を間違えたか</em>、つまり抽出に失敗した具体的なfieldと文書を見せられ、free tierとVertexのどちらがこの仕事に合うかについて一行のverdictを出せること。</p>
+<p><strong>Stretch:</strong> 抽出したJSONをBigQueryにloadし、行に対して<code>ML.GENERATE_TEXT</code>によるclassifyを一回実行します（例: freight-terms整合性やcommodity-risk label）。schemaと一つのqueryをdocument化すること。速く進む人は、二つ目のmodel rung（<code>flash-lite</code> vs <code>flash</code>）で抽出を再実行し、accuracy-vs-costの二行tableを追加できます。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>症状</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI Studioに機密dataを流す</td>
+<td>dataがdefaultでGoogleをtrainする可能性</td>
+<td>synthetic dataでprototype。最終pipelineはVertexで</td>
+</tr>
+<tr>
+<td>batch途中の<code>429</code></td>
+<td>quotaであってcode bugではない</td>
+<td>batchの前にregionごとのquotaを確認・引き上げ</td>
+</tr>
+<tr>
+<td>Region不一致</td>
+<td>modelが404sする</td>
+<td>modelが<code>us-central1</code>（またはあなたのregion）で有効か確認</td>
+</tr>
+<tr>
+<td><code>vertexai=True</code>のauth混乱</td>
+<td><code>ADC</code> error</td>
+<td>先に<code>gcloud auth application-default login</code></td>
+</tr>
+<tr>
+<td>parseできないJSON</td>
+<td><code>json.loads</code>がfence/commaでthrow</td>
+<td>fenceをstrip。採点前にvalidate</td>
+</tr>
+<tr>
+<td>「動いた」を採点する</td>
+<td>per-fieldのsignalがない</td>
+<td>ground truthに対してper-field accuracyを測る</td>
+</tr>
+<tr>
+<td>free-tier quota枯渇</td>
+<td>batchが途中で死ぬ</td>
+<td>cost/quota確認まではcloud runを4 imageに留める</td>
+</tr>
+<tr>
+<td>billing budgetなし</td>
+<td>surpriseなVertex invoice</td>
+<td>どんなVertex batchの前にでもbudget + alertを設定</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Google AI Studio</strong>: freeでkey baseのGemini sandbox（<code>aistudio.google.com</code>）。</li>
+<li><strong>Vertex AI</strong>: 同じGemini modelに対するGoogleのgovernedなenterprise platform。</li>
+<li><strong>ADC (application default credentials)</strong>: Vertex codeのためのlocal credential chain（<code>gcloud auth application-default login</code>）。</li>
+<li><strong><code>google-genai</code></strong>: AI Studio（<code>api_key</code>）またはVertex（<code>vertexai=True</code>）に向く統一SDK。</li>
+<li><strong>Multimodal</strong>: 一回のcallでimage + textを受け取ること。document OCRにおけるGeminiのedge。</li>
+<li><strong>Response schema</strong>: typed schemaに制約されたstructured JSON出力を要求すること。</li>
+<li><strong>Model Garden</strong>: 第一party、open、partner modelのVertex catalog。</li>
+<li><strong>ADK (Agent Development Kit)</strong>: Googleのcode-firstでopen-sourceなagent framework。</li>
+<li><strong>Agent Engine</strong>: ADK/Agent Builder agentをendpointとしてhostするmanaged runtime。</li>
+<li><strong>BigQuery ML</strong>: BigQueryの中でSQLでML（Geminiへの<code>ML.GENERATE_TEXT</code>を含む）を実行すること。</li>
+<li><strong>Golden set</strong>: agentを採点するために再利用するWeek 11のquestion/ground-truth pair。</li>
+<li><strong>Per-field accuracy</strong>: 十個のBoL fieldのうち正しく抽出された割合。fieldごとに測る。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-19/quiz.md"><code>quiz.md</code></a>を受けてください。これらのconceptとnotebook codeに紐づく10問です。合格ラインは<strong>8/10</strong>。scoreをNotesに記録してください。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exercise（easy / standard / stretch / portfolio）が<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-19/exercises.md"><code>exercises.md</code></a>にあります。per-field accuracyとcostの記録から、二model rung比較、BigQueryの<code>ML.GENERATE_TEXT</code> query、三cloud matrixのGoogle列まで。hintは同じfileにあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>Migrate from Google AI Studio to Vertex AI: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/migrate/migrate-google-ai</li>
+<li>Model Garden supported models: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-garden/available-models</li>
+<li>Tune Gemini models with supervised fine-tuning: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/models/gemini-use-supervised-tuning</li>
+<li>Migrate to the Google GenAI SDK: https://ai.google.dev/gemini-api/docs/migrate</li>
+<li>Vertex AI Agent Builder (product page): https://cloud.google.com/products/agent-builder</li>
+<li>Gemini 2.5 model family expansion (Google blog): https://blog.google/products-and-platforms/products/gemini/gemini-2-5-model-family-expands/</li>
+<li>Gemini API free tier / quotas: https://discuss.ai.google.dev/t/gemini-api-free-tier-daily-quota-25-rpd-blocking-paid-usage-tier-1-1000-rpd/79899</li>
+<li>BigQuery ML remote models for Gemini: https://cloud.google.com/bigquery/docs/generate-text-tutorial</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

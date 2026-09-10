@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 05: LLMsの仕組み——TokenからTransformerまで</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 05</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-05/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-05-llmstokentransformer">Week 05: LLMsの仕組み——TokenからTransformerまで</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-05/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 05 of 24 · Section: LLM Core · Category: LLM Internals
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-05/notebooks/01-tokenization-lab.ipynb">01-tokenization-lab.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-05/notebooks/02-embeddings-and-attention-lab.ipynb">02-embeddings-and-attention-lab.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsは一日に100,000件のshipment noteを、carrier更新、exception log、support ticketとして処理しており、経営層はそれぞれをops desk向けに要約するLLMを求めています。誰かがpromptを書く前に、誰かがお金のquestionに答えなければなりません。<em>これはいくらかかり、そもそもmodelは我々のcallをwindowに収められるのか？</em> naiveな答え、「ただのtextでしょ、wordsは安い」は、quietに月五桁のコストがかかるsummarizerをshipする、あるいはtoken budgetを誰も測らなかったことが本当のfaultなのにmodelが「混乱した」と責めるteamの作り方です。</p>
+<p>今週は、その後のすべてのdecisionを読めるようにするmental modelを構築します。LLMはmemoを送るreasoning engineではありません。<strong>next-token predictor</strong> です。あなたのpromptをtokenとして読み、vectorに変換し、attentionで文脈を集め、次のtokenをsampleする。これを繰り返します。cost、latency、memory、予測不可能性はすべて、この一つの事実から導かれます。これがなければ「なぜ遅いのか？」「なぜ請求が跳ねたのか？」に答えはありません。あれば、realのshipment noteをtokenizeし、callの価格を一円単位で計算し、「ZoroLogistics」というbrand名が四tokenで「shipment」が一tokenかかる理由を説明できます。</p>
+<p>before/afterは具体的です。beforeでは、ops teamが <code>chars / 4</code> のruleでcostを当て、carrier codeが余分なsubwordに分割されるため20%過少見積もります。afterでは、固定seedから再現される、noteごとと100k callごとのドル金額をprintする設定可能な <code>$/Mtok</code> estimatorをshipします。</p>
+<h2 id="_2">目標</h2>
+<p>金曜日までにできるようになること:</p>
+<ul>
+<li>☐ LLMが「答える」ときに何をするかを一文で説明する（学習済みdistributionから次のtokenを、繰り返しsampleする）。そしてrequestをend-to-endで追う。tokens → embeddings → attention blocks → distribution → sample。</li>
+<li>☐ <code>tiktoken</code> でrealのfreight textをtokenizeし、<code>chars / 4</code> の当て推量ではなく <em>実際の</em> token countで、OpenAI互換のcallを設定可能な <code>$/Mtok</code> で値付けする。</li>
+<li>☐ sentence transformerでcommodity descriptionをembedし、cosine similarityでrankする。なぜ似た意味が近くに位置するのかを説明する。</li>
+<li>☐ NumPyでscaled dot-product attentionとcausal maskを実装し、attention重み行列を読んで、どのtokenがどのtokenに注目するかを言う。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run / build</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td>tokenization（BPE、vocab、token count）とembeddings。<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/03-llm-core-concepts.md"><code>reference/knowledge-base/03-llm-core-concepts.md</code></a> §1〜2</td>
+<td><code>01-tokenization-lab.ipynb</code> のcell 0〜6を流し読み</td>
+<td>Notes：一文mental model + BPEが「ZoroLogistics」を分割する理由</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>self-attention、transformer block、KV cache（§3〜6）</td>
+<td>notebook 1をend-to-endで実行。<code>$/Mtok</code> estimatorを追加</td>
+<td>realのnote一枚のtoken-costの数字</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>embeddings。word vs. contextual、cosine similarity（§2）</td>
+<td><code>02-embeddings-and-attention-lab.ipynb</code> Part 1を実行</td>
+<td>3つのqueryに対するTop-3 commodity match</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>codeでのattention。causal masking。generation dial（§3、§10）</td>
+<td>notebook 2 Part 2を実行。重みheatmapを読む</td>
+<td>声に出して説明できるattention行列</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>end-to-end pipeline diagramを復習（§"How the pieces fit together"）</td>
+<td>use caseを組み立てる。estimator + similarity search、固定seed</td>
+<td>金曜日の成果物 + 一段落のnote</td>
+<td>約3時間</td>
+</tr>
+</tbody>
+</table>
+<p><em>（Sat: Week 5のquizを受ける。checklistは <code>exercises.md</code> 参照。）</em></p>
+<h2 id="_4">概念</h2>
+<p>まず <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/03-llm-core-concepts.md"><code>reference/knowledge-base/03-llm-core-concepts.md</code></a> を読んでください。この節が地図で、あのfileが地形です。discipline全体が一つの事実に懸かっています。<strong>LLMは次のtokenを予測する。</strong> knowledge baseを参照せず、内なる独白で「決定」せず、callの間で永続するmemoryも持ちません。語彙上の学習済みdistributionから、一度に一つのtokenをsampleします。AI engineerとしてのあなたの仕事は、tokenと確率について考えることであって、modelを擬人化することではありません。</p>
+<h3 id="tokenization">Tokenizationは正面玄関</h3>
+<p>modelは文字ではなく <strong>token</strong> を読みます。tokenizerはtextをsubwordの断片に切り、それぞれを整数のIDにmapします。<strong>BPE（byte-pair encoding）</strong> は、最も頻出する隣接文字pairを繰り返しmergeしてvocabを構築します。だからよく使う語は単一tokenになり（"shipment"）、珍しい語や造語は分割されます（"ZoroLogistics" → <code>Z</code> / <code>oro</code> / <code>Log</code> / <code>istics</code>、四token。tracking code <code>ZRL-10042</code> は五token）。これが、IDs、code、emojiだらけのfreight textで <code>chars / 4</code> 推定がズレる理由です。同じ情報でも、内容によってtokenize結果が大きく変わります。notebookはこれを <code>cl100k_base</code>（GPT-4と <code>text-embedding-3</code> の背後にあるtokenizer）で直接測ります。</p>
+<table>
+<thead>
+<tr>
+<th>textの種類</th>
+<th>Chars</th>
+<th>Tokens</th>
+<th>Chars/token</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>英文prose</td>
+<td>90</td>
+<td>17</td>
+<td>5.3</td>
+</tr>
+<tr>
+<td>Shipment note</td>
+<td>214</td>
+<td>41</td>
+<td>5.2</td>
+</tr>
+<tr>
+<td>Bill of lading</td>
+<td>364</td>
+<td>123</td>
+<td>3.0</td>
+</tr>
+<tr>
+<td>Support ticket</td>
+<td>67</td>
+<td>20</td>
+<td>3.4</td>
+</tr>
+<tr>
+<td>Python code</td>
+<td>92</td>
+<td>28</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td>Commodity名</td>
+<td>162</td>
+<td>30</td>
+<td>5.4</td>
+</tr>
+<tr>
+<td>Unicode/emoji</td>
+<td>49</td>
+<td>15</td>
+<td>3.3</td>
+</tr>
+</tbody>
+</table>
+<p>proseはcompact（~5 chars/token）で、IDsやcodeはtokenを食います（~3）。だからrealのtokenizerなしのcost推定は、freight pipelineが満載しているまさにそのfieldで、<em>方向的に</em> 間違えます。token countはcostに直接効きます。<code>cost = (input_tokens × $/input_token) + (output_tokens × $/output_token)</code>。百万tokenあたりで価格付けされ、outputは通常inputの数倍です。</p>
+<h3 id="embeddingswordvector">Embeddings：wordがvectorになる</h3>
+<p>tokenizerは各tokenにIDを与え、<strong>embedding</strong> は次元 <code>d</code> のvectorを与えます。似た意味が近くに来るように学習されます。二つのlevelが重要です。<strong>word（static）embedding</strong> は語ごとに一つのvectorを割り当てるので、"bank"はriverbankも送金も同じ一つのvectorです。<strong>contextual embedding</strong>、transformerが産出するもの、は同じ語でも文脈ごとに <em>異なる</em> vectorを与えます。"river bank"の"bank"と"bank transfer"の"bank"は別方向を指します。contextual embeddingは多義性を扱え、検索でindexし（Week 7）、類似度で比較するのはこのvectorです。vectorは共有の幾何空間に住むので、二つのvector間の <strong>cosine similarity</strong> が意味的な近さを測ります。「このqueryに最も似ているcommodity descriptionはどれか」の背後にあるprimitiveで、notebook 2はこれをtop-3 rankingに変えます。</p>
+<h3 id="self-attentiontoken">Self-attention：tokenが会話する仕組み</h3>
+<p>attentionはtoken <em>間</em> で情報を動かします。各tokenのembeddingは、学習済み行列で三つのvectorに射影されます。<strong>Query</strong>（「何を探しているか？」）、<strong>Key</strong>（「何を持っているか？」）、<strong>Value</strong>（「何を提供するか？」）。scaled dot-product attentionは、各tokenについて他のすべてのtokenのkeyとのscoreを計算し、scaleし、合計1になるようsoftmaxで重みにし、valueを混ぜます。</p>
+<pre><code>Attention(Q, K, V) = softmax(Q·Kᵀ / √d_k) · V
+</code></pre>
+<p><code>√d_k</code> で割るのは、次元が大きくなるとsoftmaxが飽和するのを防ぐためです。<strong>multi-head</strong> attentionは複数のheadを異なる射影で並走させ、headごとに専門化できます（一つはsyntax、一つはshipment ID、一つは日付）。生成中の <strong>causal mask</strong> は現位置より後の位置をすべてゼロにし（下三角mask）、tokenが未来を覗かないようにします。これがincrementalな一tokenずつの生成を可能にするものでもあります。<strong>transformer block</strong> はattentionと小さなMLPを <strong>residual connection</strong>（<code>x ← x + …</code>）と <strong>layer norm</strong> で包み、<strong>position encoding</strong>（最近のmodelは <strong>RoPE</strong>）が各tokenがどのslotにいるかをattentionに教えます。attention自体は順序を知覚できないからです。このblockを数十段積むと、最後のtokenの最終vectorが語彙全体上のdistributionに射影されます。</p>
+<h3 id="kv-cachememory">KV cache：長い文書がmemoryを食う理由</h3>
+<p>token <em>n+1</em> を予測するため、modelはtoken <em>1…n</em> に注目します。毎stepでそのprefix全体を再計算するのは二乗の仕事です。<strong>KV cache</strong> は過去の各tokenのKeyとValueを保存するので、新しいtokenは自分のQ/K/Vだけを計算し、cacheに対してattendします。stepあたりのcomputeはO(n²)からO(n)に下がり、生成はmemory-boundになります。cacheは線形に伸びます。おおよそ <code>2 × layers × heads × head_dim × seq_len × bytes_per_param</code>。長い文書は、<em>答えが短くても</em> 高くつきます。prefillがcacheを構築し、それがresidentであり続けるからです。これがprompt cachingとcontext-budgetのdiscipline（Week 6）の背後にあるleverです。</p>
+<h3 id="distribution-text">生成：distribution → text</h3>
+<p>最終distributionが与えられると、<strong>greedy</strong> decodeは最高確率のtokenを取ります（決定的、extraction向き）。<strong>sampling</strong> はdistributionに従って引きます（多様、tuningが必要）。三つのdialがsamplingを形づくります。</p>
+<table>
+<thead>
+<tr>
+<th>Dial</th>
+<th>何をするか</th>
+<th>使う場面</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Temperature（T）</td>
+<td>logitsをTで割る。T&lt;1は鋭く、T&gt;1は平坦に</td>
+<td>決定的extraction vs. 創造的draft</td>
+</tr>
+<tr>
+<td>Top-k</td>
+<td>最も確率の高いk個のtokenに制限する</td>
+<td>junkな裾を安く除去</td>
+</tr>
+<tr>
+<td>Top-p（nucleus）</td>
+<td>質量pに達する最小の集合を保持する</td>
+<td>adaptive cutoff、汎用default</td>
+</tr>
+<tr>
+<td>max_tokens / EOS</td>
+<td>長さの上限、停止を許す</td>
+<td>cost上限、暴走出力の防止</td>
+</tr>
+</tbody>
+</table>
+<h3 id="moemodel">MoE、そしてmodelが「知っている」仕組み</h3>
+<p>dense transformerはすべてのtokenを同じMLPに通します。<strong>mixture-of-experts（MoE）</strong> modelは多数の小さなMLPsを持ち、<strong>router</strong> が各tokenをtop-1/2のexpertに送ります。総parameterは巨大、tokenあたりcomputeは控えめ。ただし <em>すべての</em> expertがresidentでなければならず、MoE modelはmemoryを食います。知識が入る経路は三つあり、時期順に並べると:</p>
+<table>
+<thead>
+<tr>
+<th>仕組み</th>
+<th>重みは変わる？</th>
+<th>Cost</th>
+<th>可逆性</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>In-context learning（ICL。zero/few-shot）</td>
+<td>No</td>
+<td>最安</td>
+<td>最高。promptを変えるだけ</td>
+</tr>
+<tr>
+<td>Retrieval（RAG、Week 7）</td>
+<td>No</td>
+<td>中</td>
+<td>高い。corpusを再indexする</td>
+</tr>
+<tr>
+<td>Fine-tuning（Week 10）</td>
+<td>Yes</td>
+<td>最高</td>
+<td>最低。重みを再訓練/rollback</td>
+</tr>
+</tbody>
+</table>
+<p>engineerのdefault順序は <strong>ICL first、次にretrieval、最後にfine-tuning</strong> です。最後に、<strong>context window</strong> とは、modelが一度のcallでattendできる最大token数です。capabilityであると同時にbillでもあり、習慣はこれを予算化することです（Week 6）。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    P[Prompt text] --&gt; T[&quot;Tokenize: BPE → IDs&quot;]
+    T --&gt; E[Embeddings + position encoding]
+    E --&gt; B1[&quot;Block 1: attention + MLP&quot;]
+    B1 --&gt; B2[...]
+    B2 --&gt; Bn[&quot;Block N: attention + MLP&quot;]
+    Bn --&gt; D[Logits → distribution over vocab]
+    D --&gt; G{&quot;Generation dials:&lt;br/&gt;greedy / T / top-k / top-p&quot;}
+    G --&gt; S[Sample next token]
+    S --&gt; KV[Append to KV cache]
+    KV --&gt; D
+    S --&gt; Stop{EOS or max_tokens?}
+    Stop -- no --&gt; S
+    Stop -- yes --&gt; Out[Answer]
+</div>
+<h3 id="1shipment-notetoken-budget">実例1：shipment note一枚のtoken budget</h3>
+<p>notebookのestimator（<code>estimate_cost</code>、<code>01-tokenization-lab.ipynb</code> のcell 10）は、設定可能な <code>$/Mtok</code> でcallの価格を計算します。実際のdataに対するrealな <code>cl100k_base</code> countを使うと:</p>
+<ul>
+<li>system prompt "Summarize this shipment note into 3 bullet points for an ops agent." → <strong>16 token</strong>。</li>
+<li>最初に生成されたshipment note（214文字）→ <strong>41 token</strong>（~5.2 chars/tokenであって、4では <em>ない</em> ことに注意）。</li>
+<li>3-bulletの要約と仮定 → <strong>60 output token</strong>。</li>
+</ul>
+<pre><code>input  = 16 + 41 = 57 tokens → 57 / 1e6 × $1.00  = $0.000057
+output = 60 tokens           → 60 / 1e6 × $3.00  = $0.000180
+per-call cost ≈ $0.000237
+</code></pre>
+<p>scaleしてみます。seed付きの50 noteは平均~30 tokenなので、<code>per_call_in ≈ 16 + 30 = 46</code> tokenです。$1.00/$3.00 per Mtokで100,000 note/日とすると:</p>
+<pre><code>46 / 1e6 × $1.00 + 60 / 1e6 × $3.00 ≈ $0.000226 × 100,000 ≈ $22.58/day
+</code></pre>
+<p>この単一の数字が、「かっこいいdemo」と「ops budgetに収まるか」の分かれ目です。ここから見えるlever、system promptの短縮、要約の上限、flagged shipmentだけの要約、はまさにWeek 6で使うものです。価格pairを$0.50/$1.50に下げると同じ一日は <strong>$11.29</strong> です。exerciseは、その変更を再実行してdeltaを示すことです。</p>
+<h3 id="2kv-cache">実例2：KV-cacheのサイジング</h3>
+<p>答えが短くても長い文書がなぜ痛いのか？ 7B-class model（32 layer、32 head、head_dim 128）を4,096-token context、FP16（2 bytes/param）で考えます:</p>
+<pre><code>KV cache = 2 × layers × heads × head_dim × seq_len × bytes_per_param
+         = 2 × 32 × 32 × 128 × 4096 × 2 bytes
+         ≈ 2.15 GB
+</code></pre>
+<p>modelの重み自体はFP16で~14 GBですが、単一の長いrequestの <em>resident</em> なcacheは~2.15 GBを追加し、100件の並行する長文summarizerは~215 GBのKV cacheをVRAMに保持します。長い文書は <strong>computeを膨らませるより、batch sizeとVRAMをはるかに強く制約します</strong>。これが、modelに投げる <em>前に</em> chunkし、truncateし、要約する実用的な理由であって、「もっと大きいwindowを使う」ではありません。Week 8はこの算術をmodel pickerに変えます。</p>
+<h3 id="_5">うまくいかない理由</h3>
+<p>今週の技法が防ぐfailure modeと、skipしたときに持ち込むfailure mode:</p>
+<ul>
+<li><strong><code>chars / 4</code> 当て推量。</strong> freightのIDsとcarrier codeは~3 chars/tokenでtokenizeされるので、prose向けのruleは、高くつくfieldまさにそこで15〜25%過少に数えます。常にrealのtokenizerで測ること。</li>
+<li><strong>KV cacheの忘却。</strong> computeについてだけ考え、memoryを無視する。答えが20 tokenでも、長い入力でboxはVRAMを使い果たします。</li>
+<li><strong>causal mask off。</strong> 下三角maskがないとmodelは未来のtokenにattendします。訓練では「未来を予測して、出荷まで素晴らしく見える」。生成ではincrementalに動かせません。</li>
+<li><strong>modelをreasoner扱いする。</strong> next tokenをsampleしているだけです。「modelが忘れた」は大抵「windowが追い出した」か「promptが制約を運ばなかった」です。</li>
+<li><strong>extractionでtemperatureが高すぎる。</strong> classification/extractionのcallはほぼgreedy（T≈0）を望みます。samplingは分散を加え、それを「間違った答え」としてdebugすることになります。</li>
+<li><strong>model横断のtoken比較。</strong> 二つのmodelは「同じ」1,000語を異なるtoken countとして読むので、あるtokenizerで見積もったbillは別のものでは間違っています。</li>
+</ul>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><strong><code>01-tokenization-lab.ipynb</code></strong>（CPUのみ、internet不要）。cell 2が、template（"departed {city} sorting hub"、"reefer unit {code} fault…"）から50件のrealisticなshipment noteを生成するgeneratorにseedを固定します。cell 4は <em>"ZoroLogistics ships pharmaceutical freight from Houston to New Orleans."</em> でBPEのencode/decode往復を実行し、<code>decode(encode(text)) == text</code> をassertします。cell 6がお金のcellです。<code>"shipment"</code>、<code>"ZoroLogistics"</code>、<code>"pharmaceuticals"</code>、<code>"🚚"</code>、<code>"ZRL-10042"</code>、<code>"unfathomable"</code>をtokenizeしてsubword片をprintします。「ZoroLogistics」が四tokenに、emojiが三tokenに分割されるのを見てください。cell 8は七種類のtext型でchars/token表を構築します（上の表）。cell 10が <code>estimate_cost</code> を定義し、cell 12が100,000 note/日にscaleします。最後のcellは <code>WEEK5_NB1_DAILY_COST_USD</code> をprintします。seed付きdata、$1.00/$3.00で <strong>≈ 22.58</strong>。「正しい」出力は数式ではなく、$20s前半の数字です。</p>
+<p><strong><code>02-embeddings-and-attention-lab.ipynb</code></strong>（⚠️ 一回限りのmodel downloadにinternetが必要。deterministicなoffline fallback付き）。cell 2は12個のcommodity記述子（"pharmaceuticals and medical supplies needing cold-chain handling"、"industrial chemicals and solvents with hazmat placards"…）と三つのqueryを定義します。<em>"temperature-sensitive medical cargo that must stay cold."</em> も含まれます。cell 4は <code>all-MiniLM-L6-v2</code>（384-dim）をloadするか、seed付きhash embeddingにfallbackします。cell 6ですべてをembedし、queryごとのtop-3 cosine matchをprintします。最初のqueryの正しいtop-1は <strong>pharmaceuticals</strong>（またはperishables）で、"furniture"では決してありません。Part 2は <code>scaled_dot_product_attention</code> と <code>causal_mask</code> をNumPyで実装し（cell 8〜10）、cell 12で5-tokenの列 <code>["shipment", "delayed", "due", "to", "storm"]</code> をidentity射影の単一headに通し、重み行列とASCII heatmapをprintします。heatmapを読んでください。最初のtokenは自分自身にだけattendし、最後のtokenはそれ以前のすべてにattendします（下三角pattern）。最後のcellは <code>WEEK5_NB2_TOP1_SIMILARITY</code>、最初のqueryのtop-1 cosineをprintします。realなembedderでは <strong>0.7〜0.8</strong> 近く（hash fallbackは低い値でも正しいcommodityを一位にします）。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> shipment noteのtoken-cost estimator（callあたりtoken数 vs. window size）とcommodity similarity search。両方を、ドル金額とtop-3 matchを説明する一段落のnoteとともにforkにcommitします。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人がinspectでき、あなたが何をしたかを見せられること。noteごとのtoken count、callごと <em>と</em> 100,000 callごとのドルcost、各queryのtop-3 commodity matchが、固定seedから再現されて見えること。</p>
+<p><strong>Stretch variant:</strong> notebook 1を、shipment noteの代わりに <code>data.bol_samples(20, seed=5)</code> に対して再実行し、同じ価格pairで二列のcost表（note-summarizer vs. BoL-extractor）を作り、BoLの~3 chars/tokenがなぜ文字あたり高くつくinputなのかを一文で書きます。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>症状</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>chars / 4</code> でcostを見積もる</td>
+<td>IDまじりのfreightでbillが20%ズレる</td>
+<td><code>tiktoken</code>（<code>cl100k_base</code>）で測る</td>
+</tr>
+<tr>
+<td>output tokenの無視</td>
+<td>inputだけでcost modeling</td>
+<td>必ずoutput項を足す。inputの3倍の価格です</td>
+</tr>
+<tr>
+<td>一つのtokenizerが全modelに合うと仮定</td>
+<td>provider間で数字がdrift</td>
+<td>modelごとに再tokenize。どのtokenizerか記録する</td>
+</tr>
+<tr>
+<td>heatmapの誤読</td>
+<td>causalとdense attentionを区別できない</td>
+<td>下三角patternを確認。未来のcellは~0です</td>
+</tr>
+<tr>
+<td>NumPy attentionのsoftmax overflow</td>
+<td><code>nan</code> の重み</td>
+<td><code>exp</code> の前に行maxを引く（notebookはそうしています）</td>
+</tr>
+<tr>
+<td>「open weights」を無料で動く扱い</td>
+<td>costとlicenseの混同</td>
+<td>costはtoken。licenseはWeek 8です</td>
+</tr>
+<tr>
+<td>高いtemperatureでextractionを実行</td>
+<td>非決定的な「間違った」答え</td>
+<td>extractionはT≈0に設定。draftでのみsampleする</td>
+</tr>
+<tr>
+<td>sizingでKV cacheを忘れる</td>
+<td>長文・短答でOOM</td>
+<td>重み予算に <code>2·L·H·hd·seq·bpp</code> を足す</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Token</strong>: modelが読むsubword単位。cost、latency、windowの通貨。</li>
+<li><strong>BPE</strong>: byte-pair encoding。頻出の隣接pairをmergeしてvocabを構築する。珍しい語がsubwordに分割される理由。</li>
+<li><strong>Embedding</strong>: token/文のdense vector。近さ＝意味の類似。</li>
+<li><strong>Contextual embedding</strong>: 文脈の関数としてのtoken vector（"bank"は二方向を指す）。</li>
+<li><strong>Cosine similarity</strong>: 正規化した内積。二つのvectorの向きの一致を測る。−1から1。</li>
+<li><strong>Self-attention</strong>: すべてのtokenがQ/K/V経由で他のすべてのtokenから文脈を集める。</li>
+<li><strong>Causal mask</strong>: tokenが未来を見ないようにする下三角mask。</li>
+<li><strong>KV cache</strong>: 過去のkey/valueを保存し、生成をstepあたりO(n²)でなくO(n)にする。</li>
+<li><strong>MoE</strong>: mixture-of-experts。routerが各tokenを多数のMLPsのうち少数へ送る。memoryとcomputeの交換。</li>
+<li><strong>Temperature / top-k / top-p</strong>: 確率distributionを選ばれたtokenに変えるdial。</li>
+<li><strong>Context window</strong>: 一度のcallでmodelがattendできる最大token数。capabilityでありbillでもある。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p>概念とnotebook codeをカバーする十問が <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-05/quiz.md"><code>quiz.md</code></a> にあります。合格ラインは <strong>8/10</strong> です。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exercise（easy / standard / stretch / portfolio）があります。token-costの再実行、新しいtext型、二head attentionへの拡張、そして <code>token_budget.py</code> CLIです。各hintは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-05/exercises.md"><code>exercises.md</code></a> にあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>Jay Alammar, <em>The Illustrated Transformer</em>：https://jalammar.github.io/illustrated-transformer/</li>
+<li>Alammar &amp; Grootendorst, <em>How Transformer LLMs Work</em>（DeepLearning.AI）：https://www.deeplearning.ai/short-courses/how-transformer-llms-work/</li>
+<li>Hugging Face, <em>Tokenizers documentation</em>：https://huggingface.co/docs/tokenizers/</li>
+<li>Hugging Face, <em>Transformers documentation</em>：https://huggingface.co/docs/transformers/</li>
+<li>OpenAI, <em>tiktoken</em>：https://github.com/openai/tiktoken</li>
+<li>sentence-transformers / SBERT：https://www.sbert.net/</li>
+<li>Andrew Ng, <em>The AI Engineering Skills Map</em>：https://www.deeplearning.ai/the-batch/issue-366</li>
+<li>Zorost Signals, <em>Context engineering: treat the window as a budget</em>：https://zorost.com/context-engineering-budget</li>
+<li>Zorost Signals, <em>The AI Engineering Skills Map, turned into a training plan</em>：https://zorost.com/ai-engineering-skills-map-training-guide</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

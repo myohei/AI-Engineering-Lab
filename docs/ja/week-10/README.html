@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 10: Fine-Tuning — LoRA、SFTとDPO</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 10</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-10/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-10-fine-tuning-lorasftdpo">Week 10: Fine-Tuning — LoRA、SFTとDPO</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-10/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 10 of 24 · Section: Model Engineering · Category: Fine-tuning
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-10/notebooks/01-sft-dataset-and-lora-training.ipynb">01-sft-dataset-and-lora-training.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-10/notebooks/02-dpo-and-before-after-evals.ipynb">02-dpo-and-before-after-evals.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsのbase modelは、<em>ほぼ</em> すべてを正しくやります。Bill-of-lading extractionを頼むと厳密なJSON schemaからdriftし、support ticketのtriageを頼むと、「invoiceのweightが間違っている」を <em>billing</em> ではなく <em>documents</em> にrouteしてしまうことがopsが気づく程度には頻発します。これはRAGが埋められるknowledge gapではありません。答えはretrieveされたpassageの中にない。それは <em>behavior</em> です。promptで表現するには高くつき、retrieveされたtextでは表現不可能な、固定された出力shapeと社内のrouting style。測定されたevalが、prompting + RAG + toolingでも特定の大量targetに届かないことを示したとき、そのgapこそがweightに触るjustificationです。</p>
+<p>問題は、fine-tuningに <em>まず</em> 手を伸ばすinstinctです。そしてfull fine-tuningは高価で、遅く、破壊的です。すべての1.5B（あるいは7B）paramsを更新することはGPU-hoursを消費し、modelがすでに持っているgeneral skillsを上書きしえます。今週の二つの道具、<strong>LoRA/QLoRA</strong>（paramsの~0.05%をtrainする）と <strong>before/after eval</strong>（specialist gainがgeneral costに見合うことを証明する）がなければ、fixに払い過ぎるか、他のすべてを密かにregressさせたadapterをshipすることになります。今週は、free-Colab budgetで測定されたgapを閉じることと、deploy/no-deploy判断を感覚ではなく数値の表として読むことを学びます。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、Ngのselection order（prompt → RAG → agentic → fine-tune last）を言え、より安いleverがevalにfailした後でのみfine-tuningが正当化される具体的な理由を一つ挙げられる。</li>
+<li>☐ 金曜日までに、<code>data.bol_samples()</code> のextractionと <code>data.support_tickets()</code> のtriage taskから、chat-template formatの~300例のSFT datasetをbuildできる。</li>
+<li>☐ 金曜日までに、小さいbase modelにTRLの <code>SFTTrainer</code> でLoRA adapterをtrainし、loss curveを読める。</li>
+<li>☐ 金曜日までに、~100のpreference pairを作り、小さなDPO stepを実行し、generic taskのcatastrophic-forgetting checkを含むbefore/after eval表をproduceできる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td>Selection orderとfine-tuningが <em>報われるとき</em>（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/06-model-engineering.md">reference/knowledge-base/06-model-engineering.md</a> の§1、§3.1）</td>
+<td><em>あなたの</em> fine-tuneを正当化する測定済みgapを一文で述べる</td>
+<td>書いたjustification</td>
+<td>2時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>SFT dataset設計、chat template、quality-vs-quantity</td>
+<td><code>bol_samples()</code> + <code>support_tickets()</code> から~300例のdatasetをbuildする</td>
+<td><code>sft_train.jsonl</code> + stats</td>
+<td>2時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>LoRA/QLoRAのmechanics、rank/alpha、QLoRA recipe</td>
+<td><code>SFTTrainer</code> でadapterをtrainし、loss curveをcaptureする</td>
+<td><code>lora_adapter/</code> + loss curve</td>
+<td>2時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>DPOとpreference data。catastrophic forgetting</td>
+<td>~100 pairをbuildし、DPO stepを実行し、before/afterを採点する</td>
+<td>Before/after eval表</td>
+<td>2時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>Tradeを読む: gain vs forgetting</td>
+<td>deploy/no-deploy decisionを書く</td>
+<td><code>week-10-before-after.md</code></td>
+<td>2時間</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p>今週のthesisは、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/06-model-engineering.md">reference/knowledge-base/06-model-engineering.md §1</a> から直接来ています。<strong>fine-tuningは、測定されたgapによって正当化される最後のleverであって、最初のinstinctではない。</strong> 順序は、managed-API prototype、次に <em>eval付きの</em> prompting/context engineering、次にRAG、次にagentic workflow、そしてようやくweightです。各stepは前のstepより元に戻しにくい。prompt変更は数秒でdeployでき、fine-tuneはGPU-hoursがかかり、他のskillをregressさせ、base modelが向上したらやり直しです。率直なrule: <em>prompting + RAG + toolingが届けないeval scoreを指差せないなら、trainする準備はできていません。</em></p>
+<h3 id="fine-tuning">Fine-tuningが報われるとき（報われないとき）</h3>
+<p>Fine-tuningが正しい道具なのは、<strong>style、tone、厳密な出力format、nicheなdomain vocabulary</strong>、つまりpromptで表現するには高くつき、retrieveされたtextでは表現不可能なbehaviorと、大きいmodelのbehaviorを小さいspecialistにcompressすることに対してです。<em>新しいknowledge</em> には <strong>報われません</strong>（それはRAGの仕事です。変わるfactを保存する場所としてweightは間違っている。「昨四半期の価格を知っている」modelは今四半期にはすでに間違っています）。一回限りのpromptで直せるbehaviorや、clean dataがない場合にも報われません。</p>
+<table>
+<thead>
+<tr>
+<th>Fine-tuneが報われる</th>
+<th>Fine-tuneが報われない</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Style/tone（「うちのsupport teamらしく書く」）</td>
+<td>新しい、または変わるfact（RAGを使う）</td>
+</tr>
+<tr>
+<td>厳密な出力format（固定JSON schema）</td>
+<td>一回限りの、promptで直せるbehavior</td>
+</tr>
+<tr>
+<td>Domain vocabulary / 社内taxonomy</td>
+<td>高品質dataが少なすぎる</td>
+</tr>
+<tr>
+<td>Compression: 小さいspecialistに大きいteacherを模倣させる</td>
+<td>まず <em>測定して</em> いないgap</td>
+</tr>
+</tbody>
+</table>
+<h3 id="loraqloradora-weighttrain">LoRA、QLoRA、DoRA: weightの一部だけをtrainする</h3>
+<p>Parameter-efficient fine-tuning（<strong>PEFT</strong>）はbase weightをfreezeし、新しいparameterの小さな集合だけをtrainします。<strong>LoRA</strong>（Low-Rank Adaptation）はweight updateを <code>ΔW = B·A</code> として分解します。<code>A</code> と <code>B</code> はrank <code>r</code> の小さなmatrixで、attention/MLP projectionに注入されます。<strong>QLoRA</strong> はLoRAを <strong>4-bit NF4</strong> のbase（あなたのWeek 9の道具）の上にstackし、7〜8Bのfine-tuneがfree Colab GPUや16 GB laptopに収まるようにします。<strong>DoRA</strong> は各weightをmagnitude + directionにsplitしてdirectionだけをadaptし、同じrankでしばしばfull fine-tuningにより近い結果を出します。<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/06-model-engineering.md">reference/knowledge-base/06-model-engineering.md §3.2</a> を参照してください。</p>
+<p><strong>実例1: LoRAのparameter数のmath。</strong> notebookは <code>Qwen/Qwen2.5-1.5B-Instruct</code>（hidden size 1536、MLP intermediate 8960）を <code>r=16</code>、<code>alpha=32</code> でtrainし、<code>q/k/v/o</code> projection（各1536→1536）と <code>gate/up/down</code>（各1536→8960）をtargetにします。shapeが <code>(in, out)</code> の各moduleに対して、LoRAは <code>r × (in + out)</code> のtrainable parameterを追加します。四つのattention projectionは <code>4 × 16 × 3072 = 196,608</code>、三つのMLP projectionは <code>3 × 16 × 10,496 = 503,808</code>。合計: <strong>700,416 ≈ 0.70Mのtrainable parameter</strong>。freezeされた~1.54Bに対して、modelの <strong>約0.05%</strong> で、「0.1〜1%」のPEFT rangeのど真ん中です。だからadapterは数MBに収まり、trainingはmemoryの一部で済みます。Rankはupdateに与える「自由度」の数で（style/formatなら <code>r=4-16</code>、より難しいshiftなら <code>r=32-64</code>）、<code>alpha ≈ 2·r</code> がupdateの強さの一般的なdefaultです。</p>
+<table>
+<thead>
+<tr>
+<th>Task type</th>
+<th>Rank <code>r</code></th>
+<th>Alpha</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Style / tone / formatのみ</td>
+<td>8</td>
+<td>16</td>
+<td>最小capacity。overfit risk最小</td>
+</tr>
+<tr>
+<td>Domain behavior（extraction、classification）</td>
+<td>16〜32</td>
+<td>32〜64</td>
+<td>最も一般的な出発点</td>
+</tr>
+<tr>
+<td>難しいtask shift（reasoning、tool use）</td>
+<td>64</td>
+<td>128</td>
+<td>dataが十分にある場合のみ。overfittingに注意</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sft-clean-dataimitation-learning">SFT: clean data上のimitation learning</h3>
+<p>Supervised fine-tuning（<strong>SFT</strong>）は、<code>(instruction → answer)</code> pair上のimitation learningです。内面化すべき唯一のrule: <strong>数百のcleanで多様なon-taskなexampleが、数万のnoisyなexampleに勝る。</strong> 小さいmodelはdataで支配的なpatternを何であれ内面化するので、garbage inは文字通りあなたが教えるものになります。model固有の <strong>chat template</strong>（<code>role</code>/<code>content</code> の <code>messages</code> array）に合わせ、別のeval setをhold outし、happy pathだけでなくerror analysisの <em>failure mode</em> をカバーしてください。<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/06-model-engineering.md">reference/knowledge-base/06-model-engineering.md §3.3</a> を参照してください。</p>
+<h3 id="sft-dpo-rlvr">SFT → DPO → RLVR</h3>
+<p>SFTは <em>shape</em> を教え、<strong>DPO</strong>（Direct Preference Optimization）は <em>preference</em> を研ぎ澄まします。古典的RLHFは別途trainingしたreward modelと気難しいPPO loopを必要としますが、DPOはpreference signalを <code>(prompt, chosen, rejected)</code> pair上のsupervised風のobjectiveに直接foldします。より単純で、より安定で、しばしば同等です。<strong>RLVR</strong> はさらに先へ行き、learned rewardの代わりに <em>verifiableな</em> reward（testがpassするかしないか）を使います。実用的な順序は、まずSFT、次にDPO、そしてRLVRはverifiable rewardとさらにpushする理由があるときのみです。</p>
+<table>
+<thead>
+<tr>
+<th>Objective</th>
+<th>最適化するもの</th>
+<th>Data</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SFT</strong></td>
+<td>良いanswerのimitation</td>
+<td><code>(instruction, answer)</code></td>
+<td>Style、format、task behavior、第一step</td>
+</tr>
+<tr>
+<td><strong>DPO</strong></td>
+<td>chosen &gt; rejectedを直接</td>
+<td><code>(prompt, chosen, rejected)</code></td>
+<td>Preference shaping。reward model不要</td>
+</tr>
+<tr>
+<td><strong>RLVR</strong></td>
+<td>check可能なreward</td>
+<td>Verifiable task + reward fn</td>
+<td>Frontierのreasoning/coding gain</td>
+</tr>
+</tbody>
+</table>
+<h3 id="frameworkbudget">Frameworkとbudget</h3>
+<p>DefaultのPython stackは <strong>TRL + PEFT</strong>（<code>SFTTrainer</code>、<code>DPOTrainer</code>、<code>LoraConfig</code>）です。<strong>Unsloth</strong> は同じTRL APIの上に載るdrop-inのspeed/memory layer（2〜5×速く、~50〜70%少ないVRAM）で、<strong>Axolotl</strong> はfine-tuneを、reproducibleで共有可能なrunのためのYAML recipeに変えます。budgetの現実こそがpointです。7〜8BのQLoRA SFT runはfree Colab T4や16 GB MacBookに収まるので、fine-tuningに必要なのはdatacenterではなく <em>clean dataset</em> です。</p>
+<h3 id="loopeval-loopforgettingcost">Loopはeval loop。そしてforgettingがcost</h3>
+<p>「Trainingがあった」は結果ではありません。同じgolden set上のbefore/afterの数値こそが結果で、だからこそ <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/07-evals-error-analysis.md">reference/knowledge-base/07-evals-error-analysis.md</a> が今週のco-readingです。そしてweightのtrainingは古いskillを <em>上書き</em> しうるので、すべてのfine-tuneには必須の <strong>catastrophic-forgetting check</strong> が伴います。modelがかつて上手にやれていたgeneric taskをhold outし、前後で採点し、specialist skillをgeneral competenceと交換してしまったadapterはshipを拒否してください。</p>
+<p><strong>実例2: before/after decision。</strong> Held-out setで、base modelはextraction field-F1 <strong>0.60</strong>、triage accuracy <strong>0.72</strong>、genericな五問check <strong>0.95</strong>。DPO adapter後: extraction <strong>0.88</strong>、triage <strong>0.91</strong>、generic <strong>0.93</strong>。notebookの最終数値は <code>net = (extraction delta) + (triage delta) − (forgetting cost)</code> = <code>(0.88−0.60) +
+(0.91−0.72) − (0.95−0.93)</code> = <code>0.28 + 0.19 − 0.02 = +0.45</code>。Netが正 → specialist gainが小さなgeneric regressionを <em>稼いだ</em> → <strong>deploy</strong>。forgetting costがgainを上回っていたら（例: generic 0.95 → 0.80）、正直な答えは <strong>don't deploy</strong> で、それを数値で述べることは合格する結果です。二列二行の表（base vs fine-tuned × 新task vs general）が、誰でも（未来の自分を含めて）実際のtradeを見せる最小のartifactです。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart TD
+    A[&quot;Eval shows a gap on a high-volume task&quot;] --&gt; B{&quot;Prompt + RAG + agentic already tried?&quot;}
+    B -- &quot;no&quot; --&gt; C[&quot;Fix with the cheaper lever first&quot;]
+    B -- &quot;yes&quot; --&gt; D[&quot;Build a clean SFT dataset (chat template, held-out eval)&quot;]
+    D --&gt; E[&quot;Train LoRA/QLoRA (r=16, ~0.05% of params)&quot;]
+    E --&gt; F[&quot;SFT then DPO to sharpen preference&quot;]
+    F --&gt; G{&quot;Before/after: specialist gain &gt; forgetting cost?&quot;}
+    G -- &quot;no&quot; --&gt; H[&quot;Don't deploy; improve the dataset (better data &gt; bigger rank)&quot;]
+    H --&gt; D
+    G -- &quot;yes&quot; --&gt; I[&quot;Deploy the adapter; add failures back to the eval set&quot;]
+</div>
+<h3 id="_5">うまくいかない理由</h3>
+<p>Fine-tuningは「promptをもっと強く押し続ける」という迷走を <em>防ぎ</em>、誤用すれば次のfailureを <em>起こします</em>。</p>
+<ul>
+<li><strong>General skillのforgetting。</strong> adapterが新しいtaskにoverfitしてgeneric checkをregressさせます。それこそbefore/after表が表面化するために存在するcostです。</li>
+<li><strong>Evalのmemorize。</strong> 同じexampleでtrainして採点すると、数値はcapabilityではなくmemorizationを測ります。held-out setは妥協できません。</li>
+<li><strong>Template mismatch。</strong> trainingされていないchat formatをmodelに与えると、runが静かにdegradeします。tokenizer固有のtemplateに合わせること。</li>
+<li><strong>Garbage dominance。</strong> Noisyなdatasetは <em>支配的な</em> patternを教えます。cleanで多様なon-task dataが、多いnoisy rowに勝ります。</li>
+<li><strong>Rank/alphaの誤用。</strong> Rankが高すぎる（あるいはepochが多すぎる）とoverfitします。train scoreが上がり、eval scoreが下がる。<code>r</code> やalphaを減らすことであって、epochを増やすのではありません。</li>
+<li><strong>Weightにfactを保存。</strong> 揮発性のpolicy dataを「知っている」fine-tuneは古くなります。factはretrieveし、<em>behavior</em> をfine-tuneする。</li>
+</ul>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p>二つのnotebookが今週を担います。<strong><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-10/notebooks/01-sft-dataset-and-lora-training.ipynb"><code>notebooks/01-sft-dataset-and-lora-training.ipynb</code></a></strong> がdatasetをbuildしてadapterをtrainします。Seeded setup（cell 2）の後、cell 6が <code>data.bol_samples()</code> から150の <strong>extraction</strong> exampleをbuildします。各exampleは、assistant turnが <code>bol["fields"]</code> のground-truth JSONである <code>messages</code> arrayです。cell 8は <code>data.support_tickets()</code> から150の <strong>triage</strong> exampleをbuildします。Cell 10が両者をcombineし、<code>sft_train.jsonl</code> を書き、exampleあたりの平均語数をprintします。Cell 11はtrain前のcost見積もり（QLoRA <code>r=16</code> → weight ~0.75 GB、300例、~38 optimizer step、T4に収まる）。Cell 15がLoRA configを設定し（<code>r=16, alpha=32</code>、targetは <code>q/k/v/o/gate/up/down</code>）、cell 17がbaseをloadします。CUDAでは <strong>QLoRA</strong>（4-bit NF4）、MPSではplain FP16 LoRAです。cell 18がそれをwrapし、<code>print_trainable_parameters()</code> をprintします（~0.70M trainable = ~0.05%を期待）。Cell 22が <code>SFTTrainer</code> を実行し（batch 2 × grad-accum 4、LR 2e-4、1 epoch）、loss historyをcaptureします。cell 24がstepごとのcurveをprintしてadapterをsaveし、cell 26が新しいextractionをsmoke-testします。Cell 28が最終の <code>SFT_FINAL_LOSS</code> と <code>SFT_EXAMPLES</code> をprintします。Cleanなrunはlossが下ってから平坦になります。step 0から平坦なら、LRが高すぎるかdataがtokenizeされていません。</p>
+<p><strong><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-10/notebooks/02-dpo-and-before-after-evals.ipynb"><code>notebooks/02-dpo-and-before-after-evals.ipynb</code></a></strong> がtradeを測ります。Cell 6がeval set（20 BoLs、30 ticket、5 generic question）をhold outします。Cell 8が~100のpreference pairをbuildします。chosen = 正解、rejected = corruptされたweightかplausibleだが誤ったcategory。Cells 12〜14が三つのdeterministic helperで <strong>before</strong> 状態（base model）を採点します。cell 17が <strong>DPO step</strong>（<code>beta=0.1</code>、<code>r=8</code>）をtry/exceptでwrapして実行し、configの問題があればgracefulにdegradeします。cell 19が <em>同じ</em> setで <strong>after</strong> 状態を採点します。Cell 21が <code>delta</code> column付きのbefore/after表を組み立て、cell 23が最終の <code>BEFORE_AFTER_NET_GAIN</code> = extraction delta + triage delta − forgetting costをprintします。見るべきshapeは、specialist deltaが正で、generic regressionより明確に大きいこと。generic低下がgainより大きければ、数値は負になり、正直なdecisionは「don't deploy」です。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> before/after eval表と、fine-tune済みmodelに対する一段落の <strong>deploy/no-deploy decision</strong>。表は <em>同じ</em> held-out setでbase modelとadapterを採点します。BoL field extraction、ticket triage、そしてgeneric task（forgetting check）。行ごとにmetricが付き、decisionは感覚ではなく数値の読みになります。</p>
+<p><strong>Acceptance gate（Zorost式）:</strong> 見知らぬ人が表を開き、fine-tuneが買った正確なdeltaを見られること。「triage accuracy 0.72 → 0.91、extraction field-F1 0.60 → 0.88、generic task 0.95 → 0.93」。そして <em>何が変わったか</em> を見せられます。adapterが正しくrouteするようになった具体的なticketと、立て続けに失敗し始めたgeneric answer。adapterがforgetting costを正当化するほどbaseを上回らないなら、正直な答えは <strong>don't deploy</strong> で、それを数値とともに言うことは合格する結果です。</p>
+<p><strong>Stretch variant:</strong> plain LoRAを <strong>DoRA</strong>（<code>LoraConfig</code> の <code>use_dora=True</code>）か4-bit QLoRA baseにswapし、他をすべて固定して、before/after表をplain-LoRA runと比較します。その追加mechanismが <em>あなたのtaskに</em> 見合ったか（一般的にではなく）を一文で書きます。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gapを測る前にfine-tuningする</td>
+<td>まずeval付きのprompt + RAG + agenticを実行する。fine-tuneは測定されたmissのみ</td>
+</tr>
+<tr>
+<td>Held-out eval setがない</td>
+<td>Datasetをsplitする。trainとgradeは <em>別の</em> exampleで</td>
+</tr>
+<tr>
+<td>Catastrophic forgettingの無視</td>
+<td>常にgeneric taskのbefore/after checkを追加する。net gainでgateする</td>
+</tr>
+<tr>
+<td>間違ったchat templateを与える</td>
+<td>Model固有の <code>messages</code> format（あるいはtokenizerのtemplate）を使う</td>
+</tr>
+<tr>
+<td>Noisy dataで「dataは多いほど良い」</td>
+<td>数百のcleanで多様なexampleが数千のnoisyに勝る</td>
+</tr>
+<tr>
+<td>Overfitting（train up、eval down）</td>
+<td>Rank/alphaかepochを減らす。overfit直しにepochを増やすことは決してしない</td>
+</tr>
+<tr>
+<td>Loss curveを成功として読む</td>
+<td>Lossはtrainingがあったことしか証明しない。<em>助けに</em> なったことを証明するのはevalだけ</td>
+</tr>
+<tr>
+<td>揮発性のfactをweightに保存</td>
+<td>Factはretrieve（RAG）する。fine-tuneはbehaviorのみ</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Fine-tuning</strong>: task dataでtrainingを続け、modelのbehavior、format、styleを変えること。</li>
+<li><strong>PEFT</strong>: parameter-efficient fine-tuning。baseをfreezeし、新しいparameterの小さな集合をtrainする。</li>
+<li><strong>LoRA</strong>: low-rank adaptation。rank <code>r</code> の <code>ΔW = B·A</code> をattention/MLP層に注入する。</li>
+<li><strong>QLoRA</strong>: bitsandbytesの4-bit NF4 baseの上のLoRA。大きいfine-tuneが一枚のcardに収まる。</li>
+<li><strong>DoRA</strong>: magnitudeとdirectionを分離し、directionだけをadaptするweight-decomposed LoRA。</li>
+<li><strong>SFT</strong>: supervised fine-tuning。<code>(instruction → answer)</code> pair上のimitation learning。</li>
+<li><strong>DPO</strong>: direct preference optimization。<code>(prompt, chosen, rejected)</code> 上で、reward modelなしにtrainする。</li>
+<li><strong>Chat template</strong>: model固有のmessage format。通常は <code>role</code>/<code>content</code> の <code>messages</code> array。</li>
+<li><strong>Catastrophic forgetting</strong>: 狭いtaskでfine-tuningしたときにgeneral skillがregressすること。</li>
+<li><strong>Rank <code>r</code> / alpha</strong>: LoRA updateのcapacity（<code>r</code>）と強さ（<code>alpha</code>）のknob。</li>
+<li><strong>Before/after eval</strong>: baseとadapterを <em>同じ</em> held-out setで採点し、deltaを読むこと。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-10/quiz.md">quiz.md</a> を受けてください。10問、合格は <strong>8/10</strong>。scoreをtracker Notesに記録します。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exerciseは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-10/exercises.md">exercises.md</a> にあります。<strong>Easy</strong>（SFT notebookを実行し、loss + dataset sizeを記録）、<strong>Standard</strong>（新しいseed + 手書き50例でdatasetを再build）、<strong>Stretch</strong>（LoRAをDoRAまたはQLoRAにswap）、<strong>Portfolio</strong>（adapter + before/after表 + deploy decisionをcommit）。hintは同じfileにあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>Hugging Face TRL (<code>SFTTrainer</code>, <code>DPOTrainer</code>): https://huggingface.co/docs/trl</li>
+<li>Hugging Face PEFT (<code>LoraConfig</code>, LoRA/QLoRA/DoRA): https://huggingface.co/docs/peft</li>
+<li>bitsandbytes (QLoRA 4-bit NF4): https://github.com/TimDettmers/bitsandbytes</li>
+<li>Unsloth: https://github.com/unslothai/unsloth</li>
+<li>Axolotl: https://github.com/axolotl-ai-cloud/axolotl</li>
+<li>Hugging Face Datasets: https://huggingface.co/docs/datasets</li>
+<li>MLflow (log the training run): https://mlflow.org/docs/latest/index.html</li>
+<li>Andrew Ng, <em>The AI Engineering Skills Map</em>, The Batch issue 366: https://www.deeplearning.ai/the-batch/issue-366</li>
+<li>Andrew Ng, <em>Improve Agentic Performance with Evals and Error Analysis, Part 2</em>: https://www.deeplearning.ai/the-batch/improve-agentic-performance-with-evals-and-error-analysis-part-2</li>
+<li>Fereydun Hashemi (Zorost), <em>The AI Engineering Skills Map, turned into a training plan</em>: https://zorost.com/ai-engineering-skills-map-training-guide</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 18: Azure AI Foundry</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 18</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-18/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-18-azure-ai-foundry">Week 18: Azure AI Foundry</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-18/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 18 of 24 · Section: Cloud AI Platforms · Category: Microsoft
+🎯 <strong>Use case:</strong> ZoroLogistics support agentをAzure AI Foundryにdeployし、online evaluationとAI Gateway governanceを付ける。
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-18/notebooks/01-foundry-serverless-endpoints.ipynb">01-foundry-serverless-endpoints.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-18/notebooks/02-foundry-agent-evaluation.ipynb">02-foundry-agent-evaluation.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>あなたはWeek 14〜17で、同じZoroLogistics support agentを三通りの方法でbuildしてきました。手作りのReAct loop、LangGraphのgraph、MCP上のmulti-agent triage teamです。shipmentを追跡し、shipping-policyの質問に答え、$500を超えるrefundを人間にrouteします。そのcodeのどれも、<em>どこで</em>動くかを気にしません。しかし実際のdeploymentは気にします。「どこで動くか」は一束の質問の略語だからです。誰が呼べるか、どれだけ速いか、いくらかかるか、そして何か間違ったことを言ったときに誰が見ているか。</p>
+<p>今週、その「どこ」は<strong>Azure AI Foundry</strong>です。そして質問は見た目より鋭いです。<strong>同じsupport agent、三つのcloud、governanceとspeedとcostのどれで勝つか？</strong> Foundryでの答えはgovernanceに大きく傾きます。単一のcallを書く前に<em>hub</em>と<em>project</em>を作ります。platformは、central ITが共有resourceを所有し、builderはprojectの中で作業するというmodelを強制します。この儀式は一日目にはfrictionであり、五日目にはまさに本題です。Foundryは、暴走するagentがあなたのsubscriptionを使い切る<em>前に</em>、endpointをrate-limitし、content-filterし、cost-capできるgatewayを与えてくれます。</p>
+<p>これがなければ、失敗は退屈で高くつきます。rate limitのないdeploy済みagentはsupport ticketのburstに叩かれ、evaluationのないdeploy済みagentは<em>なぜ</em>失敗したかのtraceを持ちません。追いかけるbefore/afterは具体的です。beforeでは、agentは一度にひとつの質問に答えるplayground demoです。afterでは、最悪の失敗が<em>fixされた</em>ことを示すeval traceと、今週のコストの数字を持つ、gateway-governedなendpointです。これは、Week 20で完成させる三cloud matrixのMicrosoft列です。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、AI Foundryのhubとprojectを作成し、serverless model endpointをdeployし、OpenAI SDKと<code>azure-ai-projects</code>の両方でPythonから呼べる。</li>
+<li>☐ 金曜日までに、ZoroLogistics support agent（model + instructions + tools）をFoundryで定義し、endpointとして公開できる。</li>
+<li>☐ 金曜日までに、evaluation batchを実行し、traceを読み、最悪の失敗をfixし、fixを証明するbefore/after scoreを示せる。</li>
+<li>☐ 金曜日までに、AI Gatewayのgovernance control（rate limit、content safety、cost cap）を言語化し、今週のrunに対するcost estimateを公開できる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run / build</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mon</td>
+<td>Hub vs project。serverless vs PTU</td>
+<td>hub + projectを作成（portalまたは<code>az</code> CLI）</td>
+<td>projectのconnection stringを記録</td>
+<td>2〜3時間</td>
+</tr>
+<tr>
+<td>Tue</td>
+<td>Model catalog。<code>model=</code>のdeployment-name gotcha</td>
+<td>serverless modelをdeploy。OpenAI SDKと<code>azure-ai-inference</code>から呼ぶ</td>
+<td>動くendpoint call</td>
+<td>2〜3時間</td>
+</tr>
+<tr>
+<td>Wed</td>
+<td>Microsoft Agent Framework（model + instructions + tools）</td>
+<td>support agentを定義。<code>track_shipment</code>を接続。playgroundでtest</td>
+<td>agent定義</td>
+<td>2〜3時間</td>
+</tr>
+<tr>
+<td>Thu</td>
+<td>Evaluationとtracing</td>
+<td>eval batchを実行。traceを読む。最悪の失敗をfix</td>
+<td>before/after eval score</td>
+<td>2〜3時間</td>
+</tr>
+<tr>
+<td>Fri</td>
+<td>AI Gateway（APIM GenAI policy）</td>
+<td>endpointをgatewayの後ろに置く。rate-limit + content-safety + cost cap</td>
+<td>cost estimateとgateway config</td>
+<td>3〜4時間</td>
+</tr>
+<tr>
+<td>Sat</td>
+<td>復習</td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-18/quiz.md">quiz</a>を受ける（8/10）</td>
+<td>quiz scoreをNotesに記録</td>
+<td>1時間</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p>まず、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/12-cloud-platforms.md"><code>reference/knowledge-base/12-cloud-platforms.md</code></a> の共有mental modelと、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/ai-foundry/README.md"><code>reference/platforms/ai-foundry/README.md</code></a> のhands-on runbookを読んでください。Foundryはgenerative AIに対するMicrosoftのcontrol planeです。Azure OpenAI、Azure AI Search、Azure AI Content Safety、Azure Machine Learningを、一つのportalと一つのSDK familyの後ろに接着します。今週全体を整理する単一のideaは、<strong>hub-and-project hierarchy</strong>です。</p>
+<p><strong>hub</strong>は共有されるenterprise resource、すなわちAzure OpenAI instance、AI Search index、storage account、key vault、network boundaryを所有します。<strong>project</strong>は、teamが実際にbuildするworkspaceです。deployment、fine-tuning job、flow、evaluation run、trace、agent定義があります。Governance、identity、securityはhubで一度configureされ、その下のすべてのprojectに継承されます。Central IT（platform帽子をかぶったあなた）はconnectivity、model、keyを管理し、builder（developer帽子をかぶったあなた）はinfrastructureを再配管せずに、projectの中の自由を得ます。GoogleのAI Studioにはほぼこの儀式がなく、AWSのIAM modelはよりflatなので、hub/projectはWeek 20のmatrixに持ち込むべき特徴的なものです。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Hub</th>
+<th>Project</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>所有するもの</td>
+<td>Azure OpenAI、AI Search、storage、key vault、VNet</td>
+<td>deployment、flow、eval、trace、agent</td>
+</tr>
+<tr>
+<td>誰がconfigureするか</td>
+<td>central ITが一度</td>
+<td>builderがteamごとに</td>
+</tr>
+<tr>
+<td>例え</td>
+<td>建物のutilityと配線</td>
+<td>あるteamが借りる階</td>
+</tr>
+<tr>
+<td>継承</td>
+<td>n/a</td>
+<td>hubが所有するすべて</td>
+</tr>
+</tbody>
+</table>
+<h3 id="model-catalogserverless-endpointazure-openai">Model catalog、serverless endpoint、Azure OpenAIとの関係</h3>
+<p><strong>model catalog</strong>は二種類のmodelを保持します。第一に<strong>Azure OpenAI model</strong>、GPT family（GPT-4.1、GPT-4o）、o-series reasoning model（o1/o3/o4-mini）、さらにDALL·E、Whisper、Microsoft自身の<strong>Phi-4</strong>で、Azure OpenAI resourceにdeployされます。第二に、<strong>open/third-party model</strong>（Llama、Mistral、Cohere、DeepSeek）で、<strong>serverless API endpoint</strong>としてdeployされます。Microsoftの "Models-as-a-Service" であり、<em>名前</em>をdeployしてHTTPS URLを呼び、computeは所有せずtokenごとに支払います。新参者がつまずく区別: <strong>Azure OpenAIは特定のresourceであり、Foundryはその周りのplatformです。</strong> OpenAI modelに関しては、両者は二つのlens越しに見た同じものです。</p>
+<p>deploymentの選択は、単一の答えではなくcost dialです。</p>
+<table>
+<thead>
+<tr>
+<th>Deployment</th>
+<th>課金</th>
+<th>所有者</th>
+<th>使うとき</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Serverless endpoint (MaaS)</td>
+<td>tokenごと</td>
+<td>Microsoft</td>
+<td>Catalog/open model。本演習</td>
+</tr>
+<tr>
+<td>Provisioned throughput (PTU)</td>
+<td>予約capacity。使っても使わなくても課金</td>
+<td>Microsoft</td>
+<td>大規模での保証throughput。<strong>本演習ではskip</strong></td>
+</tr>
+<tr>
+<td>Managed compute</td>
+<td>compute-hour + tokenごと</td>
+<td>あなた</td>
+<td>custom/fine-tuned model</td>
+</tr>
+</tbody>
+</table>
+<p>「使っても使わなくても課金」を身体でわからせる<strong>実例</strong>: 保証された100K tokens/minuteを予約するPTU unitは、1 tokenを送っても99,999を送っても同じcostです。support agentが9-to-5のburstを受けて夜はidleするなら、PTUではidle時間にも支払います。serverlessのpay-per-tokenは、安定した予測可能なvolumeが出るまでの正直なdefaultであり、ZoroLogisticsがlab週に持つものではありません。</p>
+<h3 id="agentevaluationtracingai-gateway">Agent、evaluation、tracing、そしてAI Gateway</h3>
+<p>Foundry上のagentは、単に<strong>model + instructions + tools + 任意のgrounding</strong>であり、Week 14〜16でbuildしたのと同じ形です。<strong>Microsoft Agent Framework</strong>（その下にAzure AI Agent Service）がruntimeです。portalで、<code>azure-ai-projects</code>で、またはAgent Framework SDKsで定義し、Week 16のMCP serverをtoolsとしてattachできます。wireするtools: function calling（<code>track_shipment</code>、<code>check_refund_policy</code>）、Week 7のpolicy corpusに対するfile search、そして任意でcode interpreterです。</p>
+<p><strong>Evaluationとtracing</strong>は、Week 11が教えたとおりのloopを閉じます。built-in evaluator（groundedness、relevance、coherence、fluency）またはLLM-as-judgeをWeek 11のgolden setに対して実行し、次に<strong>end-to-end trace</strong>（inputs、tool calls、中間step、output）を読んで、最悪の失敗を見つけます。disciplineは不変です。<em>screenshotではなくscoreをshipする</em>。そして最悪の失敗をbefore/after付きの数字でfixします。</p>
+<p><strong>AI Gateway</strong>はFoundryのgovernance layerで、endpointの前に置かれるGenAI policy付きの<strong>Azure API Management（APIM）</strong>として実装されます。token-rate limit、token-usage quotaとcost cap、semantic caching、content-safety filter、load balancing、model routingを提供します。最も重要なcontrolの実例、burstをcapするgateway policyです。</p>
+<pre><code class="language-yaml"># Sketch of an APIM GenAI policy for the support-agent endpoint
+policies:
+  - tokenRateLimit:
+      tokensPerMinute: 100_000
+      requestsPerMinute: 60
+      key: subscription-id      # per-consumer, not global
+  - tokenQuota:
+      tokensPerMonth: 5_000_000  # cost cap: a runaway agent can't blow the budget
+  - contentSafety:
+      promptShield: enabled       # jailbreak detection on input
+      groundedness: enabled       # output stays grounded in the corpus
+</code></pre>
+<p>これがなければ、support-agent endpointはmeterされないliabilityです。あれば、governedです。それが今週が存在して教えるenterpriseの現実です。全体をend-to-endで描くと次のとおりです。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    subgraph Hub[&quot;Hub (shared, central IT)&quot;]
+        AO[&quot;Azure OpenAI&lt;br/&gt;GPT / o-series / Phi&quot;]
+        SRCH[&quot;Azure AI Search&quot;]
+        KV[&quot;Key Vault&quot;]
+    end
+    subgraph Project[&quot;Project (builders)&quot;]
+        AG[&quot;Support agent&lt;br/&gt;model + instructions + tools&quot;]
+        EV[&quot;Evaluation + tracing&quot;]
+    end
+    C[&quot;Client&lt;br/&gt;(notebook / SDK)&quot;] --&gt;|&quot;HTTPS&quot;| GW[&quot;AI Gateway&lt;br/&gt;APIM GenAI policies&quot;]
+    GW --&gt;|&quot;rate-limit · content-safety · cost-cap&quot;| EP[&quot;Agent endpoint&quot;]
+    EP --&gt; AG
+    AG --&gt;|&quot;function calling / file search&quot;| AO
+    AG --&gt;|&quot;grounding&quot;| SRCH
+    EV --&gt;|&quot;reads&quot;| TR[&quot;Trace: inputs · tool calls · output&quot;]
+    AG -.-&gt;|&quot;inherits&quot;| Hub
+</div>
+<p>gatewayがchoke pointです。すべてのrequestがここを通るので、rate limit、content safety、cost capは、agentがtokenを使う<em>前に</em>強制されます。</p>
+<h3 id="cost-modelcost-per-document">Cost modelとcost-per-document計算</h3>
+<p>Foundryのserverless/standard tierはtokenごとに課金し、inputとoutputは別々に価格付けされます（outputのほうが高いのが普通）。fine-tuningはtrainingとper-hour hostingを追加します。notebookはplaceholder priceを使うので、liveのAzure OpenAI pricing pageで再確認が必須です。<strong>実例</strong>、Week 6のbill-of-lading抽出の一文書について。promptとBoL textで約600文字 ≈ 150 input token。返されるJSONは約480文字 ≈ 120 output tokenです。$0.15 per 1M input、$0.60 per 1M outputとすると:</p>
+<ul>
+<li>Input: 150 × $0.15 / 1,000,000 = $0.0000225</li>
+<li>Output: 120 × $0.60 / 1,000,000 = $0.0000720</li>
+<li><strong>合計 ≈ $0.0000945 per document</strong>: 一セントの十分の一以下。</li>
+</ul>
+<p>これを20文書のgolden setにscaleすると ≈ $0.0019、production volumeの年1,000,000文書では、model callだけで ≈ <strong>$94.50</strong>。要点は正確な数字ではなく、costはWeek 20 matrixへの<em>測られた</em> inputであり、推測ではないということです。</p>
+<h3 id="_5">うまくいかない理由</h3>
+<p>Foundryの失敗modeは、その大半がgovernance型です。<strong><code>model=</code> gotcha:</strong> Azureでは、<code>model=</code>は生のmodel IDではなくあなたの<em>deployment name</em>です。間違った文字列を貼ると、code bugに見える404が出ます。<strong>計画なしのPTU:</strong> capacityを予約すると使う使わないにかかわらず課金されます。本演習はserverlessに限定します。<strong>gatewayのないagent:</strong> rate limitとcost capは、最初の暴走burstの<em>前</em>ではなく<em>後</em>に届きます。<strong>traceを読まないeval:</strong> fixのないtraceはbug reportです。before/after scoreが変わらなければloopは壊れています。<strong>managed identityではなくkey:</strong> keyはleakします。productionのguidanceは<code>DefaultAzureCredential</code>経由のEntra IDです。最後に、<strong>alertのないbudget:</strong> Azure free accountはAI inferenceを無料にしません。最初のdeployの前にbudget + alertを設定し、週末の前にendpointを削除してください。</p>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p>二つのnotebookがあり、どちらもAzure credentialがない場合は<strong>dry-run mode</strong>で安全に実行できます。すべてのcloud callはwrapされており、環境変数がなければcrashせずsetup手順をprintします。</p>
+<p><strong><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-18/notebooks/01-foundry-serverless-endpoints.ipynb"><code>notebooks/01-foundry-serverless-endpoints.ipynb</code></a></strong>
+はrepo rootをbootstrapし、次に<code>data.bol_samples(n=8, seed=5)</code>で八つのsynthetic bill of ladingをloadし、<code>EXTRACT_PROMPT</code>（Week 6の抽出prompt）を定義します。auth cellは<code>AZURE_AI_PROJECT_CONNECTION_STRING</code>、<code>AZURE_OPENAI_ENDPOINT</code>、<code>AZURE_OPENAI_API_KEY</code>を読み、なければdry-runに切り替わります。二つのcall pathが続きます。<code>call_openai_sdk</code>（<code>AzureOpenAI</code>経由、<code>api_version="2024-10-21"</code>）と<code>call_ai_projects</code>（<code>AIProjectClient.from_connection_string</code> + <code>DefaultAzureCredential</code>経由、その後<code>client.inference.get_chat_completions</code>）。抽出loopは<code>bols[:4]</code>に対して回り、JSONをparseし、<code>field_matches</code>で採点します。これは<code>quantity</code>/<code>gross_weight_kg</code>をintegerとして、<code>declared_value_usd</code>を0.01以内のfloatとして、それ以外を十個のground-truth fieldに対してcase-insensitiveに比較します。最後のcellは<code>OVERALL_FIELD_ACCURACY</code>（十fieldの平均）と、$0.15/M input、$0.60/M outputのplaceholder priceからの<code>TOTAL_ESTIMATED_COST_USD</code>をprintします。正しい出力は、accuracyが<code>[0, 1]</code>の数字、costが一セント未満のdollar値です。</p>
+<p><strong><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-18/notebooks/02-foundry-agent-evaluation.ipynb"><code>notebooks/02-foundry-agent-evaluation.ipynb</code></a></strong>
+は5,000件のshipmentと四つのpolicy docをloadし、<code>track_shipment</code> toolを定義し、<code>AGENT_INSTRUCTIONS</code>（「tracking numberを決して捏造しない。$500を超えるrefundは人間の承認にrouteする」）でagentを作成します。golden set（<code>Q1</code>〜<code>Q4</code>）は期待されるsubstringに対して採点されます。dry-run retrieverの<code>KEYWORD_DOCS</code>は意図的に<code>customs</code> → <code>POL-004</code>の対応を省くので、Q4が失敗します。それがplanted bugです。trace cellは、どの質問か、agentが何と言ったか、passしたかをprintします。fix cellは<code>customs</code>と<code>storage</code>の対応を追加して再実行し、<code>AFTER_SCORE</code>と改善行（<code>BEFORE_SCORE → AFTER_SCORE</code>）をprintします。最終の<code>EVAL_SCORE</code>は<code>after_score</code>で、dry-runでの正しい出力は<code>0.750 → 1.000</code>です。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> Foundry上のsupport agent。(a) Pythonから呼べるserverless endpoint、(b) 少なくとも一つのtoolを持つagent定義、(c) 最悪の失敗がfixされたことを示すevaluation batch + trace、(d) cost estimateと、configureしたAI Gateway control（rate limit、content safety、cost cap）。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人があなたのFoundry deployment guideを読んで、notebookからendpoint call、agent定義、eval scoreを再現できること。同じgolden set、同じseed。そしてあなたは、<em>traceが何を明らかにしたか</em>、つまり最悪の失敗、fix、before/afterの数字を見せられること。traceのないagentはdemoであり、fixのないtraceはbug reportです。</p>
+<p><strong>Stretch:</strong> Week 16のMCP serverを、FoundryのMCP support経由でagentのtool layerとして差し込み、evalを再実行して、triage teamのscoreがgatewayの後ろでも保持されることを示します。速く進む人は、二つ目のmodel（Phi-4 vs GPT deployment）も変換し、そのper-field accuracyとcostを二行比較に追加できます。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>症状</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>model=</code>がdeployment name</td>
+<td>404 / model-not-found</td>
+<td>生のmodel IDではなくdeployment nameを使う</td>
+</tr>
+<tr>
+<td>labでのPTU</td>
+<td>idleの間もbillが増え続ける</td>
+<td>serverless pay-per-tokenのみ</td>
+</tr>
+<tr>
+<td>live endpointにgatewayなし</td>
+<td>meterされないburst、safety filterなし</td>
+<td>まずAPIM + GenAI policyを前に置く</td>
+</tr>
+<tr>
+<td>traceを読まないeval</td>
+<td>scoreは変わるが診断がない</td>
+<td>traceを読む。<em>最悪の</em>失敗をfixする</td>
+</tr>
+<tr>
+<td>repoにcommitされたkey</td>
+<td>leakしたcredential</td>
+<td><code>DefaultAzureCredential</code> + managed identity</td>
+</tr>
+<tr>
+<td>budget + alertなし</td>
+<td>surpriseなinvoice</td>
+<td>最初のdeployの前にbudget + alert</td>
+</tr>
+<tr>
+<td>dry-runを成功と誤認</td>
+<td>credentialなしでaccuracy <code>0.000</code></td>
+<td>「⚠️ credentials not found」bannerを読む</td>
+</tr>
+<tr>
+<td>endpointを出しっぱなし</td>
+<td>週末のspend</td>
+<td>週末の前にendpointとtest hubを削除/停止</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Hub</strong>: Azure OpenAI、Search、storage、key、networkを所有する共有enterprise container。</li>
+<li><strong>Project</strong>: hub内のteam workspaceで、deployment、flow、eval、trace、agentを保持する。</li>
+<li><strong>Serverless endpoint (MaaS)</strong>: catalog modelのpay-per-token、Microsoft管理のdeployment。</li>
+<li><strong>Provisioned throughput (PTU)</strong>: 予約された保証capacity。使っても使わなくても課金。</li>
+<li><strong>Microsoft Agent Framework</strong>: Foundryのagent runtime。model + instructions + tools + grounding。</li>
+<li><strong>AI Gateway</strong>: endpointの前に置かれるGenAI policy付きAPIM（rate limit、quota、cache、safety）。</li>
+<li><strong>Azure AI Content Safety</strong>: model I/Oに対するprompt shield、jailbreakとgroundedness検出。</li>
+<li><strong>Tracing</strong>: 一つのrunのinputs、tool calls、step、outputのend-to-end記録。</li>
+<li><strong>Evaluation</strong>: golden setに対するrunのbuilt-inまたはLLM-as-judge採点。</li>
+<li><strong><code>azure-ai-projects</code></strong>: agent、eval、tracingのためのFoundry-native SDK（<code>AIProjectClient</code>）。</li>
+<li><strong>Entra ID</strong>: Microsoftのidentity layer。<code>DefaultAzureCredential</code>はkeyなしでcodeを認証する。</li>
+<li><strong>Golden set</strong>: agentを採点するために再利用するWeek 11のquestion/ground-truth pair。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-18/quiz.md"><code>quiz.md</code></a>を受けてください。これらのconceptとnotebook codeに紐づく10問です。合格ラインは<strong>8/10</strong>。scoreをNotesに記録してください。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exercise（easy / standard / stretch / portfolio）が<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-18/exercises.md"><code>exercises.md</code></a>にあります。printされたcostの記録から、二model比較、agentのAI Gateway背後への配置、三cloud matrixのMicrosoft列まで。hintは同じfileにあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>Azure AI Foundry architecture: https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/architecture</li>
+<li>Azure OpenAI Service models: https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models</li>
+<li>Microsoft Agent Framework overview: https://learn.microsoft.com/en-us/agent-framework/overview/</li>
+<li>Azure AI Projects client library: https://learn.microsoft.com/en-us/javascript/api/overview/azure/ai-projects-readme</li>
+<li>Connect agents to MCP server endpoints: https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/model-context-protocol</li>
+<li>Deploy models as serverless APIs: https://learn.microsoft.com/en-us/azure/ai-studio/how-to/deploy-models-serverless</li>
+<li>Azure AI Foundry deployment options: https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/deployments-overview</li>
+<li>Azure API Management GenAI gateway policies: https://github.com/microsoft/azure-skills/blob/main/.github/plugins/azure-skills/skills/azure-aigateway/SKILL.md</li>
+<li>Azure OpenAI chat completion (OpenAI SDK): https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/chatgpt</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 01: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 01</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-01/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-01-checklist">Week 01: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-01/exercises.md">英語版</a> · <a href="README.html">Week 1 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercise">Graded exercise</h2>
+<ol>
+<li>
+<p><strong>Easy:</strong> <code>notebooks/01-environment-and-tools.ja.ipynb</code> を最初から最後まで実行します。最後に0〜6のreadiness scoreが表示されます。Week 1のExcel tracker sheetに数字を記録してください。checkが失敗したらenvironmentを直して再実行します。目標はerrorのスクリーンショットではなく、score 6です。</p>
+</li>
+<li>
+<p><strong>Standard:</strong> <code>notebooks/02-zorologistics-data-generator.ja.ipynb</code> を開き、2つ変更します。seedを <code>42</code> から自分で決めた値へ、shipment countを <code>100_000</code> から <code>5_000</code> へ変更します。再実行し、(a) row countが変わる、(b) column schemaは同じ、(c) planted data issue（duplicate row、<code>NaN</code> weight、<code>NaN</code> distance）がまだ存在することを確認します。schemaは同じなのにrowが変わる理由を、Markdown cellに1文で書きます。</p>
+</li>
+<li>
+<p><strong>Stretch:</strong> 自分のscratch space（curriculum folderにはcommitしない）にstandalone script <code>generate_small.py</code> を書きます。<code>zoro.data</code>をimportし、各table（<code>carriers</code>、<code>lanes</code>、<code>shipments</code>、<code>support_tickets</code>）をexplicit seed付き・縮小サイズで1つずつ生成し、table名とrow countを1行ずつprintします。fresh terminalから <code>python generate_small.py</code> を実行し、Jupyterの外でもenvironmentが使えることを証明します。</p>
+</li>
+<li>
+<p><strong>Portfolio:</strong> <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/projects/README.md"><code>curriculum/projects/README.md</code></a> で追跡する <strong>ZoroLogistics data generator + silver dataset</strong> milestoneを始めます。<code>save_all()</code>のoutputをforkの<code>data/</code> directoryに、<code>data/data-dictionary.md</code>と一緒にcommitします。さらにREADME blockを追加し、seed、tableごとの正確なrow count、schemaを記載します。これはprogramで最初に作る、見知らぬ人がinspectできるartifactです。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy:</strong> scoreが6でなければ、上から各<code>FAIL</code>行を読みます。最初のfailure（通常は<code>zoro</code> import失敗、またはGit work tree外）がscoreを下げている原因です。</li>
+<li><strong>Standard:</strong> <code>data.shipments(...)</code>に渡す<code>seed</code>と<code>n</code>だけを変更します。<code>zoro/data.py</code>は変更しないでください。変更前後に<code>df.columns</code>をprintし、valuesではなくcolumn listが同じことを確認します。</li>
+<li><strong>Stretch:</strong> notebookのwalk-up path loop（<code>while not (p / "zoro").is_dir() ...</code>）を再利用します。どのfolderからscriptを起動しても<code>zoro</code>を見つけられるようにします。</li>
+<li><strong>Portfolio:</strong> README blockの1か所に4つのrow countとseedを記録します。見知らぬ人があなたに質問せず、同じ数字を再生成できることが目標です。</li>
+</ol>
+<h2 id="checklistmanifestjsonexcel-tracker">Checklist（manifest.jsonとExcel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: VS Code、Python environment（uvまたはconda）、gitを設定し、repoをfork/cloneする。</li>
+<li>☐ Tue: environment notebookのPython refresher exerciseを完了する。</li>
+<li>☐ Wed: environment check notebookを最初から最後まで実行する（version、import、deterministic seed）。</li>
+<li>☐ Thu: ZoroLogistics data generatorを作る（shipments、carriers、lanes、deterministic seed）。</li>
+<li>☐ Fri: use case：100k-row datasetを生成し、CSV/Parquetへ保存し、data dictionaryと一緒にcommitする。</li>
+<li>☐ Sat: Week 1 quiz（<code>quiz.ja.md</code>）を受け、8/10で合格し、scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新し、Week 1をcheck offしてforkへpushする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 12: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 12</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-12/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-12-quiz10810">Week 12: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-12/quiz.md">英語版</a> · <a href="README.html">Week 12 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>まず記憶だけで答えてから、Answer keyで確認してください。各問には、それがtestするsectionまたはcellが明記されているので、間違えたら何を読み直すべきかが正確に分かります。</p>
+<h2 id="questions">Questions（問題）</h2>
+<ol>
+<li>
+<p><strong>(MCQ)</strong> modelとharnessは同じものではありません。division of laborを正しく捉えている
+   statementはどれですか？ <em>(Concepts「What a harness is」を参照)</em>
+   - A) harnessはparameterを追加してmodelを賢くする。
+   - B) modelはreasoningを供給し、harnessはagency（loop、tools、context、verifiers）を供給する。
+   - C) harnessは単なるeditorであり、modelがすべての仕事をする。
+   - D) modelはagencyを供給し、harnessはreasoningを供給する。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> OpenCodeで作業しています。永続的なproject指示として自動的に読み込まれる
+   fileはどれですか？ <em>(Concepts「Rules files」を参照)</em>
+   - A) <code>CLAUDE.md</code>
+   - B) <code>opencode.json</code>
+   - C) <code>AGENTS.md</code>
+   - D) <code>.cursor/rules/*.mdc</code></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> Week-12の <code>SPEC.md</code> で、最も重要な一行は <em>refused tradeoff</em> です。
+   specの他の部分がしていないことを、それは何をしますか？ <em>(Concepts「実例1」を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> managed-context tableの「stays out」columnに属するのはどれですか？
+   <em>(Concepts「Managed context」を参照)</em>
+   - A) 失敗したtestの出力
+   - B) <code>SPEC.md</code>
+   - C) API key入りの <code>.env</code> file
+   - D) 編集中の特定のsource file</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> notebookの最終cell（cell §5）は一つの数字をprintします。それは何と
+   呼ばれ、正確に何を数えていますか？ <em>(notebook cell §1と§5を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> specは <em>loopが照らし合わせて閉じる完了の定義</em> です。ということは、主に…
+   <em>(Concepts「Planning vs execution」を参照)</em>
+   - A) 未来の人間の読者向けのdocumentation
+   - B) modelをより礼儀正しくするprompt
+   - C) 「正しい」の意味の実行可能なstatementであり、verifierがcheckする
+   - D) testを書くことの代替</p>
+</li>
+<li>
+<p><strong>(Short answer、数字付き)</strong> あるharness runは40,000 input tokenと10,000 output tokenを、
+   $3.00/1M inputと$15.00/1M outputで使いました。計算を示し、合計costをdollarで
+   答えてください。 <em>(Concepts「実例2」を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> blast-radius ruleはautonomyを調整します… <em>(Concepts「Verifiers、SPEC.md、
+   and blast radius」を参照)</em>
+   - A) login時に、sessionごとに一度
+   - B) actionごとに、間違えたときのdamageの大きさに基づいて
+   - C) modelの好みの程度に基づいて
+   - D) database書き込みにのみ適用し、file読み取りには決してしない</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> comparison worksheetのnumeric columnを二つ挙げ、それぞれが何を
+   記録するかを述べてください。 <em>(notebook cell §3を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> OpenRouterで、<code>:free</code> model variantの最も良い使い方は… <em>(Concepts
+    「OpenRouterとcost管理」を参照)</em></p>
+<ul>
+<li>A) service-level保証付きのproduction throughput</li>
+<li>B) 本番のthroughputに金を払う前に、plumbing（auth、config、prompt）をtestする</li>
+<li>C) 自分のmodelのfine-tuning</li>
+<li>D) harnessのpermission systemの代替</li>
+</ul>
+</li>
+</ol>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>B.</strong> harnessはloop、tools、context管理、verifiersを追加します。modelはreasoning
+   だけです。同じmodelで二つのharnessの結果が違うのは、この四つで違うからです。</p>
+</li>
+<li>
+<p><strong>C.</strong> OpenCodeは <code>AGENTS.md</code>（project + global）をauto-loadします。<code>CLAUDE.md</code> は
+   Claude Code、<code>.cursor/rules/*.mdc</code> はCursor、<code>opencode.json</code> はconfigであり
+   instructionsではありません。</p>
+</li>
+<li>
+<p><strong>agentが曖昧さを当て推量で解決することを禁じます。</strong> specの残りは <em>何を</em> build
+   するかを言います。refused tradeoffは、agentが当て推量を <em>許されない</em> 場所を前もって
+   宣言するただ一つの場所です。ここでは、missing/NaN shipmentのETAを決して捏造して
+   はならない、ということです。</p>
+</li>
+<li>
+<p><strong>C.</strong> Secrets（<code>.env</code>、key）はwindowの外に出します。貼り付けられたものはlogされ、
+   要約され、繰り返され得るからです。spec、失敗したtestの出力、特定のsource fileは
+   <em>入ります</em>。</p>
+</li>
+<li>
+<p><strong>harness-readiness score、0〜3のinteger。</strong> <code>sum(1 for n in ('claude','opencode','dsh') if shutil.which(n))</code> で、installされてPATH上にある三つのcoding harnessの数です。</p>
+</li>
+<li>
+<p><strong>C.</strong> specはverifierが照らし合わせてcheckする、完了の実行可能な定義です。人間向けの
+   documentationではなく、testを書くことの代用でもありません（specはtestを <em>明記</em> します）。</p>
+</li>
+<li>
+<p><strong>$0.27。</strong> Input: 40,000 × $3.00 / 1,000,000 = $0.12。Output: 10,000 × $15.00 / 1,000,000 =
+   $0.15。Total = $0.12 + $0.15 = $0.27。</p>
+</li>
+<li>
+<p><strong>B.</strong> leashはactionごとです。scratch fileのreadはほぼタダで間違えられますが、
+   production dataの書き込みは違う。同じagentでも、この二つには別のleashが与えられます。</p>
+</li>
+<li>
+<p><strong>次のうち二つ:</strong> <code>plan_quality_1to5</code>（planがあなたのspecにどれだけ近いか）、
+   <code>tokens_used</code>、<code>cost_usd</code>、<code>tests_green_first_try</code>（testが初回で通ったか）、
+   <code>diff_files_changed</code>、<code>code_quality_1to5</code>。</p>
+</li>
+<li>
+<p><strong>B.</strong> <code>:free</code> modelはzero-costですがrate制限がありavailabilityも低い。auth/config/
+    promptが動くことを証明してから、本番の仕事にはpaid slugに切り替えます。</p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

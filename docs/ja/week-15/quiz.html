@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 15: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 15</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-15/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-15-quiz10810">Week 15: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-15/quiz.md">英語版</a> · <a href="README.html">Week 15 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>各問は、出元のsectionまたはnotebook cellを明記しています。答えてからkeyを確認してください。</p>
+<ol>
+<li>
+<p><strong>(MCQ)</strong> state-graph modelで、<strong>node</strong> は何を返しますか？ <em>(Concepts §「The
+   state-graph mental model」と notebook cell [6] を参照)</em>
+   - (a) ゼロから再serializeされたstate全体。
+   - (b) そのnodeが変更したfieldだけのpartial state。frameworkがそれをmerge backする。
+   - (c) printするための文字列のanswer。
+   - (d) 何も返さない。nodeはglobal変数をmutateする。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> notebook cell [4] の <code>compute_refund(shipment_id)</code> は、shipmentが48時間超で
+   遅れているとき申告valueの10%を、7日超のとき50%を返します。<strong>60時間</strong> 遅れて申告valueが
+   <strong>$6,000</strong> のshipmentは、どの結果になりますか？ <em>(Concepts §「実例1」を参照)</em>
+   - (a) $0（遅れが足りない）
+   - (b) $600。$500を超えるので <code>needs_approval = True</code>
+   - (c) $3,000。そして <code>needs_approval = False</code>
+   - (d) $600。そして <code>needs_approval = False</code></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <code>interrupt_before=["refund_approval"]</code> は、実際には何をしますか？
+   <em>(Concepts §「Human-in-the-loop」と notebook cell [8] を参照)</em>
+   - (a) <code>refund_approval</code> nodeを削除する。
+   - (b) graphを <code>refund_approval</code> の <em>前で</em> pauseし、callerにcontrolをyieldする。続けるにはresumeが要る。
+   - (c) すべてのticketを <code>refund_approval</code> にrouteする。
+   - (d) 警告をlogするが、実行は続ける。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> notebook cell [10] で、同じ <code>thread_id</code>（<code>t-1</code>）上で二つのinvocationが実行
+   されます。観測できる帰結と、それがdemoすることは何ですか？ <em>(Concepts §「Checkpoints,
+   resume, and time-travel」を参照)</em>
+   - (a) threadがすでに存在するので、二つ目のrunがcrashする。
+   - (b) <code>history</code> listがrunをまたいで積もる。durableなstateとしての会話memory。
+   - (c) 二つ目のrunが <code>history</code> を空にresetする。
+   - (d) 二つのrunはisolatedで、何も共有しない。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> Week 14の手書きloopをkeepせずLangGraphを採用する <em>正しい</em> 理由はどれですか？
+   <em>(Concepts §「Framework judgment」を参照)</em>
+   - (a) すべてのagentを速くするから。
+   - (b) durableでaudit可能、cyclicなcontrol flow、checkpoint、resume、HITLが必要だから。
+   - (c) toolが不要になるから。
+   - (d) 常により少ないcodeで済むから。</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> <code>AgentState</code> の異なるfieldを三つ挙げ、それぞれどのnodeが書くかを
+   述べてください。 <em>(Concepts §「The state-graph mental model」の表と notebook cell [2] を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> checkpointは、最終answerより多くを保存します。checkpointが記録する
+   三つのものを挙げ、「crash後のresume」を「最初からやり直す」と違えるものはどれかを
+   説明してください。 <em>(Concepts §「Checkpoints, resume, and time-travel」を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <code>route_after_intent</code> で、intentが <code>"escalate"</code> のときどのkeyが返り、そのkeyは
+   <code>add_conditional_edges</code> でどのnodeにmapされますか？ <em>(notebook cell [6] と [8] を参照)</em>
+   - (a) <code>"tool"</code> → <code>tool_node</code>
+   - (b) <code>"refund_approval"</code> → <code>refund_approval_node</code>
+   - (c) <code>"escalate"</code> → <code>escalate_node</code>
+   - (d) <code>"generate"</code> → <code>generate_node</code></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> nodeごとのtable（notebook cell [14]）は、nodeごとに <code>calls</code>、latency、
+   tokenを報告します。最終answerのlatencyだけを測るのがmistakeなのはなぜですか？そして
+   tracking中心のsampleでは、<em>output</em> tokenを支配すると予想されるのはどのnodeですか？
+   <em>(Concepts §「実例2」を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> LangGraphが <strong>installされていない</strong> とき、notebookは、nodeごとのtableと
+    routing accuracyがそれでもprintされるように何をしますか？ <em>(notebook cell [0] と [8] を参照)</em></p>
+<ul>
+<li>(a) raiseして止まる。</li>
+<li>(b) manual runnerが <em>同じnode function</em> を <em>同じgraph順</em> で歩く。</li>
+<li>(c) すべてのcellをskipする。</li>
+<li>(d) LangGraphを自動でinstallする。</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>(b)</strong>: nodeは自分が変更したfieldだけを返します。frameworkがそれらをshared stateに
+   merge backします。state全体を返すことやglobalをmutateすることは、explicit-state契約を
+   崩します。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: 60時間 &gt; 48h、ただし7日未満 → 10%分岐: $6,000 × 0.10 = $600。$500閾値を
+   超えるので <code>needs_approval = True</code> です。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: <code>interrupt_before</code> は名前付きnodeの前でpauseしてcontrolをyieldします。runは、
+   resume（例: <code>Command(resume={"approved": True})</code>）の後だけ進みます。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: 同じthread上の二つのrunはcheckpointされたstateを共有するので、<code>history</code> が
+   積もります。隠れた変数ではなく、durableな会話memoryです。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: LangGraphは、durableでaudit可能なcyclic control flowについてのみ、その複雑さに
+   見合います。他の選択肢は誤りです（速くも短くもなく、machineryが増えるだけです）。</p>
+</li>
+<li>
+<p>三つなら例えば: <code>intent</code>（<code>intent_node</code> が書く）、<code>shipment_id</code>（<code>intent_node</code>）、
+   <code>refund_amount</code> と <code>needs_approval</code>（<code>intent_node</code>）、<code>tool_result</code>（<code>tool_node</code>）、
+   <code>final_answer</code>（<code>generate</code>/<code>escalate</code>/<code>refund_approval</code>）、<code>history</code>（すべてのnode）、
+   <code>escalated</code>（<code>escalate_node</code>）。正しいfield→書き手の組三つで満点です。</p>
+</li>
+<li>
+<p>checkpointは、(1) 現在の <strong>state</strong> 全体（すべてのfield）、(2) <strong>thread id</strong>、(3) graph内の
+   <strong>位置</strong> を記録します。resumeを違えるのは <em>state + 位置</em> です。空のstateで最初のnodeから
+   再実行するのではなく、止まったnodeと値から正確に続けられます。</p>
+</li>
+<li>
+<p><strong>(c)</strong>: <code>"escalate"</code> → <code>escalate_node</code>。conditional edgeの、人間への引き継ぎ分岐です。</p>
+</li>
+<li>
+<p>最終answerだけを測ると、時間とtokenが <em>どこへ</em> 行くかが隠れます。遅いtool nodeと遅い
+   generate nodeは、別のfixが要る別の問題です。tracking中心のsampleでは、JSONの
+   tracking/policy結果を出力するので、<code>tool</code> がoutput tokenを支配します。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: notebookは <code>manual_run</code> fallbackを定義していて、同じnodeを同じ順で歩きます。
+    だからLangGraphがinstallされているかどうかに関係なく、nodeごとのtableとrouting
+    accuracyがprintされます。</p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

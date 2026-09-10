@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>README.ja.md</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="overview.html">概要</a>
+    <a href="start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../index.html">English site</a>
+  </nav>
+</div>
+</header>
+<main class="wrap ja">
+<div align="center">
+
+<img src="assets/diagrams/lab-banner.png" alt="Zorost Intelligence AI Labが開発した、無料の24週間AIエンジニアリング研修プログラム" width="100%" />
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-F14B21.svg)](LICENSE)
+[![Program](https://img.shields.io/badge/program-24%20weeks-14213D.svg)](curriculum/README.ja.md)
+[![Notebooks](https://img.shields.io/badge/notebooks-43%20runnable-0E9384.svg)](curriculum/README.ja.md)
+[![Site](https://img.shields.io/badge/site-zorost.github.io-4260E8.svg)](https://zorost.github.io/AI-Engineering-Lab/)
+
+**日本語版** · [英語版](README.md) ·
+**[最初に読む](START-HERE.ja.md)** ·
+[24週間の一覧](curriculum/README.ja.md) ·
+[Reference](reference/) ·
+[Glossary](reference/GLOSSARY.md) ·
+[Roadmap](ROADMAP.md)
+
+Zorost Intelligence AI Labが開発 · Washington, DC ·
+[zorost.com/ai-engineering-lab](https://zorost.com/ai-engineering-lab)
+
+</div>
+
+<hr>
+<h2 id="_1">まず始める</h2>
+<pre><code class="language-bash">git clone https://github.com/zorost/AI-Engineering-Lab.git
+cd AI-Engineering-Lab
+python -m pip install -r requirements.txt
+</code></pre>
+<ol>
+<li><strong>プログラミングやAIが初めてですか？</strong> まず <strong><a href="start-here.html">START-HERE.ja.md</a></strong> を読んでください。使うツール、進む順番、問題が起きたときの対処を説明しています。</li>
+<li><strong><a href="week-01/README.html"><code>curriculum/week-01</code></a> を開きます。</strong> 環境を構築し、その後の全週で再利用するデータセットを生成します。最初の8週間にGPUは不要です。</li>
+<li><strong>トラッカーを開きます。</strong> <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/tracking/README.md"><code>curriculum/tracking</code></a> の月曜日の行から始めます。</li>
+</ol>
+<p>必要な情報は各週からリンクされています。次に何を読むかを推測する必要はありません。</p>
+<h2 id="_2">これは何か</h2>
+<p>AI Engineering Labは、Pythonの基礎から本番品質のAIシステムまで、<strong>24週間</strong>で学ぶ無料・オープン・自習型の <strong>training program</strong> です。機械学習と深層学習、LLMの内部構造、prompt/context engineering、ベクトル検索を使ったRAG、量子化、LoRAとDPOによるfine-tuning、評価ハーネス、coding-agent harness、AI agentとModel Context Protocol、Azure AI Foundry、Google Vertex AI、AWS Bedrock、そしてDatabricks lakehouseをゼロから本番運用まで扱います。</p>
+<p>このプログラムは <strong><a href="https://zorost.com/ai-lab">Zorost Intelligence AI Lab</a></strong> が開発しています。2時間で終わるprompt講座ではありません。生成AI、applied machine learning、Databricks modernizationのチームに新しく加わるエンジニアへ、Labが渡すカリキュラムを想定しています。実際に手を動かし、ユースケースを通し、本番で壊れる点にも正直であることを重視します。「読むだけでなく実行できるAI engineer roadmap」を探しているなら、これがそのためのプログラムです。毎週、実行可能な成果物で終わります。</p>
+<p>毎週、1つの概念と1つの成果物を組み合わせます。</p>
+<ul>
+<li><strong>ユースケース。</strong> 24週間を通して続く、架空の物流会社のケーススタディ。</li>
+<li><strong>実行可能なNotebook。</strong> Python、SQL、PySparkを使い、ローカルまたは無料のcloud notebookで実行します。</li>
+<li><strong>スコア。</strong> Week 3以降は、metricとerror noteが付くまで完了とはみなしません。</li>
+</ul>
+<blockquote>
+<p><strong>対象者:</strong> AIを開発に取り入れたいsoftware developer、engineeringへ進みたいanalyst、学生・キャリアチェンジャー、技術系founder。ソフトウェアをインストールできるコンピューター、週約10時間、基本的なコンピューター操作が必要です。Python経験、GPU、有料API keyは必要ありません。</p>
+<p><strong>対象外:</strong> model architectureの研究職を目指す人、週末だけのprompt workshopを探している人。</p>
+</blockquote>
+<h2 id="_3">オンラインでプログラムを見る</h2>
+<p>cloneする前に、カリキュラム全体をページとして読むこともできます。
+<strong><a href="https://zorost.github.io/AI-Engineering-Lab/">zorost.github.io/AI-Engineering-Lab</a></strong> に24週間の一覧があり、各週の目的から直接そのフォルダーへ移動できます。導入を日本語で読む場合は、まず <a href="start-here.html">START-HERE.ja.md</a> を開いてください。</p>
+<p><a href="https://zorost.github.io/AI-Engineering-Lab/"><img src="assets/diagrams/site-preview.png" alt="AI Engineering Labのプログラムサイト。ヒーローと、phaseで絞り込める24週間の一覧" width="100%" /></a></p>
+<h2 id="24">24週間の旅</h2>
+<p><img alt="FoundationsからDatabricks capstoneまでの7つのphaseと、各phaseで作るもの" src="../assets/img/lab-journey.webp"></p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Weeks</th>
+<th>到達点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1 · Foundations</strong></td>
+<td>1〜4</td>
+<td>Python、data、machine learning、deep learningを学び、最初から評価の視点を持つ</td>
+</tr>
+<tr>
+<td><strong>2 · LLM core</strong></td>
+<td>5〜8</td>
+<td>token、transformer、prompt/context engineering、retrieval、graph、local modelを扱う</td>
+</tr>
+<tr>
+<td><strong>3 · Model engineering</strong></td>
+<td>9〜11</td>
+<td>量子化、LoRA/DPOによるfine-tuning、serving、evalとerror analysisを行う</td>
+</tr>
+<tr>
+<td><strong>4 · Harnesses and loops</strong></td>
+<td>12〜13</td>
+<td>Claude Code、Cursor、OpenCode、DeepSeek Harnessとspec-driven loopを使う</td>
+</tr>
+<tr>
+<td><strong>5 · Agents</strong></td>
+<td>14〜17</td>
+<td>single agent、multi-agent、MCP、OpenClaw、Hermes、agent operationsを構築する</td>
+</tr>
+<tr>
+<td><strong>6 · Cloud AI platforms</strong></td>
+<td>18〜20</td>
+<td>Azure、Vertex、Bedrockの3つのcloudで同じagentを動かし比較する</td>
+</tr>
+<tr>
+<td><strong>7 · Databricks zero to hero</strong></td>
+<td>21〜24</td>
+<td>lakehouse、Unity Catalog、PySpark、Lakeflow、AI Search、Genie、本番capstoneを完成させる</td>
+</tr>
+</tbody>
+</table>
+<p>週ごとの詳細は <a href="index.html">curriculum/README.ja.md</a>、図を使った全体像は <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/learning-path.md">curriculum/learning-path.md</a> を見てください。</p>
+<h2 id="1">1週間の進め方</h2>
+<p><img alt="Study、Build、Ship、Reflectの4つのbeatで構成する1週間。合計約10時間" src="../assets/img/lab-week.webp"></p>
+<table>
+<thead>
+<tr>
+<th>Beat</th>
+<th>いつ</th>
+<th>やること</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Study</strong></td>
+<td>月〜火</td>
+<td>その週のREADMEと、そこからリンクされているknowledge-baseを読む</td>
+</tr>
+<tr>
+<td><strong>Build</strong></td>
+<td>水〜木</td>
+<td>Notebookを実行し、変更を加え、意図的に1つ壊してみる</td>
+</tr>
+<tr>
+<td><strong>Ship</strong></td>
+<td>金</td>
+<td>ユースケース演習を行い、成果物1つ・数字1つ・正直なメモ1つを提出する</td>
+</tr>
+<tr>
+<td><strong>Reflect</strong></td>
+<td>金〜日</td>
+<td>10問のquiz（8問正解で合格）を解き、trackerを更新する</td>
+</tr>
+</tbody>
+</table>
+<p>Week 3以降、すべてのAI成果物にはmetricと短いerror analysis noteを付けます。この習慣がプログラムの核心です。</p>
+<h2 id="124">1つの会社を24週間使う</h2>
+<p><img alt="24週間にわたって6つの段階で再利用されるZoroLogisticsのケーススタディ" src="../assets/img/lab-case.webp"></p>
+<p>あなたは架空の運送会社 <strong>ZoroLogistics</strong> のAI engineering teamです。Week 1で生成するdatasetは、Week 2のSQL演習、Week 3のtraining data、Week 7のretrieval corpus、Week 10のfine-tuning set、Week 16のagent tools、Week 23のfeature tablesへ引き継がれます。24個の独立したdemoではなく、互いにつながった成果物のportfolioを完成させます。</p>
+<p>freightを教材にするのは、規制・追跡可能性が重要で、運用上の複雑なテキストが多いからです。学んだskillは、航空、製造、製薬、政府、金融にも応用できます。これはZorostが実際に支援する業界です。</p>
+<h2 id="_4">リポジトリの中身</h2>
+<p><img alt="START-HERE、curriculum、reference、zoro、data、scripts、docs、.githubからなるリポジトリの構成" src="../assets/img/lab-map.webp"></p>
+<pre><code>AI-Engineering-Lab/
+├── START-HERE.ja.md       # 日本語の初日ガイド
+├── curriculum/            # 24週間のprogram、manifest、Excel tracker
+│   └── week-01/*.ja.*     # Week 1の日本語ガイドとNotebook
+├── reference/             # 各週から参照する資料
+│   ├── knowledge-base/    #   14個のconcept file
+│   ├── skills/            #   Claude Code、Cursor、OpenCode、Ollamaなどのtool guide
+│   ├── agents/            #   OpenClaw、Hermes、MCPなどのagent pattern
+│   ├── platforms/         #   Azure、Vertex、Bedrock、Databricks
+│   ├── resources/         #   週ごとに対応付けた無料の外部course
+│   └── GLOSSARY.md        #   用語集（現在は英語版）
+├── zoro/                  # ケーススタディ用のseed済みdata toolkit
+├── data/                  # 生成したtableの保存先（gitignore対象）
+├── scripts/               # リポジトリのmaintenanceとcheck
+├── docs/                  # GitHub Pagesのprogram site
+└── assets/                # 図
+</code></pre>
+<p>日本語版は、英語の原文と並行して少しずつ追加します。コマンド、コード、API名はそのまま使えるように表記しています。</p>
+<h2 id="framework">プログラムのframework</h2>
+<p>このcurriculumは <strong>Andrew NgのAI Engineering Skills Map</strong> と、AI時代のsoftwareを作るための <strong>3つのloop</strong> を実装します。Zorostは、skillだけではshipできず、systemとして届ける必要があるという視点を加えています。</p>
+<p><img alt="4つのskillと3つのloop、それらを構築する週" src="../assets/img/lab-framework.webp"></p>
+<blockquote>
+<p>Skills MapはAndrew Ngが2026年にThe Batchで公開した統合です。AI Engineering Labは独立した実装であり、Andrew NgまたはDeepLearning.AIと提携・推奨関係にはありません。詳しくは <a href="https://zorost.com/ai-engineering-skills-map-training-guide">Zorostの解説</a> を参照してください。</p>
+</blockquote>
+<p><img alt="AI engineering stackの各層と、それを導入する週" src="../assets/img/lab-stack.webp"></p>
+<h2 id="_5">費用</h2>
+<p>無料です。プログラムはMIT licenseで、signupもありません。Week 1〜13はlocal model、無料tierのAPI、またはAPI不要の経路があります。Week 18〜24はcloudのfree tierを使い、範囲内に収める方法も各週で説明します。GPUはWeek 8まで任意です。</p>
+<h2 id="_6">困ったとき</h2>
+<ol>
+<li>エラー全文を読み直します。最後の行が問題を示します。</li>
+<li>その週の <code>exercises.md</code> のヒントと <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/GLOSSARY.md">glossary</a> を確認します。</li>
+<li>GitHub issueには、週番号、実行した内容、tracebackを書きます。</li>
+<li>report、security、conductに関する連絡は <strong>info@zorost.com</strong> へ送ります。</li>
+</ol>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/.github/CONTRIBUTING.md">contributing</a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/.github/CODE_OF_CONDUCT.md">code of conduct</a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/.github/SECURITY.md">security</a>も参照してください。</p>
+<h2 id="zorost-intelligence-ai-lab">Zorost Intelligence AI Labについて</h2>
+<p><a href="https://zorost.com">Zorost Intelligence</a>は、accuracy、traceability、complianceが不可欠な組織向けに、AIとdata platformを設計・開発・運用しています。このプログラムは <strong>AI Lab</strong> が開発し、<a href="https://zorost.com/ai-lab#training">zorost.com/ai-lab</a> のTraining 01として公開しています。Labのopen test benchは <a href="https://zorost.com/ai-lab/fieldwork">AI Fieldwork</a> です。</p>
+<p>このリポジトリの原文はZorost Intelligenceの著作物です。vendor platformについては各ファイルのSourcesに記載し、第三者のcourse materialは転載していません。</p>
+<h2 id="license">License</h2>
+<p>MIT。詳しくは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/LICENSE">LICENSE</a> を見てください。自由に学び、自由に作り、Zorost Intelligenceを表示してください。</p>
+<hr>
+<p>© 2026 Zorost Intelligence LLC · <a href="https://zorost.com">zorost.com</a> · <a href="https://x.com/ZorostAI">@ZorostAI</a> · info@zorost.com</p>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+
+</body>
+</html>

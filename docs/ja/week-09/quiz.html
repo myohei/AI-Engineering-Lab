@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 09: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 09</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-09/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-09-quiz10810">Week 09: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-09/quiz.md">英語版</a> · <a href="README.html">Week 09 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>まず自分で答えてから、answer keyで確認してください。各問に答えのある場所が記載されているので、間違えたsectionやcellを読み返せます。</p>
+<h2 id="_1">設問</h2>
+<ol>
+<li>
+<p><strong>(MCQ)</strong> あるmodelは13B paramsを持ちます。INT4で <em>weightのみ</em> のVRAMはどれだけ必要で、どのruleが答えを与えますか？(Concepts §「Formatごとに一つの数値」を参照)
+   - A) ~26 GB、13B × 2 bytes
+   - B) ~13 GB、13B × 1 byte
+   - C) ~6.5 GB、13B × 0.5 bytes
+   - D) ~3.25 GB、13B × 0.25 bytes</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <code>scale ≈ 0.0039</code>、<code>zero_point = 0</code> のinteger quantizationで、float <code>0.5</code> はどのintegerにmapされますか？(Concepts 実例2を参照)
+   - A) 128
+   - B) 255
+   - C) 0
+   - D) 64</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> knowledge baseは、なぜperplexityを「screenであってverdictではない」と言っていますか？ほぼ平坦なperplexity ladderが隠せる、ZoroLogisticsの具体的なfailureを挙げてください。(Concepts §「Perplexityはscreenであってverdictではない」を参照)</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> 7B triage modelで、Q2_KはFP16比で~8 F1 pointを失うのに、perplexityはわずかに悪いだけに見えます。正しいproduction判断はどれで、その理由は？(Concepts 実例3を参照)
+   - A) Q2_Kをship。最小で最安だから
+   - B) Q4_K_Mをship。VRAMの一部でほとんどのF1を保つ。Q2_Kは避ける
+   - C) FP16をship。quantizationはリスクが高すぎる
+   - D) Q8_0をship。唯一のほぼlosslessな選択肢だから</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <code>notebooks/01-quantization-lab.ipynb</code> で、<code>perplexity()</code> helper（cell 12）は実際に何を計算しますか？(notebook cell 12を参照)
+   - A) noteのtokenにわたる <code>exp(mean cross-entropy loss)</code>
+   - B) 30 ticketのtriage accuracy
+   - C) 各formatのbytes-per-parameter
+   - D) 正しくdecodeされるtokenの割合</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> lab notebookで、<code>LIVE_FP16</code> と <code>LIVE_QUANT</code> の違いは何ですか？また、どんなhardware条件がそれぞれを <code>True</code> にしますか？(notebook cell 4を参照)</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> vLLMがnaiveなbatcherよりも高いthroughputを維持できる理由を説明するmechanismはどれですか？(Concepts §「Serving」を参照)
+   - A) すべてのmodelを自動的にINT4にquantizeする
+   - B) PagedAttention + continuous batchingが、idleなGPU時間を新しいtokenで埋め戻す
+   - C) 常にbatch size 1を使う
+   - D) 精度のためにmodelをFP32で実行する</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <code>notebooks/02-vllm-serving-and-benchmarks.ipynb</code> で、同じOpenAI SDK clientがvLLMにもOllamaにも動くのはなぜですか？(notebook cell 14を参照)
+   - A) どちらのengineも同じdataでtrainingされている
+   - B) どちらもOpenAI互換の <code>/v1</code> surfaceを出す。変わるのは <code>base_url</code> だけ
+   - C) notebookがengineごとにSDKにpatchを当てている
+   - D) Ollamaが内部でvLLMをimportしている</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> 測定結果がFP16 triage accuracy 0.92、INT8 0.92、INT4 0.89、INT4のVRAMはFP16の25%だったとします。Friday reportが求める、数値を付けた一文のproduction推奨を書いてください。(Concepts 実例3 + Fridayのgateを参照)</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> 「うまくいかない理由」節が、GPU上のweight-only quantizationに帰しているfailure modeはどれですか？(Concepts §「うまくいかない理由」を参照)</p>
+<ul>
+<li>A) 常にmodelを大きくする</li>
+<li>B) memoryは確実に縮めるが、fused kernelなしでは自動的には速くならない</li>
+<li>C) KV cacheを消し去る</li>
+<li>D) 実行にApple MPSを必要とする</li>
+</ul>
+</li>
+</ol>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>C)</strong> INT4は4 bits = 0.5 bytes/paramなので、13B × 0.5 = 6.5 GBです。ruleは「4-bitなら十億paramsあたり約1 GB」、そして <code>bytes = params × (bits / 8)</code>。</p>
+</li>
+<li>
+<p><strong>A)</strong> <code>q = round(0.5 / 0.0039) = round(128.2) = 128</code>。scaleは <code>(max − min) / 255 = 1.0 / 255 ≈ 0.0039</code> です。</p>
+</li>
+<li>
+<p><strong>Perplexityは流暢さの速いproxyであって、特定のjobのproxyではない。</strong> quantizeされたmodelは、perplexityがほぼ同一のまま、named entityを見逃したり、壊れたJSONを出したり、billing ticketをclaimsにrouteしたりできます。ship判断にはtask eval（例: 30-ticket triage accuracy）を実行しなければなりません。</p>
+</li>
+<li>
+<p><strong>B)</strong> Q4_K_Mはtriage F1を~0.897に保ち（~1.5-pointの損失）、~3.5×少ないVRAMと~3.4×低いcost。Q2_Kの8-pointのF1低下（0.912 → 0.831）は相当な数のticketを静かにmisrouteするので、避けるべきzoneです。</p>
+</li>
+<li>
+<p><strong>A)</strong> <code>math.exp(total_loss / total_tokens)</code> を計算します。各noteのtokenにわたるexponentiateした平均cross-entropyで、note間でlossを平均するので、短いnoteも長いnoteも等しく寄与します。</p>
+</li>
+<li>
+<p><strong><code>LIVE_FP16 = (DEVICE in ("cuda", "mps"))</code></strong>: FP16はNVIDIAとApple Siliconで動きます。<strong><code>LIVE_QUANT = (DEVICE == "cuda")</code></strong>、bitsandbytesの8/4-bitにはCUDAのみが必要です。MPSではFP16だけがliveで動き、CPUでは両方が <code>False</code> になりfallback pathが走ります。</p>
+</li>
+<li>
+<p><strong>B)</strong> continuous batchingは新しいrequestをtoken-by-tokenで受け入れ、終わったものを即座にevictし、PagedAttentionの固定size KV pageがfragmentationを消すので、GPUはstragglerのidle時間を新しい仕事で埋め戻します。</p>
+</li>
+<li>
+<p><strong>B)</strong> どちらもOpenAI互換の <code>/v1/chat/completions</code> endpointを出します。notebookが変えるのは <code>base_url</code>（vLLMは :8000、Ollamaは :11434）とmodel名だけで、これが相互運用性のsuperpowerです。</p>
+</li>
+<li>
+<p><strong>合格する答えはtradeとship/no-ship lineを述べます。</strong> 例:「INT4をshipする。VRAMの25%でFP16 triage accuracyの96.7%（0.89 vs 0.92）を保ち、misfileするticketはこれです。」（数字はestimateではなく自分のrunから来なければなりません。）</p>
+</li>
+<li>
+<p><strong>B)</strong> weight-only quantはmemoryを確実に縮めますが、speedの勝利はfused kernel次第です。なければ、小さくはなるが速くはなりません。</p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

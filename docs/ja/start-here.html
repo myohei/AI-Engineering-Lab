@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>START HERE: AI Engineering Lab 完全初心者ガイド</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="overview.html">概要</a>
+    <a href="start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../index.html">English site</a>
+  </nav>
+</div>
+</header>
+<main class="wrap ja">
+<h1 id="start-here-ai-engineering-lab">START HERE: AI Engineering Lab 完全初心者ガイド</h1>
+<blockquote>
+<p>Pythonを1行も書いたことがない？ LLM APIを触ったことがない？ このページはあなたのためのものです。
+一度上から最後まで読めば、約15分で、何から始め、何を期待し、詰まったときにどうするかが分かります。</p>
+<p><strong>English:</strong> <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/START-HERE.md">START-HERE.md</a> · <strong>日本語版:</strong> このページ</p>
+</blockquote>
+<p><strong>AI Engineering Labの一部 · <a href="https://zorost.com">Zorost Intelligence AI Lab</a>が開発 · zorost.com</strong></p>
+<hr>
+<h2 id="1">1. このリポジトリは何ですか？</h2>
+<p>AI Engineering Labは、やる気のある初心者が <strong>24週間</strong>（週約10時間）で、実際に動くAI engineerになるための、無料・オープン・自習型のtraining programです。</p>
+<p>ここでいう「AI engineer」とは、研究所で新しいmodel architectureを発明する人ではなく、<strong>AIを使うsoftwareを設計し、構築し、評価し、shipする人</strong>を指します。large language model（LLM）の仕組み、promptと評価の方法、自分のマシンでのmodel実行、fine-tuning、AI agent、AI coding toolの仕事での使い方、real cloud platformへのdeployを学び、最後はDatabricksのproduction capstoneで終わります。</p>
+<p>すべてを1つの架空のケーススタディで学びます。あなたは運送会社 <strong>ZoroLogistics</strong> のAI engineering teamです。Week 1で生成したdatasetをWeek 24でも使うため、24個の無関係なtoy demoではなく、つながったportfolioが残ります。</p>
+<p><img alt="24週間の7つのphaseと、各phaseで作るもの" src="../assets/img/lab-journey.webp"></p>
+<h2 id="2">2. 誰向けですか？ 先に何を知っておく必要がありますか？</h2>
+<p><strong>必要なもの:</strong></p>
+<ul>
+<li>softwareをインストールできるコンピューター（Windows、macOS、Linuxのいずれでも可）</li>
+<li>24週間、週約 <strong>10時間</strong>（自習型なので、もっとゆっくりでも可）</li>
+<li>基本的なコンピューター操作：アプリのインストール、ファイルの解凍、web browserの利用</li>
+</ul>
+<p><strong>必要ないもの:</strong></p>
+<ul>
+<li>プログラミング経験。Week 1でPythonをゼロから教えます。</li>
+<li>高校数学を超える数学。すべての式を平易な言葉で説明し、実行できるcodeで動きを確認します。</li>
+<li>高性能なcomputerやGPU。Week 1〜8は普通のlaptopで動きます。GPUが重要になるWeek 8以降は、無料・安価な選択肢を紹介します。</li>
+<li>お金。Week 1〜13のtoolは無料で使えます。cloud週（18〜24）はfree tierを使い、範囲内に収める方法を説明します。</li>
+</ul>
+<p><strong>向いている人:</strong> AIをtoolkitに加えたいsoftware developer、engineeringへ進みたいdata analyst、学生・career changer、手探りで済ませずAI featureを作りたいtechnical founderです。</p>
+<p><strong>あまり向いていない人:</strong> model architectureの研究職を目指している人（deep-learning theory courseを探してください）、または2時間のprompt engineering crash courseを探している人。このprogramはその正反対です。</p>
+<h2 id="3-1">3. 最初の1時間：具体的な手順</h2>
+<p>今すぐ、次の順番で進めてください。必要になったところで詳しい説明に移動できます。</p>
+<ol>
+<li><strong>リポジトリをコンピューターに置きます。</strong>
+   - 最も簡単な方法：GitHubページの緑色の <strong>Code</strong> ボタン → <strong>Download ZIP</strong> → <code>Documents/ai-engineering-lab</code> のような分かりやすい場所に解凍します。
+   - より実践的な方法（Week 1で学びます）：<a href="https://git-scm.com/downloads">Git</a>をインストールし、terminalで <code>git clone https://github.com/zorost/AI-Engineering-Lab.git</code> を実行します。</li>
+<li><strong>全体像を眺めます。</strong> <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/learning-path.md"><code>curriculum/learning-path.md</code></a> を開き、図を見ます。暗記ではなく、旅の形をつかむことが目的です。</li>
+<li><strong>Week 1を開きます。</strong> <a href="week-01/README.html">日本語版Week 1</a> で、Python、VS Code、Jupyterを導入します。この3つが以降のlabを動かします。</li>
+<li><strong>進捗trackerを用意します。</strong> <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/tracking"><code>curriculum/tracking/ai-engineering-lab-24-week-tracker.xlsx</code></a> をExcel、Google Sheets、またはLibreOfficeで開きます。名前と開始日を入力し、各taskを完了するたびにチェックします。</li>
+<li><strong>毎週同じリズムで進めます。</strong></li>
+</ol>
+<p><img alt="Study、Build、Ship、Reflectの4つのbeat" src="../assets/img/lab-week.webp"></p>
+<table>
+<thead>
+<tr>
+<th>Beat</th>
+<th>いつ</th>
+<th>やること</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Study</strong></td>
+<td>月〜火</td>
+<td>その週のREADMEとリンク先のknowledge-baseを読む</td>
+</tr>
+<tr>
+<td><strong>Build</strong></td>
+<td>水〜木</td>
+<td>週のJupyter notebookを実行し、変更を加える</td>
+</tr>
+<tr>
+<td><strong>Ship</strong></td>
+<td>金</td>
+<td>ユースケース演習を終え、具体的な成果物を作る</td>
+</tr>
+<tr>
+<td><strong>Reflect</strong></td>
+<td>金〜日</td>
+<td>10問quiz（8/10で合格）を受け、trackerを更新する</td>
+</tr>
+</tbody>
+</table>
+<ol start="6">
+<li><strong>用語で迷ったら</strong> <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/GLOSSARY.md"><code>reference/GLOSSARY.md</code></a> を調べます。プログラム中のtechnical termが平易な英語で定義されています。日本語版の用語説明は各日本語教材にも併記します。</li>
+</ol>
+<p>これで準備は完了です。あとはWeek 1が、一つずつ小さなstepに分けて案内します。</p>
+<h2 id="4-60mental-model">4. 各パーツの関係（60秒のmental model）</h2>
+<ul>
+<li><strong><code>curriculum/</code></strong>: 24週間の本編。ここがmain pathで、ほかはこれを支えます。</li>
+<li><strong><code>reference/knowledge-base/</code></strong>: 概念を整理した資料。各週から14ファイルのうち1つにリンクします。単独のreference libraryとしても読めます。</li>
+<li><strong><code>reference/skills/</code></strong>: tool別の短いhow-to card（Claude Code、Cursor、Ollama、OpenRouterなど）。具体的なcommandが必要になったときに開きます。</li>
+<li><strong><code>reference/agents/</code> と <code>reference/platforms/</code></strong>: Week 14〜24で使うdeep diveです。</li>
+<li><strong><code>zoro/</code> + <code>data/</code></strong>: ZoroLogisticsのsynthetic-data toolkit。Week 1で使い方を学び、内部実装に触れる必要はありません。</li>
+<li><strong><code>reference/skills/agent-skills/</code></strong>: AI <em>agent</em>（harnessが読み込むskill）に渡す、install可能な手順です。coding agentと開発し始めるWeek 12まで不要です。</li>
+<li><strong><code>reference/resources/</code></strong>: Anthropic、Google、NVIDIA、Hugging Faceなどの無料courseを、補助になる週と対応付けたcatalogです。</li>
+<li><strong><code>reference/GLOSSARY.md</code></strong>: technical termの用語集です。</li>
+<li><strong><code>ROADMAP.md</code> / <code>CHANGELOG.md</code></strong>: programの今後と変更履歴です。</li>
+</ul>
+<p><img alt="リポジトリの構成と、最初に開く2つの場所" src="../assets/img/lab-map.webp"></p>
+<h2 id="5-5">5. 学習を成立させる5つのルール</h2>
+<ol>
+<li><strong>すべてのnotebookを自分で実行する。</strong> codeを読むだけではcodeを書く練習になりません。このprogramは「実行すること」自体がlessonになるように設計されています。読んだだけなら約10%、実行して意図的に壊したときに本来の学びが得られます。</li>
+<li><strong>金曜日のuse caseは、見た目が悪くてもshipする。</strong> score付きの未完成な成果物は、完璧なplanに勝ります。scoreが完了の根拠です。</li>
+<li><strong>一度に1つだけ変える。</strong> 動いた、または壊れた理由を、どの変更が生んだのか分かるようにします。toolよりも、この習慣こそがprogramの本当の学びです。</li>
+<li><strong>30分以上止まったら、脱出ルートを使う。</strong> 苦労は学習の一部ですが、何日もblockedのままにしないでください。</li>
+<li><strong>trackerを正直に保つ。</strong> future-youはこのdashboardをもとに判断します。「Done」はページを読んだことではなく、成果物をshipしたことです。</li>
+</ol>
+<h2 id="6">6. 詰まったときの脱出ルート（この順番）</h2>
+<ol>
+<li><strong>エラーメッセージを全文読み直します。</strong> 最後の行が問題を、上の行が場所を示します。初心者は早く読み止めすぎます。</li>
+<li><strong>その週の <code>exercises.md</code> を確認します。</strong> 過去のlearnerが遭遇した失敗向けのヒントがあります。</li>
+<li><strong>用語が分からない場合は <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/GLOSSARY.md"><code>reference/GLOSSARY.md</code></a> を検索します。</strong></li>
+<li><strong>AI assistantにエラーの説明を頼みます。</strong> 完全なtracebackを貼り、「Python初心者にも分かるように説明して」と聞いてください。Week 12以降はcoding agentを専門的に使いますが、最初から気軽に使って構いません。</li>
+<li><strong>GitHub Issueを開きます。</strong> 週番号、実行した内容、完全なerrorを記載してください。maintainerとほかのlearnerが確認します。</li>
+</ol>
+<h2 id="7">7. よくある質問</h2>
+<p><strong>実際にどれくらいかかりますか？</strong></p>
+<p>設計上は週約10時間で24週間です。PythonとSQLを知っていればWeek 1〜2は早く進みます。週5時間しか取れなければ48週間かけても構いません。大切なのはcalendarよりcadenceです。</p>
+<p><strong>GPUは必要ですか？</strong></p>
+<p>Week 8までは不要です。その後も、core exerciseなら小さなmodelをCPUで動かせます。Week 8ではApple Silicon（Metal）、NVIDIA（CUDA）、時間単位のcloud GPU、free tierを扱い、download前に自分のhardwareで動くか予測するVRAM sizing methodを学びます。</p>
+<p><strong>API keyにお金を払う必要はありますか？</strong></p>
+<p>ありません。すべての必須exerciseに、local model（Ollama）、free-tier API（OpenRouterの <code>:free</code> model）、またはAPI不要の経路があります。有料optionが明らかに良い場合は、その週におおよそのcostをUSDで示します。</p>
+<p><strong>先の週へ飛ばせますか？</strong></p>
+<p>可能ですが、case studyは累積します。Week 9のquantization labはWeek 8のlocal modelを使い、Week 8のmodelはWeek 7のRAG botを、RAG botはWeek 1のdataを使います。飛ばした場合は後で埋め戻してください。経験のあるengineerはPhase 1の4つの金曜日use caseを実行してtestできます。すべて簡単ならWeek 5から始めても構いません。</p>
+<p><strong>Andrew NgやDeepLearning.AIと関係がありますか？</strong></p>
+<p>ありません。公開されたAI Engineering Skills Map frameworkを、公開資料とofficial vendor documentationから調査して独立に実装したprogramです（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/README.md#the-framework-behind-the-program"><code>README.md</code></a>参照）。すべての文章はZorost Intelligenceのoriginal workで、MIT licenseです。</p>
+<p><strong>最後に何が得られますか？</strong></p>
+<p>見せられるportfolioです。43個の実行済みnotebook、fine-tuned model、RAG agent、独自MCP serverを持つmulti-agent system、3つのcloud deployment、自分で作ったeval harness、governed Databricks lakehouse capstone、そして旅の進捗を示すtracker dashboardが残ります。</p>
+<p><strong>リポジトリ内の何かが間違っている、または古くなっています。</strong></p>
+<p>その可能性はあります。AI toolは速く変わるので、contributionの機会です。<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/.github/CONTRIBUTING.md"><code>.github/CONTRIBUTING.md</code></a> にissueやpull requestの方法があります。古いcommandを直すこと自体が学習の一部です。</p>
+<hr>
+<p>© 2026 Zorost Intelligence LLC · <a href="https://zorost.com">zorost.com</a></p>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

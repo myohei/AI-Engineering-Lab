@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 24: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 24</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-24/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-24-quiz10810">Week 24: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-24/quiz.md">英語版</a> · <a href="README.html">Week 24 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>各問に答えてから、Answer keyで確認してください。各問の末尾には、出題元のConcepts section（§）またはnotebook cellへのpointerが付いています。</p>
+<ol>
+<li><strong>(MCQ)</strong> Unity Catalogのprivilege modelは「additive-only」です。実務的にそれが意味するのはどれですか？ <em>(Concepts §governanceを参照)</em></li>
+</ol>
+<ul>
+<li>A) 特定のprincipalを <code>DENY</code> できる</li>
+<li>B) <code>DENY</code> は存在しない。principalはprivilegeを得るだけで、defaultは「何もなし」</li>
+<li>C) grantはworkspace横断で自動複製される</li>
+<li>D) privilegeはtableにのみ適用され、viewには適用されない</li>
+</ul>
+<ol start="2">
+<li>
+<p><strong>(Short answer)</strong> <code>01-governance-and-finopps.ipynb</code> で、<code>mask_value</code> functionはなぜ <code>STRING</code> ではなく <code>DOUBLE</code> をreturnしなければならないのですか？ <em>(Concepts §governance、notebook 01 cell 7を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <em>どのsource tableが</em> <code>gold_on_time_kpis</code> を支えているかを証明するqueryはどれですか？ <em>(Concepts §system tables、notebook 01 cell 17を参照)</em></p>
+</li>
+</ol>
+<ul>
+<li>A) <code>SELECT * FROM system.access.audit</code></li>
+<li>B) <code>SELECT * FROM system.access.table_lineage WHERE target_table_full_name LIKE '%gold_on_time_kpis'</code></li>
+<li>C) <code>SELECT * FROM system.billing.usage</code></li>
+<li>D) <code>SHOW GRANTS ON TABLE gold_on_time_kpis</code></li>
+</ul>
+<ol start="4">
+<li><strong>(MCQ)</strong> bundleにおいて <code>prod</code> targetを <code>dev</code> と区別するのは何ですか？ <em>(Concepts §DABsを参照)</em></li>
+</ol>
+<ul>
+<li>A) <code>prod</code> は別のbundle名を使う</li>
+<li>B) <code>mode: production</code> がworkspaceをうっかりした上書きから守る</li>
+<li>C) <code>prod</code> はvariableを使えない</li>
+<li>D) <code>prod</code> は <code>bundle validate</code> をskipする</li>
+</ul>
+<ol start="5">
+<li>
+<p><strong>(Short answer)</strong> CI/CDのreference flowが、personal access tokenではなくOIDC token federation（またはOAuth M2M）を使うのはなぜですか？ <em>(Concepts §DABs、How it breaksを参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <strong>row filter</strong> の最も良い説明はどれですか？ <em>(Concepts §governanceを参照)</em></p>
+</li>
+</ol>
+<ul>
+<li>A) entitlement tableをjoinするview</li>
+<li>B) groupごとにrowを隠す、tableにattachされたboolean UDF</li>
+<li>C) 自由textを書き換えるLLM call</li>
+<li>D) column-levelのNULL mask</li>
+</ul>
+<ol start="7">
+<li><strong>(MCQ)</strong> serverless computeは <em>premium</em> DBU rateを請求するのに、総costではしばしば勝ちます。なぜですか？ <em>(Concepts §FinOpsを参照)</em></li>
+</ol>
+<ul>
+<li>A) cold-startすることがないから</li>
+<li>B) 古典的なbillを支配するidle時間と過剰provisioningを消すから</li>
+<li>C) rate limitがないから</li>
+<li>D) DBU rateがSKUs横断でフラットだから</li>
+</ul>
+<ol start="8">
+<li>
+<p><strong>(Short answer)</strong> notebookは <code>total_dbu * 0.55</code> でcostを見積もり、rateは「illustrative」とcommentしています。本当のdollar値を得る正しい方法は何ですか？また、どのtableをjoinしますか？ <em>(Concepts §FinOps、notebook 01 final cellを参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <code>databricks bundle validate --strict -t dev</code> が保証するのは何ですか？ <em>(Concepts §DABsを参照)</em></p>
+</li>
+</ol>
+<ul>
+<li>A) resourceがprodにdeployされる</li>
+<li>B) configが健全であること。warningはerrorとして扱われる</li>
+<li>C) pipelineが正常に実行されたこと</li>
+<li>D) workspaceがlockされること</li>
+</ul>
+<ol start="10">
+<li><strong>(MCQ)</strong> <strong>column mask</strong>（<code>ai_mask</code> ではなく）はどれですか？ <em>(Concepts §governance、How it breaksを参照)</em></li>
+</ol>
+<ul>
+<li>A) <code>ai_mask(text, ARRAY('person_name', 'email'))</code></li>
+<li>B) <code>ALTER TABLE t ALTER COLUMN value_usd SET MASK f</code></li>
+<li>C) <code>ai_classify(text, ARRAY('a','b'))</code></li>
+<li>D) <code>CREATE VIEW v AS SELECT '*** REDACTED ***'</code></li>
+</ul>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>B.</strong> <code>DENY</code> は存在しません。accessはadditiveにgrantされ、defaultは「何もなし」なので、広すぎるgrantは能動的にrevokeしなければなりません。</p>
+</li>
+<li>
+<p><strong>mask functionのreturn typeは、maskされるcolumnの型と一致しなければならないから</strong>です。<code>value_usd</code> は <code>DOUBLE</code> なので、<code>mask_value</code> は <code>DOUBLE</code> をreturnしなければなりません。<code>STRING</code> returnなら <code>SET MASK</code> が失敗します。</p>
+</li>
+<li>
+<p><strong>B.</strong> <code>system.access.table_lineage</code> はsource→target tableの対応を示します。targetを <code>gold_on_time_kpis</code> でfilterすれば、そのupstream sourceが列挙されます。</p>
+</li>
+<li>
+<p><strong>B.</strong> <code>mode: production</code> はworkspaceをうっかりした上書きから守ります。<code>dev</code> は速いiterationのために <code>mode: development</code> を使います。</p>
+</li>
+<li>
+<p><strong>repoにsecretを保存しないため</strong>です。OIDC/M2MはCI platformのidentityをDatabricks OAuthと交換します（またはrepoの外で管理されるservice-principal client secretを使います）。PATは長寿命のsecretで、source管理下に置いてはいけません。</p>
+</li>
+<li>
+<p><strong>B.</strong> row filterは <code>SET ROW FILTER</code> で適用されるboolean UDFで、callerが見てよいrowに対してのみTRUEを返します。</p>
+</li>
+<li>
+<p><strong>B.</strong> classic computeはidle VMsと過剰provisioningに課金します（22 h/day idleするall-purpose clusterは2 hの仕事に約24 hを請求）。serverlessは実行分だけ課金するので、premium rateでも月次総spendではしばしば安くなります。</p>
+</li>
+<li>
+<p><strong><code>system.billing.usage</code> を <code>system.billing.list_prices</code> にjoinする</strong>ことです。<code>sku_name</code>（とcloud）で結合し、<code>usage_quantity</code> にSKUのprice（<code>p.pricing.default</code>）を掛けます。固定の <code>0.55</code> 定数の代わりに。</p>
+</li>
+<li>
+<p><strong>B.</strong> <code>validate --strict</code> はbundle設定をcheckし、warningをerrorとして扱います。deployも実行もしません。</p>
+</li>
+<li>
+<p><strong>B.</strong> <code>ALTER TABLE … ALTER COLUMN … SET MASK</code> は決定論的なquery時governance policyをattachします。<code>ai_mask</code>（A）はLLMによるcontent書き換え、view（D）はdynamic viewであってcolumn maskではありません。</p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

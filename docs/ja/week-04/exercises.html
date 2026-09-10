@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 04: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 04</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-04/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-04-checklist">Week 04: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-04/exercises.md">英語版</a> · <a href="README.html">Week 04 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-pytorch-tensors-and-autograd.ipynb</code> を最後まで実行します。
+   autogradのgradientが手計算の値と一致することを確認し、toy MLPの最終訓練lossを
+   Week 4のtracker sheetに記録してください。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: <code>notebooks/02-mlp-eta-train-and-eval.ipynb</code> で、ちょうど一つを意図的に
+   壊します（例：learning rateを100倍高くする、featureの正規化をskipする）そして実行
+   します。markdown cellで、learning curveからその失敗を診断し（例：lossの爆発、あるいは
+   訓練lossがvalidation lossよりはるかに低い）、fixを名指しします。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: 三つのhyperparameter、hidden width、dropout rate、weight decayを
+   <strong>validation</strong> splitのみを使ってtuneし、最良の組み合わせのvalidation MAEを記録します。
+   その後でのみ、test setをちょうど一度だけ評価し、その数字をbaselineと並べて報告します。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: <strong>ETA prediction (ML → DL) with model cards</strong> のmilestone
+   （<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/projects/README.md"><code>curriculum/projects/README.md</code></a> を参照）を完成させます。
+   (a) neural test MAE、(b) 比較対象のWeek 3 baseline MAE、(c) carrier/lane別の最大error
+   clusterと仮説を名指ししたerror-analysis note、この三点を載せたmodel card v2をcommit
+   します。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: <code>y.backward()</code> の直後に、手計算した <code>2x</code> の値を <code>x.grad.item()</code> と比較して
+   ください。toy-MLPの最終lossはnotebookの最後のcellがprintする数字で、「ほぼゼロ」は
+   netがlinearなsignalをlearnしたことを意味します。</li>
+<li><strong>Standard</strong>: ちょうど一つのつまみだけを変え（例：<code>lr=0.1</code>、またはscalerをskip）、
+   再実行します。それからtrain/val curveの <em>形</em> を読み、fixの前に失敗を名指しします。
+   爆発する値や、発散していくgapなど。</li>
+<li><strong>Stretch</strong>: <code>(width, dropout, weight_decay)</code> の小さなgridをloopし、それぞれ
+   <strong>training</strong> splitで訓練し、<strong>validation</strong> のみでscoreします。最良の組み合わせは
+   validation MAEが最も低いもので、test setを実行するのはその後、一度だけです。</li>
+<li><strong>Portfolio</strong>: error-analysis noteでは、<em>数字</em>（worst carrier/laneの平均絶対error）と
+   <em>仮説</em>（例：極端なdelayや季節性がそのsliceを支配している）をpairにします。gateは
+   数字と「なぜ」であって、数字だけではありません。</li>
+</ol>
+<h2 id="checklistmanifestjsonexcel-tracker">Checklist（manifest.jsonとExcel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: tensor、autograd、computation-graphのmental modelを学ぶ。</li>
+<li>☐ Tue: MLP notebookを実行。loss curveを確認。一つを意図的に壊して診断する。</li>
+<li>☐ Wed: dropout/weight decayを追加。validation splitで3 hyperparameterをtuneする。</li>
+<li>☐ Thu: test setでneural vs baselineを比較。errorをcarrierとlaneで切り分ける。</li>
+<li>☐ Fri: Use case：error-analysis note（最大error cluster + 仮説）を書く。</li>
+<li>☐ Sat: Week 4 quiz（quiz.md）を受け、8/10で合格する。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新。model card v2をcommitする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

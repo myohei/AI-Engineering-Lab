@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 23: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 23</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-23/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-23-quiz10810">Week 23: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-23/quiz.md">英語版</a> · <a href="README.html">Week 23 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>各問に答えてから、Answer keyで確認してください。各問の末尾には、出題元のConcepts section（§）またはnotebook cellへのpointerが付いています。</p>
+<ol>
+<li><strong>(MCQ)</strong> 古いMLflow Registryの"Staging/Production" stageがdeprecatedになり、aliasが好まれるのはなぜですか？ <em>(Concepts §aliasesを参照)</em></li>
+</ol>
+<ul>
+<li>A) aliasの方がqueryが速い</li>
+<li>B) aliasはmutableなので、複数の名前付き参照（Champion、Challenger、<code>@prod</code>）を保持し、pointerの付け替えでpromoteできる</li>
+<li>C) stageはXGBoostで一度も動かなかった</li>
+<li>D) aliasにはmodel signatureが必要</li>
+</ul>
+<ol start="2">
+<li>
+<p><strong>(Short answer)</strong> <code>01-mlflow-feature-engineering-training.ipynb</code> では、<code>carrier_daily_stats</code> tableが <code>timeseries_columns=["metric_date"]</code> を宣言し、lookupが <code>timestamp_lookup_key="planned_departure"</code> を設定しています。timestamp keyを <em>外して</em> daily tableを <code>carrier_id</code> だけで直接joinすると、trainingに何がleakしますか？ <em>(Concepts §feature engineering、notebook 01 cell 9を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> AI Searchの検索modeのうち、vector similarityとkeyword（BM25）matchingをReciprocal Rank Fusionで融合するのはどれですか？ <em>(Concepts §AI Searchを参照)</em></p>
+</li>
+</ol>
+<ul>
+<li>A) ANN</li>
+<li>B) semantic</li>
+<li>C) hybrid</li>
+<li>D) direct upload</li>
+</ul>
+<ol start="4">
+<li><strong>(MCQ)</strong> <code>ai_classify</code> や <code>ai_extract</code> のようなAI functionsには、どのruntime環境が必要ですか？ <em>(Concepts §AI functionsを参照)</em></li>
+</ol>
+<ul>
+<li>A) 任意のclassic all-purpose cluster</li>
+<li>B) serverless computeとDBR 18.2+</li>
+<li>C) 専用GPU clusterのみ</li>
+<li>D) Photon付きPro SQL warehouse</li>
+</ul>
+<ol start="5">
+<li>
+<p><strong>(Short answer)</strong> notebookがgroundednessを「回答のtokenのうちretrieved contextに現れる割合」として計算するのはなぜですか？「回答はそれっぽく見える」とprintするだけではなく。 <em>(Concepts §worked RAG example、notebook 02 cell 13を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> champion/challenger比較で、challengerは <code>daily_*</code> columnをdropした後にtrainingされます。<code>champion_MAE &lt; challenger_MAE</code>（正の「point-in-time gain」）が成り立つことは何を意味しますか？ <em>(Concepts §worked example、notebook 01 final cellを参照)</em></p>
+</li>
+</ol>
+<ul>
+<li>A) time-series featureがmodelを害している</li>
+<li>B) time-series featureがstatic featureを超える予測価値を持つ</li>
+<li>C) modelがoverfitしている</li>
+<li>D) training setが小さすぎる</li>
+</ul>
+<ol start="7">
+<li><strong>(MCQ)</strong> idle時に$0で済む低trafficのETA endpointが欲しい。正しいserving設定はどれですか？ <em>(Concepts §Servingを参照)</em></li>
+</ol>
+<ul>
+<li>A) <code>min_provisioned_throughput &gt; 0</code></li>
+<li>B) <code>scale_to_zero_enabled: true</code></li>
+<li>C) provisioned throughput</li>
+<li>D) external-model endpoint</li>
+</ul>
+<ol start="8">
+<li>
+<p><strong>(Short answer)</strong> <code>ai_mask</code>（AI function）とUnity Catalog column maskの違いは何ですか？ <em>(Concepts §AI functions、How it breaksを参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> Genie Agentsが <em>caller</em> のgrantを超えられないのはなぜですか？ <em>(Concepts §Genieを参照)</em></p>
+</li>
+</ol>
+<ul>
+<li>A) Genieは事前書き込み済みのSQLしか実行しない</li>
+<li>B) GenieのSQLは、viewerが既に読めるtableに対してviewerとして実行される</li>
+<li>C) GenieはすべてのSQL functionを無効にする</li>
+<li>D) Genieは外部model経由でroutingされる</li>
+</ul>
+<ol start="10">
+<li><strong>(MCQ)</strong> <code>02-vector-search-rag.ipynb</code> のDelta Sync indexは <code>embedding_vector_column="embedding"</code>（self-managed）を使います。<em>managed</em> な代替は何ですか？ <em>(Concepts §AI Search、notebook 02 cell 5を参照)</em></li>
+</ol>
+<ul>
+<li>A) <code>embedding_source_column</code> + <code>embedding_model_endpoint_name</code> を渡して、index側にembedさせる</li>
+<li>B) vectorを一つずつ <code>upsert</code> でuploadする</li>
+<li>C) managedな代替は存在しない</li>
+<li>D) embeddingをCSVに保存する</li>
+</ul>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>B.</strong> aliasはmutableな名前付き参照なので、Champion、Challenger、<code>@prod</code> を同時に保持し、一つのaliasを付け替えるだけでpromoteできます。stageは単一の線形stateを強制していました。</p>
+</li>
+<li>
+<p><strong>未来のcarrier統計がleakします。</strong> <code>carrier_daily_stats</code> を <code>carrier_id</code> だけでjoinすると、carrierの <em>最新の</em> 統計（shipment出発後の可能性がある）が引っ張られます。timestamp keyはjoinを <code>planned_departure</code> 時点のAS OFにするので、出発より前のhistoryだけが使われます。</p>
+</li>
+<li>
+<p><strong>C: hybrid。</strong> hybridはANN vector searchとBM25 keyword searchをReciprocal Rank Fusionで組み合わせます。</p>
+</li>
+<li>
+<p><strong>B: serverless computeとDBR 18.2+。</strong> AI functionsはPro/Classic warehouseでは動きません。</p>
+</li>
+<li>
+<p><strong>groundednessは主張ではなく測定されなければならないから</strong>です。token overlapは、回答がmodelの先入観ではなくretrieved textから作られているかをcheckする、安く再現可能なproxyです。<em>もっともらしく聞こえる</em> が条項をでっち上げる回答は低scoreになります。</p>
+</li>
+<li>
+<p><strong>B.</strong> （AS-OF time-series featureを持つ）championがstaticのみのchallengerに勝つので、point-in-time featureには予測signalがあります。gainはその測定された差です。</p>
+</li>
+<li>
+<p><strong>B: <code>scale_to_zero_enabled: true</code></strong>（<code>min_provisioned_throughput: 0</code> 付き）なら、endpointはidle中にreplicaをゼロまで縮み、requestがcold-startするまで費用がかかりません。</p>
+</li>
+<li>
+<p><strong><code>ai_mask</code> はcontent変換</strong>です。自由textを（名前付きPII entityをredactして）一度だけbatch操作として書き換えます。<strong>column mask</strong> はquery時に強制される決定論的なgovernance policyで、columnの値を <em>誰が見られるか</em> を制御するものであり、textの書き換えではありません。</p>
+</li>
+<li>
+<p><strong>B.</strong> Genieが生成するSQLは <em>viewer</em> として、viewerのUnity Catalog grantで実行されるので、callerが読めないtableを読んだり、unmaskされた値を見たりすることはできません。</p>
+</li>
+<li>
+<p><strong>A.</strong> managed embeddingでは、<code>embedding_model_endpoint_name</code> を使ってDatabricksがtext columnからvectorを計算します。self-managedは、<code>embedding</code> columnを自分で事前計算して保存していたことを意味します。</p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

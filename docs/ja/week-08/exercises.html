@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 08: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 08</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-08/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-08-checklist">Week 08: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-08/exercises.md">英語版</a> · <a href="README.html">Week 08 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>02-vram-sizing-and-model-selection.ipynb</code> を <code>task="coding"</code> と <code>task="reasoning"</code> で再実行します。推奨がどう変わるか、なぜかを、それぞれ一文で説明します。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: catalogに二つのmodelを追加します（例: Gemma 2 9B、Phi-3.5。model cardの実際のlayer/head数を使用）。そして両方のhardware caseでpickerを再実行します。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: <code>01-local-model-playground.ipynb</code> で <code>num_ctx</code> sweep（2048 vs 8192）を追加し、同じpromptについてtokens/secとVRAMのtradeoffを報告します。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: <code>projects/model_picker.py</code> を書きます（CLI: hardware GB + task in → model + quant + license + footprint out）。backend benchmark表とともにcommitします。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: <code>pick_model(16.0, task="coding")</code> と <code>task="reasoning"</code> を呼びます。違いはcatalogではなく <code>MIN_PARAMS</code> です。各taskがどのfloorを上げるか、そして推奨がどう動くか（または <code>None</code> を返すか）を説明します。</li>
+<li><strong>Standard</strong>: 各model cardの実際の <code>layers</code>/<code>heads</code>/<code>head_dim</code> で二つのdictを <code>CATALOG</code> にappendします（例: Gemma 2 9B、Phi-3.5）。両方のhardware caseで <code>list_options</code> を再実行し、license欄の変化を記録します。</li>
+<li><strong>Stretch</strong>: <code>--verbose</code> 付きの <code>benchmark(model, prompt, n=3)</code> を <code>num_ctx=2048</code> と <code>num_ctx=8192</code> で（flagとして渡して）実行します。二つの長さについてtokens/sec <em>と</em> <code>kv_cache_gb</code> のKV-cache GB差を報告します。</li>
+<li><strong>Portfolio</strong>: <code>argparse</code> で二つの引数（<code>--gb</code>、<code>--task</code>）。<code>total_footprint</code>/<code>list_options</code> のlogicを再利用し、top pickとそのlicenseをprintします。benchmark表をその隣のmarkdown fileに書き出します。</li>
+</ol>
+<h2 id="checklistmanifestjson-excel-tracker">Checklist（manifest.json + Excel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: modelのlandscapeを学ぶ。open vs closed、license、family（knowledge-base 08）。</li>
+<li>☐ Tue: Ollamaをinstallする。小さいmodelをpullする。chatとstructured outputをlocalで実行する。</li>
+<li>☐ Wed: llama.cppとMLXを試す。backend横断のtokens/secを表で比較する。</li>
+<li>☐ Thu: GPU setup check。CUDA/MPS/ROCm。小さいscriptでbenchmarkする。</li>
+<li>☐ Fri: Use case。local model + VRAM basedのmodel pickerによるticket triage。</li>
+<li>☐ Sat: Week 8 quiz（quiz.md）を受け、8/10で合格する。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新する。benchmark表とpickerをcommitする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

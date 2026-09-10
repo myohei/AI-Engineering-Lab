@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 11: AI SystemのためのEvalとError Analysis</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 11</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-11/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-11-ai-systemevalerror-analysis">Week 11: AI SystemのためのEvalとError Analysis</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-11/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 11 of 24 · Section: Model Engineering · Category: Evaluation
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-11/notebooks/01-zoroeval-harness.ipynb">01-zoroeval-harness.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-11/notebooks/02-error-analysis-workshop.ipynb">02-error-analysis-workshop.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsはWeek 6〜10でartifactをshipしてきました。RAG answerer、ticket triager、bill-of-lading extractor、quantize済みmodel、fine-tune済みadapter。どれもdemoでは正しく見えました。しかし、従来のsoftwareは二値の正しさの概念を持ちます。testがpassするかしないか。一方、AI systemは <strong>behaviorの分布</strong> を持ちます。promptすれば、何が返ってくるか分かりません。この一つの事実が連鎖します。採点するdatasetがなければ、「良く見える」が唯一のevidenceで、vibesでshipするteamは静かにregressし、顧客から知らされます。thresholdがなければ、「green checkmark」は無意味です。そしてtraceがなければ、何かが壊れたとき、<em>どのstepが</em> 間違った答えを生んだのかを見られず、直すのではなく当てることになります。</p>
+<p>今週は、予測できないoutputをshipできるものに変えるdisciplineをbuildします。<strong>golden set</strong>（実例から引いたlabeled input）、artifactごとのtask固有の <strong>metric</strong>、open-endedな答えのためのcalibrated rubricを持つ <strong>LLM-as-judge</strong>、そしてfailureをclusterし、最大のclassから直す <strong>error-analysis loop</strong> です。内面化すべきNgの主張は率直です。disciplineのあるevals + error-analysis processこそが、<em>teamがAI systemをどれだけ速く進められるかの単一最大の予測因子</em> です。virtueではなくvelocityについての主張です。Failureを測れるteamは速くshipできます。すべての変更が、数値を動かすか動かさないかのどちらかだからです。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、三つのtask archetype、BoL field extraction、RAG groundedness、ticket triageのgolden setを、taskごとに正しいmetricとともに定義できる。</li>
+<li>☐ 金曜日までに、anchoredな1〜5 rubricとper-field accuracy metricを備えた、再利用可能な <code>ZoroEval</code> classでLLM-as-judgeを実装できる。</li>
+<li>☐ 金曜日までに、倍加sampleでjudge agreementを測り、human labelに対してrubricをcalibrateできる。</li>
+<li>☐ 金曜日までに、error-analysis loop（traceを読む → cluster → 優先順位 → fix → evalに追加）を実行し、CI gateを、threshold未満でfailするcallable functionとして書ける。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td>Eval設計、golden set、task固有metric（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/07-evals-error-analysis.md">reference/knowledge-base/07-evals-error-analysis.md</a> + Ngのletters）</td>
+<td>三つのgolden setのmetric選択を書く</td>
+<td>Taskごとのmetric表</td>
+<td>2時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>LLM-as-judge、rubric、judge bias/calibration</td>
+<td>Groundedness rubric + <code>ZoroEval</code> classを実装する</td>
+<td><code>ZoroEval</code> + rubric</td>
+<td>2時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>Judgeの信頼性。code vs model metric</td>
+<td>Self-agreement + human labelに対するcalibrationを測る</td>
+<td>Agreement数値</td>
+<td>2時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>Trace、HLP、error clustering</td>
+<td>50-traceのrun logをclusterし、top fixを選ぶ</td>
+<td>Top-fix + HLP表</td>
+<td>2時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>CIでのeval。regression suite。drift monitoring</td>
+<td><code>ci_gate</code> を接続し、悪いartifactをblockする</td>
+<td>ZoroEval v1 + gate script</td>
+<td>2時間</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/07-evals-error-analysis.md">reference/knowledge-base/07-evals-error-analysis.md</a> を全部読んでください。今週のspecであり、program全体のspineです。持つべき一つのidea: <strong>AI outputはbooleanではなくdistribution</strong>。あとはすべてここから派生します。Qualityがdistributionなら、採点するための <strong>dataset</strong> が必要です。<strong>release gateは数値上のthreshold</strong> であって、green checkmarkではありません。そして「良く見える」はevidenceではありません。AI systemについての正直な記述は統計的なものです。<em>この種類のquestionに、これくらいの頻度で正しく答える。そしてそれを裏付けるsampleがここにある。</em></p>
+<h3 id="golden-settaskmetric">Golden setとtask固有metric</h3>
+<p><strong>Golden set</strong> は、inputとその正しいoutput、または許容output基準をpairにした、labeled collectionです。良いものは <em>実物または現実的な</em> inputから引かれ（でっち上げたcaseは問題ではなくあなたの信念をencodeします）、long tailをカバーし、codeと同じように <strong>version管理されreviewされ</strong>、tuningに使うものから <strong>分離されています</strong>。分離しなければ、数値はmemorizationを測ります。Sizeのrule: <strong>最低三十のlabeled case、信頼のためには五十</strong>。そしてerror analysisが新しいfailure classを見つけるたびに成長します。</p>
+<p>Metricはtaskに合わせなければなりません。間違ったmetricの再利用は、teamが壊れたsystemを問題ないと納得してしまう経路です。</p>
+<table>
+<thead>
+<tr>
+<th>Task shape</th>
+<th>Metric family</th>
+<th>ZoroLogisticsでの例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Classification / extraction、単一の正解</td>
+<td>Accuracy、F1、exact-match</td>
+<td>「fieldはgold値と等しかったか？」</td>
+</tr>
+<tr>
+<td>Retrieval</td>
+<td>Recall@k、precision@k、MRR</td>
+<td>「正しいdocumentはtop 5に入っていたか？」</td>
+</tr>
+<tr>
+<td>Generation、正しいが可変</td>
+<td>Rubric付きLLM-as-judge</td>
+<td>「答えはgroundedで完全か？」</td>
+</tr>
+<tr>
+<td>Structured output</td>
+<td>Schema conformance + field-level match</td>
+<td>「ValidなJSONで、各fieldは正しいか？」</td>
+</tr>
+</tbody>
+</table>
+<p>異なる二種類の数値がどちらも「evals」と呼ばれ、混同が典型的なmistakeです。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>Code metric</strong></th>
+<th><strong>Model metric</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>測るもの</td>
+<td>Deterministicなplumbing</td>
+<td>確率的なmodel output</td>
+</tr>
+<tr>
+<td>例</td>
+<td>JSONはparseされたか？ Latency &lt; 2s？</td>
+<td>Categoryは正しかったか？ Claimはgroundedか？</td>
+</tr>
+<tr>
+<td>性質</td>
+<td>二値、速い、安い</td>
+<td>統計的、遅い、judgeかgolden setが必要</td>
+</tr>
+<tr>
+<td>実行</td>
+<td>すべてのcommit（CI）</td>
+<td>定期的 / release時</td>
+</tr>
+</tbody>
+</table>
+<p>Ngのguidance: <strong>可能ならdeterministicなcode metricを使い</strong>、judgeは本物にopen-endedな次元のために取っておく。Failureがregexやschema checkでcatchできるなら、judgeをそれに費やさないでください。</p>
+<h3 id="llm-as-judgerubriccalibration">LLM-as-judge、rubric、calibration</h3>
+<p>答えが多くの言い方で表せるとき、この要約は忠実か？ このresponseは丁寧か？ string matchingはfailするので、<strong>rubric</strong> に対して採点する（通常より強い）<strong>LLM-as-judge</strong> を使います。Rubricはtask固有で、<strong>anchored</strong>（各levelが形容詞ではなく具体的なfailureを名指す）で、<strong>dimension-separated</strong>（groundednessはhelpfulnessではない）でなければなりません。</p>
+<p><strong>実例1: agreement数値付きのgroundedness rubric。</strong> harnessは、notebook cell 12のrubricを使って、RAG answerを <em>groundednessのみ</em> で採点します。</p>
+<pre><code class="language-text">5, every factual claim is supported by the retrieved passage, and it cites it.
+3, core answer supported, but it includes a claim (a number, date, detail)
+    not present in the passage.
+1, states a fact that contradicts the passage, or invents a rate/date/term.
+</code></pre>
+<p>Judge自身もmodelなので、noiseとbiasを持ちます。それを信頼するかどうかをgateする二つの数値があります。第一に、<strong>倍加sampleでのself-agreement</strong>: 同じ10のQ/A pairを二度採点し、完全一致を数えます。Judgeが10 pair中の9 pairで同じscoreを返せば、agreementは <strong>0.90</strong> で、rubricは信頼できるほど安定です。~0.60では、rubricは行動に移すには曖昧すぎます。第二に、<strong>human labelに対するcalibration</strong>: 自分のgradeをhold outし（notebook cell 21の <code>HUMAN_LABELS = [5,5,5,3,5,3,5,3,3,5]</code>）、judgeが±1以内に収まる頻度を数えます。Judgeが <code>[5,5,5,4,5,3,5,3,3,5]</code> を返し、すべてのhuman labelの±1以内 → calibration <strong>1.00</strong>。しかし <em>groundedな</em> 答え（human 5）を <strong>1</strong> と採点していたら（hallucinationだと主張して）、それはそのdimensionのsystematicなmissで、judgeを信じるのではなく、groundednessはhuman reviewにfallbackするでしょう。<strong>Calibrateしていないjudgeは、truthの源ではなく、二つ目の未検証modelです。</strong> 既知のjudge bias、position bias、verbosity/self-preference bias、driftは、順序のshuffle、pairwise comparisonの選好、model更新後の再calibrationで飼い慣らします。</p>
+<h3 id="tracespanhlp">Trace、span、HLP</h3>
+<p>Agentic systemはstepの連続なので、debuggingの単位は <strong>trace</strong>、一つのinputに対してsystemが何をしたかの完全な記録です。中身は <strong>span</strong>（一つのmodel call、一つのtool呼び出し、一つのretrieval query。それぞれがinput/output/latency/costを持つ）でできています。Traceがあるからerror analysisが <em>可能に</em> なります。KBのworked traceは、support質問に「portalで追跡できます」と答えた例を示します。<em>正しい</em> 読みは、shipment lookup toolが一度も呼ばれず、retrievalがgenericなFAQを返したということで、workflowのfixです。spanがあるから見えるものです。<strong>Human-level parity（HLP）</strong> はlocalizationのheuristicです。failした各stepについて問うのは、<em>同じ情報を与えられた有能な人間なら、これを正しくやれただろうか？</em> Yesなら、systemは人間に劣る → <strong>fixable</strong>。人間もfailするなら、情報がそもそもなかった → <strong>upstream</strong>（modelではなくdata/intakeを直す）。</p>
+<h3 id="error-analysis-loopcieval">Error-analysis loopとCIでのeval</h3>
+<p>Evalは <em>score</em> を与え、error analysisは <em>どのclusterを直すか</em> を教えます。Loop: <strong>traceを読む → failureをclusterする → 頻度で優先順位を付ける → fixする → そのfailureをeval setに加え戻す</strong>。そうすれば、そのclassは二度と静かにregressできません。</p>
+<p><strong>実例2: clusteringとCI gate。</strong> Workshop notebookは、Week 6〜10のartifactにわたる50 trace（16 correct、34 wrong）のdeterministicなseed-42 run logを生成します。34のwrong rowを <code>error_type</code> でclusterすると、<code>field_date_format</code>（8）、<code>hallucinated_rate</code>（8）、<code>retrieval_wrong_doc</code>（7）、<code>wrong_category</code>（7）、<code>low_confidence</code>（4）、そして <code>schema_invalid_json</code>（0）になります。HLPは、存在するすべてのclassを <strong>fixable</strong> とmarkします。ただし <code>schema_invalid_json</code> は別で、それは <strong>upstream</strong> です（人間にもschema contractが必要です）。Topのfixable class、つまりMM/DD vs DD/MMが静かに意味を変えてしまう <code>field_date_format</code> は、wrong traceの <strong>8 / 34 ≈ 24%</strong> をカバーし、だから今週まず値打ちのある一つの変更です。続いて <code>ci_gate(score, threshold)</code> が数値を権威に変えます。score <code>{triage 0.93, extraction 0.88, groundedness 0.95}</code> をthreshold <code>{0.90, 0.90, 0.95}</code> に対して判定すると、extraction行は <strong>FAILs</strong> し（0.88 &lt; 0.90）、releaseは <strong>block</strong> されます。noと言えるgateこそ、人が信頼するgateです。一度だけ実行されるevalは珍品であり、すべての変更で実行されるeval（CIでのcode metric、release時のmodel metric）は <strong>gate</strong> です。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart TD
+    A[&quot;Artifact from Weeks 6 to 10&quot;] --&gt; B[&quot;Golden set + task-specific metric&quot;]
+    B --&gt; C[&quot;Code metric (fast) where possible; LLM-as-judge for the open-ended&quot;]
+    C --&gt; D{&quot;Judge calibrated? (self-agreement + human agreement)&quot;}
+    D -- &quot;no&quot; --&gt; E[&quot;Tighten rubric / fall back to human review&quot;]
+    E --&gt; C
+    D -- &quot;yes&quot; --&gt; F[&quot;Run eval → score&quot;]
+    F --&gt; G[&quot;Error analysis: read traces → cluster → HLP&quot;]
+    G --&gt; H[&quot;Fix the largest fixable class&quot;]
+    H --&gt; I[&quot;Add the failure class back to the eval set&quot;]
+    I --&gt; J[&quot;CI gate: threshold blocks below the line&quot;]
+    J -- &quot;below threshold&quot; --&gt; H
+    J -- &quot;passes&quot; --&gt; K[&quot;Ship; monitor drift on a cadence&quot;]
+</div>
+<h3 id="_5">うまくいかない理由</h3>
+<p>Evalはvibesでのshipを <em>防ぎ</em>、作り方を誤れば次のfailureを <em>起こします</em>。</p>
+<ul>
+<li><strong>でっち上げのgolden set。</strong> 想像したcaseはあなたの前提をencodeします。実の顧客ticket一枚が、でっち上げ十枚に値します。</li>
+<li><strong>混ぜた「quality」score。</strong> Groundedness + helpfulness + toneの平均は、<em>どの</em> 次元がregressしたかを隠します。次元は別々に採点し、重要なものでgateする。</li>
+<li><strong>Uncalibratedなjudge。</strong> Human labelと照合されたことのないjudgeを信じるのは、二つ目の未検証modelを信じることです。</li>
+<li><strong>End-to-endのみの測定。</strong> Retrievalを別々に採点しなければ、壊れている層がgenerationではなくretrievalだと見えません。</li>
+<li><strong>誰もblockしないthreshold。</strong> Ship/no-ship lineのない数値は、誰も信じない数値です。</li>
+<li><strong>Traceへのpathなし。</strong> Spanがなければ <em>どのstepが</em> failしたかを再構成できず、error analysisは当てずっぽうになります。</li>
+<li><strong>静的なeval set。</strong> Toolを追加すればagentのfailure modeは変わります。Eval setはsystemとともに成長しなければならず、その編集はcleanupではなく一級のengineeringです。</li>
+</ul>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p>二つのnotebookが今週を担います。<strong><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-11/notebooks/01-zoroeval-harness.ipynb"><code>notebooks/01-zoroeval-harness.ipynb</code></a></strong> がZoroEvalをbuildします。Cell 4は <code>OPENAI_API_KEY</code> を読み（未設定ならgracefulにskipし）、judgeとして <code>gpt-4o-mini</code> を選びます。Cells 6〜10が三つの <strong>golden set</strong> を定義します。<code>data.bol_samples()</code> からの20 BoLs（field-level exact matchで採点）、<code>data.policy_docs()</code> 上の10 RAG Q/A pair（groundednessで採点）、そして <code>data.support_tickets()</code> からの30 ticket（accuracyで採点）です。Cell 12はanchoredなgroundedness rubric（5/3/1）。cell 14は三つの責務を持つ <code>ZoroEval</code> class、code metric（<code>extraction_field_accuracy</code>、<code>triage_accuracy</code>）、<code>judge_groundedness</code> method、そして <code>runs</code> logです。Cell 16は、metricが良し悪しを区別できることを証明します（perfect vs 20%-noise label、perfect vs corrupt済みweight）。Cell 18は倍加sampleで <strong>judge self-agreement</strong> を測ります。cell 21〜22は <code>HUMAN_LABELS</code> に対して <strong>calibrate</strong> し、cell 24はjudge passを全実行します。Cell 26は最終値、<code>JUDGE_AGREEMENT</code>、<code>CALIBRATION_AGREEMENT</code>、そして <code>TRIAGE_ACC_NOISY</code>（常に実行されるcode metric）をprintします。健全なharnessは、inputをcorruptすればcode metricが下がることと、倍加sampleでもhuman labelでもjudge agreementが ≥ ~0.8 であることを示します。</p>
+<p><strong><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-11/notebooks/02-error-analysis-workshop.ipynb"><code>notebooks/02-error-analysis-workshop.ipynb</code></a></strong> がloopを回します。Cell 4はdeterministicな50-trace run logを生成します。cell 6は <em>手で読むために</em> 良いtraceと悪いtraceをprintします。cell 8は <code>error_type</code> でfailureをclusterします。cell 10はHLP map（fixable vs upstream）を適用します。cell 13はtopのfixable classとそのcoverageを選びます。cell 15は <code>ci_gate(score, threshold)</code> を、PASS/FAILをprintしてbooleanを返すcallableとして定義します。cell 17はそれをsimulated releaseに適用し、extraction score（0.88）が0.90のbarにfailしてshipをblockします。Cell 19は <code>TOP_FIX_COVERAGE</code>（seed-42 runで≈0.235）と <code>GATE_PASS_RATE</code>（2/3）をprintします。Takeawayのcellが、discipline全体を一行にします。<em>五十caseを手で読み、分類し、数え、最大classを直し、eval setに加える。</em> 二つのnotebookは、後の週がimportして拡張するartifactを一緒に形成します。harnessがgolden setとjudgeを持ち、workshopがfix-and-ratchet loopを駆動し、gate scriptが、release時に両者を権威あるものにするthresholdです。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> <strong>ZoroEval v1</strong>。再利用可能なharnessと、あるZoroLogistics artifactがthresholdを下回ったらblockするCI風gate script。三つのgolden set（extraction、RAG、triage）、calibrated judge、agreement測定、そしてdocument化されたerror-analysis pass（top failure cluster + あなたが適用したfix）を同梱します。</p>
+<p><strong>Acceptance gate（Zorost式）:</strong> 見知らぬ人が、あなたのWeek 6〜10のartifactの一つにZoroEvalを実行して、数値とpass/failが返るのを見られ、<em>harnessが何をしたか</em> をあなたが見せられること。どのgolden setか、どのrubric levelが発火したか、judgeが自分自身とあなたにどれだけ同意したか、gateがどのfailure clusterをcatchする設計か。Thresholdのないharnessや、誰もcalibrateしていないjudgeは、それ自体でgateにfailします。</p>
+<p><strong>Stretch variant:</strong> gateを実際のscript（<code>python -m zoroeval.gate</code>）にします。Eval scoreのJSONを読み、thresholdを適用し、pass/fail表をprintし、threshold未満なら非零でexitする。そして (a) 良いartifactをpassさせる様子と (b) わざと壊したartifactをblockする様子をdemoします。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>でっち上げのgolden set</td>
+<td>実trafficからcaseを引く。実ticket一枚が想像十枚に勝る</td>
+</tr>
+<tr>
+<td>混ぜた「quality」score</td>
+<td>次元は別々に採点する。最も重要なものでgateする</td>
+</tr>
+<tr>
+<td>Uncalibrated judge</td>
+<td>Human labelをhold outする。agreementが高い所だけjudgeを信じる</td>
+</tr>
+<tr>
+<td>End-to-end採点のみ</td>
+<td>Retrieval、generation、tool useを別々に測る</td>
+</tr>
+<tr>
+<td>Thresholdのないmetric</td>
+<td>数値 <em>と</em> ship/no-ship lineを名指す</td>
+</tr>
+<tr>
+<td>Trace/spanなし</td>
+<td>Step種別、input/output、latency、cost、IDsをspanごとにlogする</td>
+</tr>
+<tr>
+<td>一番面白いclassを直す</td>
+<td><em>最大の</em> classから直す。賢さではなく頻度</td>
+</tr>
+<tr>
+<td>成長しないeval set</td>
+<td>直したfailure classを加え戻し、regressできないようにする</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Eval</strong>: あなたが本当に気にかけるfailure modeを、labeled set上で測る数値。</li>
+<li><strong>Golden set</strong>: 正しいoutputとpairになったlabeled inputの、version管理されたcollection。Evalのdataset。</li>
+<li><strong>LLM-as-judge</strong>: （通常より強い）modelに、rubricに対してopen-endedなoutputを採点させること。</li>
+<li><strong>Rubric</strong>: 一つのdimensionについて、各score levelが何を意味するかの明示的でanchoredな定義。</li>
+<li><strong>Calibration</strong>: Scoreを信じる前に、judgeをhuman labelと照合すること。</li>
+<li><strong>Self-agreement</strong>: 倍加sampleでjudgeが同じscoreを返す頻度。安定性check。</li>
+<li><strong>Trace / span</strong>: 一回のrunの完全な記録と、その中の一つのstep。</li>
+<li><strong>HLP (human-level parity)</strong>: 「有能な人間ならこのstepを正しくやれただろうか？」というlocalization heuristic。</li>
+<li><strong>Error clustering</strong>: Failureをclassにgroupingし、支配的なものを見つけること。</li>
+<li><strong>CI gate</strong>: 越えたときにmergeやreleaseをblockする、eval上のthreshold。</li>
+<li><strong>Drift monitoring</strong>: 静かなregressionをcatchするため、sampleしたlive trafficを定期的に採点すること。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-11/quiz.md">quiz.md</a> を受けてください。10問、合格は <strong>8/10</strong>。scoreをtracker Notesに記録します。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exerciseは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-11/exercises.md">exercises.md</a> にあります。<strong>Easy</strong>（harnessを実行し、agreementを記録）、<strong>Standard</strong>（第四のgolden setを追加）、<strong>Stretch</strong>（本物の <code>zoroeval.gate</code> script）、<strong>Portfolio</strong>（ZoroEval v1をeval harness + CI gate milestoneとしてcommit）。hintは同じfileにあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>Andrew Ng, <em>Improve Agentic Performance with Evals and Error Analysis, Part 1 &amp; 2</em>: https://www.deeplearning.ai/the-batch/improve-agentic-performance-with-evals-and-error-analysis-part-1 · https://www.deeplearning.ai/the-batch/improve-agentic-performance-with-evals-and-error-analysis-part-2</li>
+<li>Andrew Ng, <em>The AI Engineering Skills Map</em>, The Batch issue 366: https://www.deeplearning.ai/the-batch/issue-366</li>
+<li>Fereydun Hashemi (Zorost), <em>The AI Engineering Skills Map, turned into a training plan</em>: https://zorost.com/ai-engineering-skills-map-training-guide</li>
+<li>Hamel Husain, <em>Your AI Product Needs Evals</em>: https://hamel.dev/blog/posts/evals/</li>
+<li>DeepLearning.AI, <em>Evaluating and Debugging Generative AI</em>: https://learn.deeplearning.ai/courses/evaluating-debugging-generative-ai/</li>
+<li>DeepLearning.AI, <em>Building and Evaluating Advanced RAG</em>: https://www.deeplearning.ai/courses/building-evaluating-advanced-rag</li>
+<li>MLflow (track evals alongside models): https://mlflow.org/docs/latest/index.html</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

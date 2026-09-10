@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 23: Databricks ML &amp; GenAI: Training、Serving、Genie</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 23</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-23/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-23-databricks-ml-genai-trainingservinggenie">Week 23: Databricks ML &amp; GenAI: Training、Serving、Genie</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-23/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 23 of 24 · Section: Databricks Zero to Hero · Category: ML &amp; GenAI
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-23/notebooks/01-mlflow-feature-engineering-training.ipynb">01-mlflow-feature-engineering-training.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-23/notebooks/02-vector-search-rag.ipynb">02-vector-search-rag.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-23/notebooks/03-ai-functions-and-genie.ipynb">03-ai-functions-and-genie.ipynb</a>
+🎯 <strong>Use case:</strong> point-in-time ETA model + shipping docsに対するRAG + ops analyst向けGenie space。</p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsは今やgovernedでvalidatedなlakehouseを持っていますが、誰も <em>act</em> しないdataはただのstorageです。ops roomで繰り返し出る三つのquestionは、どれもML/GenAIの問題です。<strong>「このshipmentは実際にはいつ届くのか？」</strong>（regression）、<strong>「48時間遅れのrefundについてのpolicyは何か？」</strong>（documentに対するretrieval）、<strong>「今月どのlaneがon-time rateを殺しているのか？」</strong>（self-service analytics）。今日、ops teamはこの三つすべてを手で答えています。ETAにはspreadsheet、policyにはPDF search、KPIにはanalyst ticketです。</p>
+<p>二つの失敗modeが、今週のnaiveな版を危険にします。<strong>第一に、leakage。</strong> carrierのon-time rateを <em>full</em> historyで計算してETA modelに与えると、modelはshipment出発後のdataを使って「predict」します。trainingでは素晴らしく見えますが、productionでは未来は見えないので、黙って成績が落ちます。Week 3が警告したtime-aware-splitの罪そのものが、feature storeにscaleした形です。<strong>第二に、根拠のない回答。</strong> 自分のweightsからpolicy questionに答えるLLMはrefund rateをでっち上げます。hallucinateしたtariffは便利さではなくliabilityです。答えは <em>retrievalされ、citationされた</em> 一節から来なければなりません。</p>
+<p>before/afterはこうです。beforeでは「carrier reliability」は未来をtrainingにleakさせるspreadsheet columnです。afterでは、各shipmentの出発時点に <strong>AS OF</strong> でjoinされた <strong>time-series feature table</strong> になり、leakするbaselineに対するmodelの改善は <em>測られた数字</em> になります。beforeではpolicy回答は当て推量です。afterでは、<strong>groundedness score</strong> とsource document付きのretrievalです。今週のすべてはこれです。leakしないgoverned modelと、hallucinateしないgoverned answer。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、XGBoost ETA runをMLflow autologgingでlogし、modelをUnity Catalogにregisterし、固定stageではなく可動な <strong>alias</strong>（<code>@prod</code>）でpromoteできる。</li>
+<li>☐ 金曜日までに、UC <strong>feature table</strong>（carrier reliability + lane stats）をbuildし、<code>FeatureLookup</code> でtraining setをassembleし、time-series feature table経由の <strong>point-in-time join</strong> を実行して、training featureが未来をleakしないようにできる。</li>
+<li>☐ 金曜日までに、policy docをembedし、<strong>AI Search</strong>（旧Vector Search）のDelta Sync indexを作り、similarity + hybrid searchを実行し、<code>ai_query</code> とgroundedness数値付きのRAG回答をbuildできる。</li>
+<li>☐ 金曜日までに、SQL <strong>AI functions</strong>（<code>ai_classify</code>、<code>ai_extract</code>、<code>ai_mask</code>、<code>ai_query</code>）を使え、verified answers付きの <strong>Genie Agents</strong> spaceを立ち上げる手順を列挙できる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td>MLflow tracking + Models in UC + aliases（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/07-mlflow-experiments.md"><code>07-mlflow-experiments.md</code></a>）。feature tables + PIT joins（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/08-feature-engineering.md"><code>08-feature-engineering.md</code></a>）</td>
+<td><code>01-mlflow-feature-engineering-training.ipynb</code>: feature tables + <code>FeatureLookup</code> + <code>create_training_set</code></td>
+<td>point-in-time training set（証拠: <code>timestamp_lookup_key</code>）</td>
+<td>約3時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>Training + registration（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/09-model-training.md"><code>09-model-training.md</code></a>）</td>
+<td>champion XGBoostとchallenger（staticのみ）をtrainingし、両方registerし、<code>@prod</code>/<code>@challenger</code> を設定する</td>
+<td>MAE比較付きの二つのregistered model version</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>Serving + Unity AI Gateway（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/10-model-serving.md"><code>10-model-serving.md</code></a>）</td>
+<td>scale-to-zero endpointを作る。gatewayのrate limitをattachする。Pythonからcallする</td>
+<td>limitが発動すると429sを返すendpoint</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>AI Search + RAG（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/11-vector-search-rag.md"><code>11-vector-search-rag.md</code></a>）。AI functions（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/12-ai-functions-genie.md"><code>12-ai-functions-genie.md</code></a>）</td>
+<td><code>02-vector-search-rag.ipynb</code> + <code>03-ai-functions-and-genie.ipynb</code></td>
+<td>citation付きRAG回答 + groundedness score。AI-function SQL cell</td>
+<td>約3時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>Use caseの日</td>
+<td>Genie spaceを立ち上げる。SQLをverifyする</td>
+<td>Week 23 gate（下記）</td>
+<td>約2時間</td>
+</tr>
+</tbody>
+</table>
+<h2 id="montue">概念（まず読むのはMon/Tue）</h2>
+<p>Fact base: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/research/06-databricks-deep-dive.md"><code>reference/knowledge-base/research/06-databricks-deep-dive.md</code></a>（§6、§7）。Deep-dive: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/07-mlflow-experiments.md"><code>07-mlflow-experiments.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/08-feature-engineering.md"><code>08-feature-engineering.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/09-model-training.md"><code>09-model-training.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/10-model-serving.md"><code>10-model-serving.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/11-vector-search-rag.md"><code>11-vector-search-rag.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/12-ai-functions-genie.md"><code>12-ai-functions-genie.md</code></a>。</p>
+<h3 id="governed-uc-objectlifecyclealias">すべてはgoverned UC objectであり、lifecycleはalias</h3>
+<p>ML stackは一文にcollapseします: <strong>experiment → run → model。すべてUnity Catalogにgovernされ、stageではなくaliasでpromoteされる。</strong> MLflowは <strong>experiment</strong>（container）→ <strong>run</strong>（params/metrics/artifacts付きの一回の実行）→ <strong>model</strong>（training済みartifact + environment）を追跡します。loggingは <strong>autologging</strong>（<code>mlflow.xgboost.autolog()</code>。一行でparams/metrics/modelをcapture）か、明示的なAPI（<code>log_param</code>/<code>log_metric</code>/<code>log_model</code>）のどちらかです。MLflow 3は <strong><code>databricks-uc</code> をdefault registry</strong> にするので、"Model Registry"は今や <strong>Models in Unity Catalog</strong> で、<code>&lt;catalog&gt;.&lt;schema&gt;.&lt;model&gt;</code> としてaddressされます。</p>
+<p>古い"Staging/Production" stageは <strong>deprecated</strong> で、<strong>可動するalias</strong>（<code>models:/&lt;catalog&gt;.&lt;schema&gt;.&lt;model&gt;@&lt;alias&gt;</code>）に置き換えられました。stageを書き換えるのではなく、<em>aliasの指し先を変える</em> ことでpromoteします:</p>
+<table>
+<thead>
+<tr>
+<th>Alias</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@prod</code></td>
+<td>productionでliveなもの</td>
+</tr>
+<tr>
+<td><code>Champion</code> / <code>Challenger</code></td>
+<td>A/B: 現時点のbest vs. candidate。Challengerが勝ったらChallenger → Championにpromote</td>
+</tr>
+</tbody>
+</table>
+<p><strong>実例: champion vs. challenger。</strong> notebookは同じlabel（<code>delay_hours</code>）で二つのXGBoost regressorをtrainingします。point-in-time featureを持つ <strong>champion</strong> と、static featureのみ（<code>daily_*</code> columnをdrop）の <strong>challenger</strong> です。両方とも <code>zrl_.zorologistics.eta_model</code> にregisterし、test MAEでaliasを設定します:</p>
+<pre><code class="language-python">client = MlflowClient()
+name = &quot;zrl_.zorologistics.eta_model&quot;
+best  = champion_version  if mae &lt; mae2 else challenger_version
+other = challenger_version if mae &lt; mae2 else champion_version
+client.set_registered_model_alias(name, &quot;@prod&quot;, best)
+client.set_registered_model_alias(name, &quot;@challenger&quot;, other)
+</code></pre>
+<p><strong>最後のcellはPIT featureの測定値をprintします</strong>: <code>point-in-time gain
+= challenger_MAE − champion_MAE</code>（時間単位）。この一つの数字がanti-leakageの利益を具体化します。gainが正であることは、time-series featureが存在価値を果たしたということです。</p>
+<h3 id="feature-engineeringleakageskew">Feature engineeringはleakageとskewを殺すために存在する</h3>
+<p><strong>feature table</strong> は <strong>primary key</strong> 付きのUC内のDelta tableで、他のtableと同じgovernanceとlineageを持ちます。<code>FeatureEngineeringClient</code> + <strong><code>FeatureLookup</code></strong> + <code>create_training_set()</code> がfeatureをlabel DataFrameにjoinし、<code>fe.log_model()</code> がlookupをmodelに同梱し、<code>fe.score_batch()</code> がbatch inferenceで <em>同じ</em> lookupを適用するため、training/serving skewを構成の時点で消せます。今週の主役は <strong>point-in-time join</strong> です。<strong>time-series feature table</strong> はtimestamp column（<code>timeseries_columns</code>）を宣言し、<code>timestamp_lookup_key</code> がすべてのlookupをlabel timestampでの <strong>AS OF</strong> joinにします。</p>
+<p><strong>実例: as-of join。</strong> あるshipmentは <strong>Aug 1</strong> に出発しAug 5に配達されたので、labelはAug 5に分かります。<em>今日の</em> <code>lane_transit</code> 平均（たとえばAug 20の）をjoinすると、未来をleakします。modelはAugustの平均を見てAugustのshipmentをpredictすることになります。<code>timestamp_lookup_key="planned_departure"</code> なら、joinは <strong>Aug 1またはそれ以前</strong> の最新のfeature値、すなわちproductionで手に入っていたはずのものとまったく同じものを使います。notebookでは <code>carrier_daily_stats</code> が <code>timeseries_columns=["metric_date"]</code> を宣言し、lookupが <code>timestamp_lookup_key="planned_departure"</code> を固定します。<code>exclude_columns</code> が <code>shipment_id</code> とtimestamp keyをfeature行列からdropします。PIT joinなしでは、full historyで計算された「carrier on-time rate」はtraining accuracyを静かに膨らませます。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    SHIP[&quot;shipments\nlabel: delay_hours&quot;] --&gt; TS[create_training_set\nFeatureLookup]
+    CF[carrier_features\nstatic] --&gt; TS
+    LF[lane_features\nstatic] --&gt; TS
+    CD[carrier_daily_stats\ntimeseries_columns=metric_date] --&gt;|timestamp_lookup_key=planned_departure AS OF| TS
+    TS --&gt; TR[train XGBoost\nmlflow.xgboost.autolog]
+    TR --&gt; REG[register\neta_model]
+    REG --&gt; AL[&quot;aliases\n@prod / @challenger&quot;]
+    AL --&gt; SRV[Model Serving\nscale-to-zero]
+    SRV --&gt; GW[Unity AI Gateway\nrate limit]
+</div>
+<h3 id="servingunity-ai-gateway">ServingとUnity AI Gateway</h3>
+<p><strong>Model Serving</strong> は、registered modelまたはhosted foundation modelをserverlessでauto-scalingするREST APIにします。serveできるのは三つ: <strong>custom model</strong>（MLflow PyFunc。agentを含む）、<strong>Databricks-hosted foundation model</strong>（pay-per-tokenまたはprovisioned throughput）、<strong>external model</strong>（OpenAI、Anthropic、Bedrock…。認証を一元化）。<code>scale_to_zero_enabled: true</code> はidle中は無料で、日に数千回queryされるETA endpointに適したdefaultです。<strong>Unity AI Gateway</strong>（旧AI Gateway）はcontrol planeです。<strong>asset</strong>（model、MCP server）、<strong>traffic</strong>（rate limit、budget）、<strong>behavior</strong>（service policy <code>ALLOW</code>/<code>DENY</code>/<code>ASK</code>。<code>block_hallucination</code> のようなfail-closed guardrail付き）をgovernします。1,000 call/分/userのrate limitは、発動するとHTTP <strong>429 <code>RATE_LIMIT_EXCEEDED</code></strong> を返します。clientにbackoffを入れてください。</p>
+<h3 id="ai-search-rag-ai-functions">AI Search + RAG + AI functions</h3>
+<p><strong>AI Search</strong>（旧Vector Search）はUCでretrievalを管理します。<strong>index</strong> はDelta tableから作られ（<strong>Delta Sync</strong> が自動sync）、searchは <strong>ANN</strong>（HNSW、vector）、<strong>BM25</strong>（keyword）、または <strong>hybrid</strong>（Reciprocal Rank Fusion）です:</p>
+<table>
+<thead>
+<tr>
+<th>Index type</th>
+<th>Embeddings</th>
+<th>Sync</th>
+<th>Best for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Delta Sync（managed）</td>
+<td>Databricksがtext columnから計算</td>
+<td>自動</td>
+<td>最も簡単。policy-docsのuse case</td>
+</tr>
+<tr>
+<td>Delta Sync（self-managed）</td>
+<td>あなたが計算して <code>ARRAY&lt;FLOAT&gt;</code> に保存</td>
+<td>自動</td>
+<td>独自/chunk embedding</td>
+</tr>
+<tr>
+<td>Direct upload</td>
+<td>あなたが提供</td>
+<td>手動CRUD</td>
+<td>realtime、非Delta source</td>
+</tr>
+</tbody>
+</table>
+<p><strong>AI functions</strong> はLLMを <em>SQLの中に</em> 置きます。<code>ai_classify</code>（textにlabel付け）、<code>ai_extract</code>（schemaで構造化fieldを抽出）、<code>ai_mask</code>（PII entity typeをredact）、<code>ai_query</code>（任意のprompt）、<code>ai_analyze_sentiment</code> など。これらは <strong>serverless computeとDBR 18.2+</strong> を要求し、costのruleは <strong>一度だけmaterialize</strong> です。すべてのcallが課金されるinferenceなので、結果をDelta tableにpersistし、downstreamのscanで再invokeしないでください。<code>ai_mask</code>（contentの書き換え）はUnity Catalogのcolumn mask（query時のgovernance policy）では <em>ありません</em>。二つは別の仕事のための別の道具です。</p>
+<p><strong>実例: groundedなRAG回答。</strong> policy corpus（<code>POL-001</code>…<code>POL-004</code>）はfoundation-model endpoint（<code>databricks-gte-large-en</code>）でembedされ、<code>create_delta_sync_index</code> でindexされ、queryされます。「遅れたshipmentのdamage claimはどう提出する？」というqueryに対してhybrid searchが <code>POL-002</code> をretrieveし、<code>ai_query</code> がretrieved contextに限定された回答を生成します:</p>
+<pre><code class="language-python">context = &quot;\n\n&quot;.join([f&quot;[{r[0]}] {r[2]}&quot; for r in retrieved])
+prompt = (&quot;Answer ONLY from the context below and cite the document ids.\n\n&quot;
+          &quot;Context:\n&quot; + context + &quot;\n\nQuestion: &quot; + query)
+answer = aiq(prompt)   # ai_query against databricks-meta-llama-3-3-70b-instruct
+</code></pre>
+<p>notebookは続いて <strong>groundedness</strong> のproxy、すなわち回答のtokenのうちretrieved contextにも現れる割合を計算します。高score（このcorpusで≈0.7以上）は、回答がmodelの先入観ではなくretrieved textから作られたことを意味します。（productionはrubric付きのLLM judgeを使います。このtoken-overlap数値は最初の安いcheckです。）</p>
+<h3 id="genie-agents-governedself-service">Genie Agents: governedなself-service</h3>
+<p><strong>Genie Agents</strong>（旧Genie Spaces）は、curateされたtable一式を自然言語Q&amp;A spaceにします。setupのdisciplineは <strong>verified answers</strong> です。dataset（<code>gold_on_time_kpis</code>、<code>silver_shipments</code>、<code>carriers</code>、<code>lanes</code>）を選び、plain-Englishのinstruction（「on-timeとは <code>is_on_time = TRUE</code> のこと」）を書き、example SQLをseedし、<strong>goldの数字を返すことを確認した後にのみ生成SQLをverifiedとマークする</strong>。Genieは <em>viewer</em> として実行され、callerのgrantを超えられないので、maskされたemailはGenieの回答でもmaskされたままです。rule of thumb: batch column transformには <strong>AI function</strong>、realtime callには <strong>serving endpoint</strong>、ad-hocなbusiness questionには <strong>Genie</strong>。</p>
+<h3 id="_4">うまくいかない理由</h3>
+<ul>
+<li><strong>PIT leakage、定量化。</strong> time-series lookupを外すと、challengerのtest MAEがproductionでは決して成り立たない形で <em>改善するか同点</em> になります。modelが未来のcarrier統計を暗記したのです。fixは構造的です（<code>timeseries_columns</code> + <code>timestamp_lookup_key</code>）。notebookの <code>point-in-time gain</code> cellがそれを測ります。</li>
+<li><strong>hallucinateしたpolicy回答がshipされる。</strong> retrievalなし（あるいは弱いgroundedness gate）では、LLMがrefund条項をでっち上げます。gatewayの <code>block_hallucination</code>（fail-closed）とcitation必須のpromptが守りです。</li>
+<li><strong>queryごとに再invokeされる <code>ai_classify</code>。</strong> <em>view</em> の中のAI functionは、読み取られるたびにtokenを課金します。一度だけDelta tableにmaterializeする。</li>
+<li><strong>aliasではなく固定stage。</strong> "Promote to Production"はstageを書き換え、A/Bの組を失います。aliasならChampion <em>と</em> Challengerを保持し、一つのpointerの付け替えでrollbackできます。</li>
+<li><strong>route内の間違った <code>served_model_name</code>。</strong> routeの値はcatalog pathではなく <code>"eta_model-2"</code> です。間違えるとtrafficは黙ってどこも指さなくなります。</li>
+</ul>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><strong><code>01-mlflow-feature-engineering-training.ipynb</code></strong>: PIT ETA model。Cell 1は <code>FeatureEngineeringClient</code>、<code>FeatureLookup</code>、MLflow、XGBoostをimportします。Cell 3はCSVsをloadし、速くseededなrunのために20%をsampleします（labelは <code>delay_hours</code>、timestamp keyは <code>planned_departure</code>）。Cell 5はprimary key付きの二つの <strong>static</strong> feature table（<code>carrier_features</code>、<code>lane_features</code>）を作ります。Cell 7は <code>timeseries_columns=["metric_date"]</code> 付きの <strong><code>carrier_daily_stats</code></strong> を作ります。Cell 9は三つのlookup（二つはkeyless、一つは <strong>point-in-time</strong>）と <code>exclude_columns=["shipment_id", "planned_departure"]</code> 付きの <code>create_training_set</code> です。Cell 11は <code>mlflow.xgboost.autolog()</code> で <strong>champion</strong> をtrainingし、<code>test_mae</code>/<code>test_rmse</code> をlogし、registerします。Cell 13は <code>daily_*</code> columnをdropしてから <strong>challenger</strong> をtrainingします。Cell 15は <code>@prod</code>/<code>@challenger</code> を設定します。<strong>最後のcellは</strong> champion MAE、challenger MAE、<code>point-in-time gain (hours)</code>、championのfeature数をprintします。正しい出力: 二つのMAEsは小さく（このgrainではdelayはおおむね0〜20 hなので数時間程度）、<code>point-in-time gain</code> は小さな正の数。challengerはAS-OF signalを欠くので、通常わずかに悪い数字になります。</p>
+<p><strong><code>02-vector-search-rag.ipynb</code></strong>: policy docsに対するRAG。Cell 1は四つのpolicy docを <code>policy_docs</code> Delta tableとして書きます。Cell 3は <code>mlflow.deployments</code> で <code>databricks-gte-large-en</code> に対してembedし、vectorを <code>embedding</code> columnに保存します。Cell 5は <strong>Delta Sync index</strong> を作ります（<code>create_delta_sync_index</code>、<code>pipeline_type="TRIGGERED"</code>、<code>embedding_vector_column="embedding"</code>）。Cell 7はquery vectorで <strong>similarity search</strong>、cell 9は <strong>hybrid search</strong>（<code>query_type="HYBRID"</code> に <code>query_text</code> と <code>query_vector</code> の両方）を実行します。Cell 11はretrieved contextから <code>ai_query</code> 回答をbuildし、cell 13は <strong>groundedness</strong> のtoken-overlap scoreを計算します。<strong>最後のcellは</strong> <code>retrieved docs</code> と <code>groundedness score</code> をprintします。「正しい」とは、claim質問のtop hitが <code>POL-002</code> であること、groundednessが高いこと（回答がmodelの先入観ではなくretrieved textから作られている）です。</p>
+<p><strong><code>03-ai-functions-and-genie.ipynb</code></strong>: SQLの中のAI。Cell 1は <code>support_tickets</code> をloadします。Cell 3は <code>ai_classify</code>（ticketを <code>damage/refund/tracking/billing/customs/
+documents</code> に振り分け）、cell 5は <code>ai_analyze_sentiment</code>、cell 7は二つのBoL sampleをstagingしcell 8は <code>ai_extract</code>（自分で定義するschema）で抽出、cell 10は <code>ai_mask</code> で <code>person_name</code>/<code>email</code> をredact、cell 12は <code>ai_query</code> でrefund policyを要約します。Cell 14は <strong>Genie Agents checklist</strong> です（space作成 → instruction → SQL function → example question → verified answers → publish）。<strong>最後のcellは</strong> <code>support tickets</code> と <code>high/critical fraction</code> をprintします。正しい出力: CSVに一致するticket count（generatorから2,000）と、0.25前後のhigh/critical fraction（<code>p=[0.4,
+0.35, 0.2, 0.05]</code> のpriority重み）です。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> point-in-time feature付きのregistered ETA modelを <code>@prod</code> に、challengerを <code>@challenger</code> にpromoteしたもの。policy docsに対して動くVector Search RAGとgroundedness数値。そしてops analyst向けのdocument化されたGenie Agents setup。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人がexperimentを開き、test MAE/RMSEを読み、<code>@prod</code> がどのversionを指し、なぜか（champion vs. challenger）を確認し、RAG queryを再実行してあなたのgroundedness scoreを再現し、あなたのGenie checklistをたどってspaceを設定できること。point-in-time training setのschema（time-series featureが <em>AS OF</em> でjoinされた証拠）、model alias、そしてsource doc付きの一つのretrievalを見せられること。</p>
+<p><strong>Stretch variant:</strong> notebook 01で、time-series lookupを完全に <em>外した</em> 変種（static featureのみ）をtrainingし、test MAEがどれだけ悪化するかを定量化する。point-in-time featureの測定値を、数字として述べてください。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>なぜ起きるか</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>leakする「carrier on-time rate」</td>
+<td>full historyで平均している</td>
+<td>time-series feature table + <code>timestamp_lookup_key</code></td>
+</tr>
+<tr>
+<td>training/serving skew</td>
+<td>featureが各段階で異なる計算になる</td>
+<td><code>fe.log_model</code> + <code>fe.score_batch</code>（同じlookup）</td>
+</tr>
+<tr>
+<td>aliasではなくstage</td>
+<td>古いRegistryの習慣</td>
+<td><code>@prod</code> + Champion/Challenger。promoteは付け替えで</td>
+</tr>
+<tr>
+<td>live viewの中のAI function</td>
+<td>読み取るたびにLLMを再invokeする</td>
+<td>一度だけDelta tableにmaterializeする</td>
+</tr>
+<tr>
+<td>hallucinateしたpolicy回答</td>
+<td>retrievalなし、またはgroundedness gateなし</td>
+<td>citation必須prompt + <code>block_hallucination</code></td>
+</tr>
+<tr>
+<td><code>ai_mask</code> とcolumn maskの混同</td>
+<td>同じ単語、別の仕組み</td>
+<td><code>ai_mask</code> はtextを一度書き換え、column maskはquery時にgovernする</td>
+</tr>
+<tr>
+<td>間違ったserved-model route名</td>
+<td>routeはcatalog pathではなく <code>"&lt;model&gt;-&lt;version&gt;"</code> を期待する</td>
+<td><code>zrl_.zorologistics.eta_model</code> ではなく <code>eta_model-2</code> を使う</td>
+</tr>
+<tr>
+<td>trainingに流れ込む <code>NaN</code> weight</td>
+<td>Week 1/2の仕込まれたnull</td>
+<td>feature tableの <em>前</em> にsilverでclean/imputeする</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Experiment / Run / Model</strong>: MLflowの階層。container、一回の実行、training済みartifact。</li>
+<li><strong>Autologging</strong>: frameworkのparams/metrics/modelを一行でcaptureすること（<code>mlflow.xgboost.autolog()</code>）。</li>
+<li><strong>Models in Unity Catalog</strong>: <code>&lt;catalog&gt;.&lt;schema&gt;.&lt;model&gt;</code> のregistry（旧Model Registry）。</li>
+<li><strong>Alias</strong>: deprecatedになったstageに取って代わった、可動な名前付き参照（<code>@prod</code>、Champion/Challenger）。</li>
+<li><strong>Feature table</strong>: primary key付きのUC内Delta table。ML feature sourceとして使う。</li>
+<li><strong>Point-in-time join</strong>: label timestampでのAS OF join。未来leakageを防ぐ。</li>
+<li><strong><code>FeatureLookup</code></strong>: 宣言的なfeature join（table + lookup key + 任意のtimestamp key）。</li>
+<li><strong>AI Search</strong>: managed vector retrieval（旧Vector Search）。HNSW/BM25/hybrid。</li>
+<li><strong>Delta Sync index</strong>: Delta tableから自動syncするAI Search index。</li>
+<li><strong>AI function</strong>: LLMをin placeで適用するbuilt-in SQL/PySpark function（serverless + DBR 18.2+）。</li>
+<li><strong>Unity AI Gateway</strong>: LLM/agent/MCP trafficのgovernance control plane（rate limit、guardrail）。</li>
+<li><strong>Genie Agents</strong>: analystが設定する自然言語→SQLのQ&amp;A（旧Genie Spaces）。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-23/quiz.md"><code>quiz.md</code></a> を受けてください。10問、<strong>8/10で合格</strong>。Concepts sectionとnotebook cellに紐付いたmultiple choiceとshort answerの混成です。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exerciseがhint付きで <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-23/exercises.md"><code>exercises.md</code></a> にあります。portfolio itemは <code>@prod</code> modelをserveしてlatency + predictionを記録し、<strong>ZoroLogistics point-in-time ETA model</strong> milestoneを進めます。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>MLflow: https://docs.databricks.com/mlflow/</li>
+<li>Manage model lifecycle &amp; aliases: https://docs.databricks.com/machine-learning/manage-model-lifecycle/</li>
+<li>Feature Store: https://docs.databricks.com/machine-learning/feature-store/</li>
+<li>Train with feature tables: https://docs.databricks.com/machine-learning/feature-store/train-models-with-feature-store</li>
+<li>Time-series / point-in-time: https://docs.databricks.com/machine-learning/feature-store/time-series</li>
+<li>Model Serving: https://docs.databricks.com/machine-learning/model-serving/</li>
+<li>Unity AI Gateway: https://docs.databricks.com/ai-gateway/</li>
+<li>AI Search (Vector Search): https://docs.databricks.com/ai-search/ai-search/</li>
+<li>AI functions: https://docs.databricks.com/large-language-models/ai-functions</li>
+<li>Genie Agents: https://docs.databricks.com/genie-agents/</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

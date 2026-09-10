@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 21: 演習とチェックリスト</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 21</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-21/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-21">Week 21: 演習とチェックリスト</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-21/exercises.md">英語版</a> · <a href="README.html">Week 21 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-unity-catalog-and-delta-lab.ipynb</code> を最後まで実行する。最後にbronze row countとtime-travel version数をprintします。両方の数字をWeek 21のtracker sheetに記録してください。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: <code>notebooks/02-medallion-sql.ipynb</code> で、silver層が二つのinvariantをpassすることを検証する: (1) duplicateした <code>shipment_id</code> 値がないこと、(2) <code>NULL</code> の <code>weight_kg</code> や <code>distance_km</code> がないこと。使ったimputation値（weight mean、distance mean）と、それぞれへの一文の根拠をdocument化したmarkdown cellを追加する。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: window function（<code>ROW_NUMBER() OVER (PARTITION BY month ORDER BY on_time_rate)</code>）を使って <strong>月別on-time rate worst 5 lane</strong> をrankする二つ目のgold artifact（tableまたはview）を追加する。どのlane/carrierの組合せを最初に直すべきか、なぜかを一文で述べる。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: <strong>ZoroLogistics lakehouse</strong> milestoneを進める（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/projects/README.md"><code>curriculum/projects/README.md</code></a> を参照）: gold dashboard queryをAI/BI dashboardとしてpublishし（SQL editor → 実行 → "Create dashboard"）、portfolioに含めるためにCatalog Explorerの <strong>lineage</strong> graph（bronze → silver → gold）をcaptureする。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: notebookを最初から最後まで実行する。<code>spark.version</code> や <code>current_user()</code> がerrorを出すなら、まだcomputeにattachされていません。記録する二つの数字は <code>%sql</code> のcount cellではなく <em>最後の</em> cellにあります。</li>
+<li><strong>Standard</strong>: silverのquality-check queryを新しい <code>%sql</code> cellにcopyする。passするsilverは <code>null_weights = 0</code> かつ <code>distinct_shipments = rows</code> です。<code>null_weights &gt; 0</code> なら <code>COALESCE</code> に抜けがあるcolumnがあります。cell 4を読み直してください。</li>
+<li><strong>Stretch</strong>: 「月別worst lane」のrankingにはgold aggregationの<em>後</em>にwindowが必要です。<code>ROW_NUMBER() OVER (PARTITION BY month ORDER BY
+   on_time_rate)</code> はgold queryの <code>GROUP BY</code> の内側ではなく外側にnestしてください。</li>
+<li><strong>Portfolio</strong>: AI/BI dashboardに必要なのはraw gold tableではなく <em>dashboard-ready</em> query（notebook 02の3ヶ月rolling）です。lineageはSQL editorではなくCatalog Explorerのtableの <strong>Lineage</strong> tabにあります。</li>
+</ol>
+<h2 id="checklistmanifestjson-excel-tracker">Checklist（manifest.json + Excel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: Databricks account/workspaceを作成（free trial）。UIを見て回る。</li>
+<li>☐ Tue: Unity Catalog lab: catalog/schema/volumeを作る。CSV dataをloadする。権限をgrantする。</li>
+<li>☐ Wed: Delta Lake lab: table作成、time travel、VACUUM、OPTIMIZE、liquid clustering。</li>
+<li>☐ Thu: SQLでのmedallion: bronze raw → silver clean → shipmentsのgold aggregate。</li>
+<li>☐ Fri: Use case: lineage付きのgoverned silver/gold table。最初のAI/BI dashboardを作る。</li>
+<li>☐ Sat: Week 21のquiz（quiz.md）を受ける。8/10で合格。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新し、SQL notebookをcommitする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

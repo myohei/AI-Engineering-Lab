@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 05: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 05</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-05/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-05-checklist">Week 05: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-05/exercises.md">英語版</a> · <a href="README.html">Week 05 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li><strong>Easy</strong>: <code>01-tokenization-lab.ipynb</code> を別の価格pair（例：Mtokあたり <code>$0.50/$1.50</code>）で
+   再実行し、新しい一日あたりcostを報告します。続いてsystem promptを8語に切り詰め、
+   ドルのdeltaを示します。</li>
+<li><strong>Standard</strong>: token count比較に新しいtext型（JSON schema、法律条文、carrier契約書の
+   一節）を追加します。そのchars/token比がproseと異なる理由を一文で書きます。</li>
+<li><strong>Stretch</strong>: <code>02-embeddings-and-attention-lab.ipynb</code> を拡張します。toy embeddingの
+   次元を半分に割り、<em>二つの</em> attention headを並行に走らせます。両方の重み行列をprintし、
+   headがどう違うかを記述します。torchは使いません。</li>
+<li><strong>Portfolio</strong>: <code>projects/token_budget.py</code> を書きます。text fileを読み、価格pairと
+   target window sizeを受け取り、token count、cost、window使用率をprintするCLIです。
+   小さなREADMEとともにcommitします。</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: <code>estimate_cost</code> はそのまま使い、変わるのは二つの価格引数とsystem promptの
+   文字列だけです。新しい数字だけでなく <em>delta</em> を報告します。</li>
+<li><strong>Standard</strong>: 句読点やcode調の記号が多いtext型（JSON schemaや法律条文）を選び、
+   それをtokenizeしてchars/tokenをproseの行と比較してから、一文を書きます。</li>
+<li><strong>Stretch</strong>: embedding次元 <code>d</code> を <code>axis=-1</code> に沿って半分に割り、<code>Q1/K1/V1</code> と
+   <code>Q2/K2/V2</code> にし、同じ <code>scaled_dot_product_attention</code> を二回呼んで出力をstackします。
+   各headの重み行列が <em>どの</em> token関係を好むかを記述します。</li>
+<li><strong>Portfolio</strong>: file path、二つの価格、window sizeを <code>argparse</code> で受け取り、tokenは
+   <code>len(enc.encode(text))</code>、使用率は <code>tokens / window</code> を使います。ドル金額は小数点以下
+   4桁に丸めます。</li>
+</ol>
+<h2 id="checklistmanifestjsonexcel-tracker">Checklist（manifest.jsonとExcel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: tokenizationとembeddingsを学ぶ（knowledge-base 03）。</li>
+<li>☐ Tue: Tokenizer lab。BPE encode/decodeと、LLM APIのtoken-cost estimator。</li>
+<li>☐ Wed: Embeddings lab。shipment commodity descriptionに対するsimilarity search。</li>
+<li>☐ Thu: Attention lab。NumPyでscaled dot-product attentionを実装。重みを可視化。</li>
+<li>☐ Fri: Use case：context-window budget calculatorを構築（callあたりtoken数 vs window size）。</li>
+<li>☐ Sat: Week 5 quiz（quiz.md）を受け、8/10で合格する。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新。両方のlabをcommitする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

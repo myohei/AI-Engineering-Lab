@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 10: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 10</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-10/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-10-quiz10810">Week 10: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-10/quiz.md">英語版</a> · <a href="README.html">Week 10 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>まず自分で答えてから、answer keyで確認してください。各問に答えのある場所が記載されているので、間違えたsectionやcellを読み返せます。</p>
+<h2 id="_1">設問</h2>
+<ol>
+<li>
+<p><strong>(MCQ)</strong> Ngのselection orderは何で、fine-tuningはどこに位置しますか？(Concepts §「最後のlever」を参照)
+   - A) Fine-tune → RAG → prompt → agentic
+   - B) Prompt（eval付き） → RAG → agentic → fine-tune last
+   - C) RAG → fine-tune → prompt → agentic
+   - D) weightは常にcontextに勝つので、fine-tune first</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> shapeが <code>(in=1536, out=1536)</code>、rank <code>r=16</code> のLoRA moduleに、LoRAはいくつのtrainable parameterを追加しますか？(Concepts 実例1を参照)
+   - A) 1536
+   - B) 49,152
+   - C) 700,416
+   - D) 1.54 billion</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> LoRAの実例で、trainable parameterの合計は~1.54B中の~0.70M、約0.05%でした。この小さな割合がbudgetにとって重要なのはなぜですか？(Concepts 実例1を参照)</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <code>notebooks/01-sft-dataset-and-lora-training.ipynb</code> で、各extraction exampleのassistant turnは何ですか？(notebook cell 6を参照)
+   - A) 一語のcategory
+   - B) <code>bol["fields"]</code> のground-truth JSON
+   - C) 空文字列
+   - D) system prompt</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> knowledge baseはなぜ「数百のcleanで多様なon-taskなexampleが、数万のnoisyなexampleに勝る」と言っていますか？(Concepts §「SFT: imitation learning」を参照)</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> DPOを古典的RLHFから区別するものは何ですか？(Concepts §「SFT → DPO → RLVR」を参照)
+   - A) DPOには別途trainingしたreward modelが必要
+   - B) DPOは <code>(prompt, chosen, rejected)</code> pair上のsupervised objectiveにpreference signalを直接foldする
+   - C) DPOにはunit testのようなverifiable rewardが必要
+   - D) DPOはmodel全体をfreezeして何もtrainしない</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <code>notebooks/02-dpo-and-before-after-evals.ipynb</code> で、「forgetting check」とは何ですか？(notebook cell 6を参照)
+   - A) modelがすでに知っているはずの5つのgeneric questionのheld-out setを、前後で採点する
+   - B) adapterがまだVRAMに収まるかのtest
+   - C) loss curveが下がったかのcheck
+   - D) 二つの異なるbase modelの比較</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> net gainを計算してください: before = {extraction 0.60、triage 0.72、generic 0.95}、after = {extraction 0.88、triage 0.91、generic 0.93}。<code>net = extraction_delta + triage_delta − forgetting_cost</code> はいくつで、deployしますか？(Concepts 実例2を参照)</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> あなたのfine-tuneは新task evalを上げましたが、generic checkが0.95から0.80に下がりました。「うまくいかない理由」節に従うと、正しいactionはどれですか？(Concepts §「うまくいかない理由」を参照)
+   - A) Shipする。specialist gainこそが大事
+   - B) Deployしない。rank/alphaを下げるか、general dataの一部を戻して加える
+   - C) Epochを増やす
+   - D) Generic checkを無視する</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> 変わるfact（例: 昨四半期の価格）をweightに保存してはいけないのはなぜですか？(Concepts §「Fine-tuningが報われるとき」を参照)</p>
+<ul>
+<li>A) Weightは数値を保持できない</li>
+<li>B) 揮発性のfactにはretrieveした知識が間違っている。memorizeではなくretrieveする</li>
+<li>C) Fine-tuningは常に古いfactを削除する</li>
+<li>D) Factは小さすぎて重要ではない</li>
+</ul>
+</li>
+</ol>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>B)</strong> 順序はmanaged-API prototype → eval付きprompt/context → RAG → agentic → fine-tune last。fine-tuningは最後の、最も高価で、最も元に戻しにくいleverです。</p>
+</li>
+<li>
+<p><strong>B)</strong> LoRAはmoduleごとに <code>r × (in + out) = 16 × (1536 + 1536) = 49,152</code> を追加します。これは一つのattention projectionで、<code>q/k/v/o</code> 全体では <code>4 × 49,152 = 196,608</code> です。</p>
+</li>
+<li>
+<p><strong>LoRAはほとんど何もtrainしないので、adapterは数MBで済み、fine-tuneはfull trainingのmemoryの一部で済みます。</strong> QLoRAはbaseを4-bitにするので、1.5B（あるいは7〜8B）のrunが、datacenterではなくfree Colab T4や16 GB laptopに収まります。</p>
+</li>
+<li>
+<p><strong>B)</strong> assistant turnは <code>json.dumps(bol["fields"], sort_keys=True)</code>、つまりmodelがimitateすることを学ぶground-truthの構造化field（label）です。</p>
+</li>
+<li>
+<p><strong>小さいmodelは、dataで支配的なpatternを何であれ内面化します。</strong> exampleの大半が的外れか矛盾していれば、それこそを教えることになります。<em>behavior</em> のcoverage（多様性、edge case）が行数より重要です。</p>
+</li>
+<li>
+<p><strong>B)</strong> DPOは <code>(prompt, chosen, rejected)</code> pair上のsupervised風objectiveにpreference signalを直接foldします。RLHFのreward model + PPO loopより単純で安定です。（verifiable rewardを使うのはDPOではなくRLVRです。）</p>
+</li>
+<li>
+<p><strong>A)</strong> forgetting checkは、前後で採点される5つのgeneric question（<code>GENERIC_QA</code>）です。adapterがgeneral competenceをun-teachすることをcatchします。</p>
+</li>
+<li>
+<p><strong>net = (0.88−0.60) + (0.91−0.72) − (0.95−0.93) = 0.28 + 0.19 − 0.02 = +0.45。</strong> 正なので、specialist gainが小さなgeneric regressionを稼いだ → deployします。（forgetting costがgainを上回るなら、答えはdon't deployです。）</p>
+</li>
+<li>
+<p><strong>B)</strong> これほど大きなgeneric低下はcatastrophic forgettingを意味します。Shipしません。learning rateを下げる、general dataの小さな割合を戻して加える、またはrank/alphaを下げる。epochを増やすことは決してしません。</p>
+</li>
+<li>
+<p><strong>B)</strong> 変わるfactにとってweightは間違った場所です。来四半期にはmodelはすでに間違っているでしょう。新しいknowledgeはRAGの仕事です。retrieveし、fine-tuningは <em>behavior</em>（style、format、vocabulary）に使ってください。</p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

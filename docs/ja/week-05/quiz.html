@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 05: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 05</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-05/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-05-quiz10810">Week 05: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-05/quiz.md">英語版</a> · <a href="README.html">Week 05 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>概念とnotebook codeから答えてください。各問にどこを見ればよいかが記載されています。</p>
+<ol>
+<li>
+<p><strong>(MCQ)</strong> LLMがquestionに「答える」ことは、次のどれとして最もよく記述できますか。(a) knowledge baseから最も近い事実を検索する、(b) 学習済みdistributionから次のtokenを繰り返しsampleする、(c) call間で保存されたreasoning planを実行する、(d) promptをcacheからlookupする。<em>(Concepts §「Tokenizationは正面玄関」を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> <code>01-tokenization-lab.ipynb</code> で、<code>enc.encode("ZoroLogistics")</code> は4 tokenを返すのに <code>enc.encode("shipment")</code> は1を返すのはなぜですか？ <em>(notebook cell 6を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> causal maskが存在する理由は次のどれですか。(a) attentionが速く走るため、(b) tokenが未来の位置にattendできないため、(c) embeddingが正規化されたままのため、(d) softmaxがoverflowしないため。<em>(Concepts §「Self-attention」を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> notebook 1の <code>estimate_cost</code> が使う式を書き、Mtokあたり$1.00/$3.00で57 input tokenと60 output tokenのcallあたりcostを計算してください（$0.000001の桁まで）。<em>(notebook cell 10を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> notebookのchars/token表で、bill of ladingはおよそいくらでtokenizeされますか。(a) 5.3 chars/token、(b) 3.0 chars/token、(c) 4.0 chars/token、(d) 1.0 chars/token。<em>(notebook cell 8 / Conceptsの表を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> <code>02-embeddings-and-attention-lab.ipynb</code> で、query <em>"temperature-sensitive medical cargo that must stay cold"</em> の正しいtop-1 commodityは何ですか？そしてcosine similarityはなぜそれを一位にしますか？ <em>(notebook cell 2と6を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> KV cacheは生成をstepあたりO(n²)からO(n)にしますが、その代償は次のどれですか。(a) より多くのcompute、(b) 列長とともに線形に増えるmemory、(c) causal maskの喪失、(d) より低いtemperature。<em>(Concepts §「The KV cache」を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> 7B-class model（32 layer、32 head、head_dim 128）をcontext 4096、FP16として、<code>2 × layers × heads × head_dim × seq_len × bytes_per_param</code> でKV-cache sizeをGBで計算してください。<em>(Concepts 実例2を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> modelの重みを変えるknowledge獲得の仕組みはどれですか。(a) zero-shot ICL、(b) RAG retrieval、(c) fine-tuning、(d) prompt caching。<em>(Conceptsの表を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> notebook 1のcell 12で、100,000 noteを超える一日あたりcostが、最初のnoteのcountではなく <em>平均</em> note token countから計算されるのはなぜですか？ <em>(notebook cell 11〜12を参照)</em></p>
+</li>
+</ol>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li><strong>(b)</strong>: modelは学習済みdistributionから次のtokenを繰り返しsampleします。「答える」とは、EOS/<code>max_tokens</code> まで走るそのloopのことです。</li>
+<li><strong>BPE</strong> は頻出の文字pairをmergeしてvocabを構築するので、よく使う語 "shipment" は単一tokenになった一方、珍しいbrand名 "ZoroLogistics" は一度もmergeされずsubword片に分割されます（<code>Z</code>/<code>oro</code>/<code>Log</code>/<code>istics</code>）。</li>
+<li><strong>(b)</strong>: causal（下三角）maskは未来の位置をゼロにし、tokenは自分自身とそれより前のtokenだけにattendします。これがincrementalな生成を可能にするものでもあります。</li>
+<li><code>(input_tokens/1e6)·price_in + (output_tokens/1e6)·price_out</code> → <code>57/1e6·1.00 + 60/1e6·3.00 = 0.000057 + 0.000180 = $0.000237</code>。</li>
+<li><strong>(b)</strong>: BoLは~3.0 chars/token（364文字、123 token）です。IDs、code、数値fieldがsubwordに分割されるためです。</li>
+<li><strong>pharmaceuticals</strong>: "pharmaceuticals and medical supplies needing cold-chain handling" が "temperature-sensitive medical cargo" と意味的に最も近く、そのembedding vectorがquery vectorと最も整合します（cosineが最高）。</li>
+<li><strong>(b)</strong>: 過去のK/Vをcacheすると各stepはO(n)になりますが、cacheは線形に伸びます（<code>2·L·H·hd·seq·bpp</code>）。これが長context servingの支配的なmemory costです。</li>
+<li><code>2 × 32 × 32 × 128 × 4096 × 2 bytes = 2,147,483,648 bytes ≈ 2.15 GB</code>。</li>
+<li><strong>(c)</strong>: fine-tuningが重みを変えます。ICLとRAGは重みに触れず、cachingはservingの最適化です。</li>
+<li>一日あたりの数字は <em>典型的な</em> noteを表さなければなりません。最初のnoteは平均より長い（41 token vs. ~30）ので、それだけを使うと一日あたりcostを過大に評価します。</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

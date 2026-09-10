@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 17: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 17</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-17/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-17-quiz10810">Week 17: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-17/quiz.md">英語版</a> · <a href="README.html">Week 17 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>各問は出典のsectionまたはnotebook cellを明示しています。答えてから、Answer keyで確認してください。</p>
+<ol>
+<li>
+<p><strong>(MCQ)</strong> OpenClawのmemory modelは「modelが覚えているのはdiskに保存されたものだけ」です。
+   <em>stableなpreferences</em>を格納するのはどのfileで、<em>durableなfacts/decisions</em>を格納するのは
+   どのfileですか？ <em>(Concepts §「OpenClaw: 個人assistant runtime」と <code>reference/agents/openclaw.md</code> §2.6を参照)</em>
+   - (a) preferencesが<code>MEMORY.md</code>。factsが<code>USER.md</code>。
+   - (b) preferencesが<code>USER.md</code>。factsが<code>MEMORY.md</code>。
+   - (c) 両方とも<code>DREAMS.md</code>。
+   - (d) file baseのmemoryは存在しない。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> OpenClawのpermission tierを、最も制限的 → 最も許容的な順に並べたものはどれですか？ <em>(Concepts
+   §「OpenClaw: 個人assistant runtime」を参照)</em>
+   - (a) <code>full → auto → ask → allowlist → deny</code>
+   - (b) <code>deny → allowlist → ask → auto → full</code>
+   - (c) <code>ask → deny → auto → full → allowlist</code>
+   - (d) <code>allowlist → deny → full → auto → ask</code></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> 「Hermes」はNous Researchによる二つの別物を指します。正しい記述はどれですか？
+   <em>(Concepts §「Hermes: 一つの名前、二つのartifact」を参照)</em>
+   - (a) Hermesはmodelのみ。frameworkは無関係。
+   - (b) Hermes <em>model</em>はあなたが動かす脳。Hermes Agentは、learning loop、gateway、subagents付きでmodelを動かす<em>framework</em>。
+   - (c) Hermes Agentはmodel。Hermesはbenchmark。
+   - (d) 同じartifactの二つの名前。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> OpenClawをOllamaの<code>/v1</code> endpointに向けるとtool callingが壊れるのはなぜですか？ <em>(Concepts
+   §「Hermes」と <code>reference/agents/openclaw.md</code> §6を参照)</em>
+   - (a) <code>/v1</code> endpointのほうが遅い。
+   - (b) OpenClawはOllamaの<strong>native <code>/api/chat</code></strong>と通信する。<code>/v1</code>はOpenAI互換endpointで、tool callを壊す。
+   - (c) <code>/v1</code>はcloud subscriptionが必要。
+   - (d) 壊れない。<code>/v1</code>が必須。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> observability notebookにおける<strong>span</strong>とは: <em>(notebook cell [4]とConcepts
+   §「Agent operations」を参照)</em>
+   - (a) inputs、outputs、latency、tokensを持つ、traceへlinkされたinstrument済みの一 step。
+   - (b) run全体の最終的な答え。
+   - (c) modelのparameter数。
+   - (d) chat channel内の一つのmessage。</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> cost dashboardは<code>hermes-4-14b</code>をtokenあたり$0.00で計算します。local modelの
+   場合、代わりに<em>何を</em>支払うのでしょうか。そしてrunbookはなぜそれをdashboardで引き続き追跡するのでしょうか？
+   <em>(notebook cell [9]とConcepts §「実例1」を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> production-eval samplingのcellは、threshold 0.85に対してSHIPかHOLDかを決めます。
+   sampleされたpass rate <code>p</code>が0.85未満のとき、printされるdecisionは: <em>(notebook cell [11]を参照)</em>
+   - (a) SHIP
+   - (b) HOLD。ship前に調査する
+   - (c) より大きいsampleでRETRY
+   - (d) decisionはprintされない</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> 最後のcellは、100個のoperationのうち85%がtracedである状況で、<code>COVERAGE</code>を
+   <code>instrumented / total_ops</code>としてprintします。<em>残り</em>の15%が何を表すか、そしてrunbookが0.85を
+   受け入れるのではなく100%のcoverageを目指す理由を説明してください。 <em>(notebook cell [14]とConcepts
+   §「実例2」を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <code>reference/agents/openclaw.md</code> §9.1によれば、最も多い初回実行時のOpenClawの失敗は
+   どれですか？ <em>(Concepts §「うまくいかない理由」を参照)</em>
+   - (a) Gateway portは常に空いている。
+   - (b) Ollamaの<code>/v1</code> endpointに向けたときtool callingが壊れる。
+   - (c) skillは常に発動する。
+   - (d) modelはすべてを自動的に覚えている。</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> ops runbookが述べる四つのものを挙げ、runbookがdocumentationではなく
+    「standing discipline」である理由を一文で説明してください。 <em>(notebook cell [13]とConcepts
+    §「Agent operations」を参照)</em></p>
+</li>
+</ol>
+<hr>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>(b)</strong>: <code>USER.md</code>がstableなpreferences（あなたが誰で、どう答えてほしいか）を持ち、<code>MEMORY.md</code>が
+   persistすべきdurableなfacts/decisionsを持ちます。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: <code>deny → allowlist → ask → auto → full</code>。最も制限的から最も許容的です。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: model（Hermes 2/3/4）が脳。Hermes Agentは別個のframeworkです。両者は独立した
+   artifactで、自由に組み合わせられます。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: OpenClawはOllamaのnative <code>/api/chat</code>を使います。<code>/v1</code> endpointはOpenAI互換の
+   surfaceで、tool callingを壊します。</p>
+</li>
+<li>
+<p><strong>(a)</strong>: spanは、inputs、outputs、latency、tokensを持つinstrument済みの一 step（model callまたは
+   tool call）。traceは一つのrunに対するspanの列です。</p>
+</li>
+<li>
+<p>（token単位のAPI spendではなく）<strong>hardwareとlatency</strong>で支払います。modelはあなたのmachineで
+   動くからです。それでもdashboardが追跡するのは、always-on assistantの<em>resource</em> costとlatencyが、
+   token単位の限界costが$0でも、runbookのlatency/cost alertに必要だからです。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: HOLD（0.85未満）。ship前に調査します。</p>
+</li>
+<li>
+<p>残りの15%は、tracerをbypassする操作（<code>untraced_step</code>）です。runbookが100%を目指すのは、
+   instrumentされていないtrafficでの失敗は不可視だからです。traceしない15%こそ、silent regressionが
+   隠れる場所であり、metricは「実際にどれだけ見えているか」という正直な答えだからです。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: Ollamaの<code>/v1</code> endpointに向けたときにtool callingが壊れるのが、最も多い初回実行時の失敗です。</p>
+</li>
+<li>
+<p>runbookが述べるもの: <strong>threshold</strong>（pass rate、cost/day、latency、coverage）、<strong>watchすべき
+    dashboard</strong>、そして<strong>what-to-do-when</strong>の手順（pass rate低下、cost spike、latency spike、
+    低coverageに対して）。standing disciplineなのは、書いて忘れる一度きりの記述ではなく、毎日
+    実行する繰り返しのdecisionとthresholdをencodeしているからです。</p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

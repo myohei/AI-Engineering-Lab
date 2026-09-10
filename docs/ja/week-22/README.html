@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 22: Databricks Data Engineering: PySpark、StreamingとLakeflow</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 22</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-22/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-22-databricks-data-engineering-pysparkstreaminglakeflow">Week 22: Databricks Data Engineering: PySpark、StreamingとLakeflow</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-22/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 22 of 24 · Section: Databricks Zero to Hero · Category: Pipelines
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-22/notebooks/01-pyspark-data-engineering.ipynb">01-pyspark-data-engineering.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-22/notebooks/02-streaming-and-dlt-pipeline.ipynb">02-streaming-and-dlt-pipeline.ipynb</a>
+🎯 <strong>Use case:</strong> streaming pipeline。liveなshipment event → validated silver → on-time KPI。</p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>Week 21はZoroLogisticsに <em>governed</em> なlakehouseを与えましたが、medallionはCSVsのfolderに対して手で実行したSQLで構築されました。それは、truckが初めて出発し、そのshipment eventが、誰かがqueryの再実行を思い出したときではなく <em>今日</em> on-time KPIを更新すべきになった瞬間までしか通用しません。freightはstreaming businessです。shipmentは絶え間ない小川のようにbookされ、pick upされ、weatherで遅れ、配達されます。ops teamはeventが届いたらすぐon-time rateが動くことを望んでいます。</p>
+<p>二つの失敗modeが今週の内容を強制します。<strong>第一に、scaleとlaziness。</strong> 100,000行のfull CSVはtoyです。本物のfeedは数百万行で、日々増えます。driver上のpandas（大きなmachineでも）は死にます。PySparkのdistributed DataFrame APIが必要で、<em>いつ</em> 実際に計算されるかを理解しないと、うっかりの <code>count()</code> callでclusterを燃やします。<strong>第二に、静かな悪data。</strong> 現在、負の <code>weight_kg</code> や予期しない <code>status</code> は、<em>gate</em> するものがないためそのままsilverに流れ込みます。Week 2はvalidateすることを教えました。今週はpipeline自身が悪いrowをshipすることを拒否します。人間が気づくことを願う代わりに、<strong>drop</strong> または <strong>fail</strong> するexpectationです。</p>
+<p>before/afterはこうです。beforeでは、悪いeventがgoldを更新し、errorは一週間後にanalystに見つかります。afterでは、同じeventがpipelineのevent logに数えられ（<code>weight_positive</code>: 3行dropped）、silverには決して届きません。これが、dataをtransformするscriptと、構成の時点で正しい <strong>declarative pipeline</strong> の違いです。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、ZoroLogisticsのCSVsをPySpark DataFramesでtransformできる。read、join、aggregation、window function。そして <em>同じ</em> logicをSQLで表現し、数字が一致することを確認できる。</li>
+<li>☐ 金曜日までに、partition済みDelta outputを書き、lazinessのrule（transformationはplanをbuildし、write/actionがそれを実行する）を説明できる。</li>
+<li>☐ 金曜日までに、<strong>Lakeflow Pipelines</strong>（旧Delta Live Tables）のpipelineをPythonでdeclareできる。Auto Loaderでvolume上の <code>streaming_table</code> bronze、expectation付きの <code>materialized_view</code> silver、gold aggregate。</li>
+<li>☐ 金曜日までに、data-quality <strong>expectations</strong>（warn / drop / fail）をattachし、pipeline UIで結果のquality metricを読める。そしてpipelineを <strong>Lakeflow Job</strong> としてscheduleできる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td>PySpark DataFrameのmental model、laziness、schema、partitioning（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/05-pyspark.md"><code>05-pyspark.md</code></a>）</td>
+<td><code>01-pyspark-data-engineering.ipynb</code>: read → transform → join → aggregate → window</td>
+<td>数字がSQL版と一致するDataFrame KPI table</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>Structured Streaming: Auto Loader、watermark、checkpoint、exactly-once（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/06-pipelines-jobs.md"><code>06-pipelines-jobs.md</code></a> Part A）</td>
+<td><code>02-streaming-and-dlt-pipeline.ipynb</code>: <code>@dp.table</code> bronze + <code>@dp.materialized_view</code> silver</td>
+<td>streaming tableと二つのexpectationを持つpipeline</td>
+<td>約3時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>Expectationsの深掘り（warn/drop/fail）+ AUTO CDC（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/06-pipelines-jobs.md"><code>06-pipelines-jobs.md</code></a> §A4〜A5）</td>
+<td>bad-weight CSVを <code>events/</code> にdropしてからpipelineを再実行し、event logを読む</td>
+<td>gateが悪いrowを除去したことを証明するbefore/after row count</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>Lakeflow Jobs: task DAG、Run-if、trigger、parameter（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/06-pipelines-jobs.md"><code>06-pipelines-jobs.md</code></a> Part B）</td>
+<td>pipelineをscheduled Jobでwrapする。runとlineageを確認する</td>
+<td>監視query付きのscheduled job</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>Use caseの日</td>
+<td>監視queryをpublishする。DAGをscreenshotする</td>
+<td>Week 22 gate（下記）</td>
+<td>約2時間</td>
+</tr>
+</tbody>
+</table>
+<h2 id="montue">概念（まず読むのはMon/Tue）</h2>
+<p>Fact base: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/research/06-databricks-deep-dive.md"><code>reference/knowledge-base/research/06-databricks-deep-dive.md</code></a>（§5）。Deep-dive: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/05-pyspark.md"><code>05-pyspark.md</code></a> と <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/06-pipelines-jobs.md"><code>06-pipelines-jobs.md</code></a>。</p>
+<h3 id="pyspark-laziness">PySpark: lazinessがすべて</h3>
+<p>最も重要なideaは一つ: <strong>DataFrameはworkのlazyな記述である。</strong> <code>select</code>、<code>filter</code>、<code>join</code>、<code>groupBy</code>、<code>withColumn</code> は <strong>transformation</strong> で、logical planをbuildするだけで何も実行しません。<code>count</code>、<code>show</code>、<code>collect</code>、<code>saveAsTable</code> は <strong>action</strong> で、実行をtriggerします。cellが「一瞬で終わる」のは速さではなくlazinessで、workは結果を要求したときに起こります。productionでは <strong>writeだけが唯一のactionになるのが普通</strong> です。余計なaction（logging用の迷子の <code>count()</code>）はoptimizerを中断し、planを再実行させるからです。</p>
+<p>Databricksはその上に二つのacceleratorを重ねるので、よく形作られたDataFrame codeは往々にしてtuning不要です。<strong>automatic disk cache</strong>（local NVMe上のDatabricks管理のParquet cache）と <strong>Photon</strong>（vector化されたC++ engine。SQL warehouseとserverlessでdefault）。PhotonはSQL/DataFrame/ETLとstateless streamingを加速しますが、UDFs、RDD code、stateful streamingは <strong>対象外</strong> なので、Python UDFsよりbuilt-in functionを優先してください。performance decision table:</p>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Lever</th>
+<th>Rule of thumb</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shuffle後のpartition数</td>
+<td><code>spark.sql.shuffle.partitions</code></td>
+<td>executor core合計の1〜2倍（default 200は小さいclusterには多すぎる）</td>
+</tr>
+<tr>
+<td>再分布</td>
+<td><code>repartition(n)</code> vs <code>coalesce(n)</code></td>
+<td><code>repartition</code> はfull shuffle。<code>coalesce</code> はshuffleなしで縮める（skewあり得る）</td>
+</tr>
+<tr>
+<td>小さい側とのjoin</td>
+<td><code>F.broadcast(small_df)</code></td>
+<td>shuffleを回避。AQEは小さい側を自動broadcastする</td>
+</tr>
+<tr>
+<td>中間結果の再読み込み</td>
+<td><code>cache()</code> / <code>persist()</code></td>
+<td>手動。済んだら <code>unpersist()</code>。<em>disk cache</em> は別で自動</td>
+</tr>
+<tr>
+<td>独自のrow logic</td>
+<td>built-in → pandas UDF → Python UDF</td>
+<td>Photon対象 → batch → row単位（遅い）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>実例: KPI aggregation、PySpark vs SQL。</strong> transformとjoinの後、on-time KPIはboolean→0/1 cast付きのgroup-byです:</p>
+<pre><code class="language-python">kpis = (enriched
+  .withColumn(&quot;month&quot;, F.date_format(&quot;actual_arrival&quot;, &quot;yyyy-MM&quot;))
+  .groupBy(&quot;carrier_id&quot;, &quot;carrier_name&quot;, &quot;lane_id&quot;, &quot;origin&quot;, &quot;destination&quot;, &quot;month&quot;)
+  .agg(
+      F.count(&quot;*&quot;).alias(&quot;shipment_count&quot;),
+      F.round(F.avg(F.when(F.col(&quot;is_on_time&quot;), 1.0).otherwise(0.0)), 4).alias(&quot;on_time_rate&quot;),
+      F.round(F.avg(&quot;delay_hours&quot;), 2).alias(&quot;avg_delay_hours&quot;),
+  ))
+</code></pre>
+<p>次に同じDataFrameをtemp viewとしてregisterし、同一のaggregationをSpark SQLで書きます。notebookの <strong>cross-check cell</strong> は両方のpathから <code>on_time_rate</code> を平均し、<code>match: abs(py_avg - sql_avg) &lt; 1e-6</code> をprintします。そこで <code>True</code> が出れば、二つのexpressionが同じlogicである証拠です。間違った <code>CASE</code> や抜けた <code>round()</code> を捕まえる習慣です。続く <strong>window function</strong>（<code>Window.partitionBy("month").orderBy(…</code>）はrowをつぶさずに各月<em>の中で</em> carrierをrankします。「今月誰が勝っているか」です。</p>
+<h3 id="structured-streaming-batch-apiexactly-once">Structured Streaming: batch API、exactly-once</h3>
+<p>batchからstreamへの架け橋は、<strong>同じDataFrame APIがexactly-once保証付きのmicro-batch loopを駆動する</strong> ことです。重要な部品は三つです:</p>
+<ul>
+<li><strong>Auto Loader</strong>（<code>spark.readStream.format("cloudFiles")</code>）はvolume/object storageから新しいfileをincrementalに取り込みます。exactly-once semantics（checkpoint内のRocksDB progress store）とschema inference/evolution付き。file数千件なら <code>COPY INTO</code>、数百万件や進化するschemaならAuto Loaderを使います。</li>
+<li><strong>Watermark</strong>（<code>withWatermark("ts", "10 minutes")</code>）はstateに上限を付け、遅いdataがmemoryを膨らませる代わりにdropされます。stream-stream outer joinには必須です。</li>
+<li><strong>Checkpoint</strong> はoffset、commit、stateを保存してexactly-once resumeを可能にします。<strong>各queryにはそれぞれ独自のcheckpoint locationが必要です</strong>（UC volume path）。</li>
+</ul>
+<p>Output modeは <strong>Append</strong>（default）、<strong>Complete</strong>、<strong>Update</strong> ですが、Delta sinkはAppend/Completeに対応し、Updateは <strong>非対応</strong> です。<code>availableNow</code>（旧 <code>Trigger.Once</code>）はbatch形のworkのためのone-shot incremental triggerです。</p>
+<h3 id="lakeflow-pipelines-orchestratedeclare">Lakeflow Pipelines: orchestrateせずdeclareする</h3>
+<p>Lakeflow Pipelines（旧 <strong>Delta Live Tables</strong>）はdeclarative layerです。datasetを <em>declare</em> すると、pipelineがDAG、順序、retry、並列性を解決します。現在のPython APIは <code>from pyspark import pipelines as dp</code> です（古い資料にはlegacyの <code>import dlt</code> が登場します）。datasetは三種類です:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Semantics</th>
+<th>Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Streaming table</strong></td>
+<td>各recordを一度だけ処理。incremental。append-only source</td>
+<td>Streaming ingestion</td>
+</tr>
+<tr>
+<td><strong>Materialized view</strong></td>
+<td><em>現在の</em> stateを反映するよう再計算される（"always correct"）</td>
+<td>Aggregation/join。dimensionの遅い変更</td>
+</tr>
+<tr>
+<td><strong>View</strong></td>
+<td>on-demandで評価され、persistされない</td>
+<td>中間check</td>
+</tr>
+</tbody>
+</table>
+<p>微妙なrule: <strong>streaming tableはdimensionの遅い変更で再計算されず、materialized viewはされます。</strong> append-onlyのevent logはstreaming table、修正されたcarrier dimensionを反映しなければならないgold KPIはmaterialized viewです。pipelineのtableはすべてDelta tableです（ACID + time travel）。dataset functionは <strong>DataFrameをreturnしなければならず</strong>、action（<code>collect</code>、<code>count</code>、<code>toPandas</code>、<code>save</code>）を <strong>呼んではいけません</strong>。上流のtableは <code>dp.read()</code> / <code>dp.read_stream()</code> で読みます。</p>
+<p><strong>Expectations</strong> はdata qualityを願望からgateに変えます:</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Python</th>
+<th>SQL</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Warn</strong></td>
+<td><code>@dp.expect</code></td>
+<td><code>CONSTRAINT c EXPECT (cond)</code></td>
+<td>rowを保持し、metricを記録</td>
+</tr>
+<tr>
+<td><strong>Drop</strong></td>
+<td><code>@dp.expect_or_drop</code></td>
+<td><code>… ON VIOLATION DROP ROW</code></td>
+<td>悪いrowを除去し、続行</td>
+</tr>
+<tr>
+<td><strong>Fail</strong></td>
+<td><code>@dp.expect_or_fail</code></td>
+<td><code>… ON VIOLATION FAIL UPDATE</code></td>
+<td>updateを中断（悪いdataをblock）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>実例: silver gate。</strong> pipelineのsilver viewは一つのfunctionに二つのdecoratorを重ねます:</p>
+<pre><code class="language-python">@dp.materialized_view
+@dp.expect_or_drop(&quot;weight_positive&quot;, &quot;weight_kg &gt; 0&quot;)
+@dp.expect(&quot;status_valid&quot;, &quot;status IN ('Delivered', 'In Transit', 'Booked')&quot;)
+def silver():
+    return (dp.read(&quot;bronze_events&quot;)
+            .dropDuplicates([&quot;shipment_id&quot;])
+            .withColumn(&quot;weight_kg&quot;, F.col(&quot;weight_kg&quot;).cast(&quot;double&quot;))
+            .withColumn(&quot;delay_hours&quot;, F.col(&quot;delay_hours&quot;).cast(&quot;double&quot;))
+            .withColumn(&quot;is_on_time&quot;, F.col(&quot;delay_hours&quot;) &lt;= 2.0))
+</code></pre>
+<p><code>weight_kg &lt;= 0</code> のrowは <strong>dropped</strong> され（許容noise）、未知の <code>status</code> は <strong>warned</strong> されて保持されます（updateを壊さずに見える）。SQLでの等価表現は <code>CREATE OR REFRESH STREAMING TABLE … CONSTRAINT weight_positive EXPECT
+(weight_kg &gt; 0) ON VIOLATION DROP ROW</code> です。event logはupdateごとに、各expectationが何rowをkeep/drop/failしたかを示します。data-qualityのobservabilityがタダで手に入ります。CDC sourceは <strong><code>AUTO CDC</code></strong>（旧 <code>APPLY CHANGES</code>）でSCD Type 1（latestのみ）またはType 2（<code>__START_AT</code>/<code>__END_AT</code>付きのversioned history）をbuildします。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    EV[events volume\nshipments.csv batches] --&gt;|Auto Loader cloudFiles| BZ[bronze_events\nstreaming table]
+    BZ --&gt;|dp.read| SV[silver\nmaterialized view]
+    SV --&gt;|&quot;expect_or_drop: weight_kg&gt;0&quot;| DROP[dropped rows\nin event log]
+    SV --&gt;|&quot;expect: status_valid&quot;| WARN[warned rows\nkept]
+    SV --&gt; GD[gold_on_time_kpis\nmaterialized view]
+    GD --&gt; JOB[Lakeflow Job\nschedule + monitor]
+    JOB --&gt; SYS[system.lakeflow.jobs\nmonitoring query]
+</div>
+<h3 id="lakeflow-jobslakeflow-connect">Lakeflow JobsとLakeflow Connect</h3>
+<p><strong>Lakeflow Jobs</strong>（旧Workflows）はtaskを <strong>DAG</strong> としてorchestrateします: notebook、Python script/wheel、SQL、dbt、<strong>Pipeline</strong>、JAR、Run Job、<strong>If/else</strong>、<strong>For each</strong>。taskは <code>depends_on</code> でつながり、<strong>Run if</strong> でgateされます: <code>ALL_SUCCESS</code>（default）、<code>AT_LEAST_ONE_SUCCESS</code>、<code>NONE_FAILED</code>、<code>ALL_DONE</code>、<code>AT_LEAST_ONE_FAILED</code>、<code>ALL_FAILED</code>。parameterは <code>{{job.parameters.run_date}}</code> として流れ、notebookでは <code>dbutils.widgets</code> で読みます。Trigger: <strong>Scheduled</strong>（cron）、<strong>Periodic</strong>、<strong>File arrival</strong>、<strong>Table update</strong>、<strong>Continuous</strong>。Jobは <strong>job cluster</strong>（all-purposeよりDBU単価が安い）、既存cluster、または <strong>serverless</strong>（cluster configを省略）で動きます。耐障害性: taskごとのretry、<strong>repair</strong>（失敗したtaskだけ再実行）、taskごとのtimeout。</p>
+<p><strong>Lakeflow Connect</strong>（旧Databricks Ingest）はSaaS、database、file、streamからのmanaged ingestionです。rule of thumbとして、Connectはgoverned Delta tableにdataを <strong>copy</strong> し、<strong>Lakehouse Federationはcopyせずin placeでquery</strong> します。freight会社なら、eventがmessage busに届くときKafka connectorが自然な選択で、ここで使うのはfile baseの代替であるAuto Loaderです。</p>
+<h3 id="_4">うまくいかない理由</h3>
+<ul>
+<li><strong>本物のinvariantへの <code>FAIL UPDATE</code> はpipelineを止める。</strong> それが狙いです（悪いdataが黙って通ってはならない）。しかしinvariantが間違っていると、例えばdata-qualityの <em>repair</em> が正当に小さな負をemitする場面で <code>delay_hours &gt;= 0</code> だと、noiseのために一晩分のupdateをblockします。<code>fail</code> は決して通してはならないinvariantに使い、許容noiseには <code>drop</code> を使う。</li>
+<li><strong>二つのqueryで一つのcheckpoint locationを再利用。</strong> checkpointはexactly-once stateを保持します。一つのpathを共有する二つのqueryは互いのresumeを壊します。各queryに独自のUC volume pathを与える。</li>
+<li><strong>dataset function内のaction。</strong> <code>@dp.table</code> 内の迷子の <code>count()</code> や <code>toPandas()</code> はeager実行を強制し、declarativeなplanを壊します。fixは機械的です: DataFrameをreturnして、それ以上触らない。</li>
+<li><strong>stateful joinでのwatermark忘れ。</strong> watermarkのないstateful aggregationは <em>すべての</em> 遅いkeyをmemoryに永遠に保持し、ゆっくりとしたOOMになります。watermarkが保持するstateに上限を付けます。</li>
+<li><strong>速さに見せかけたlaziness。</strong> 「一瞬で終わった」cellは何もしていません。最後のwriteがないなら、おそらく一度もactionをtriggerしていないのがbugです。</li>
+</ul>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><strong><code>01-pyspark-data-engineering.ipynb</code></strong>: 同じcleaning/KPI logicを二回。Cell 1は <code>F</code> と <code>Window</code> をimportし、volumeから三つのCSVsを読み、row countとschemaをprintします。Cell 3はtransform blockです: 三つのtimestamp columnに <code>to_timestamp(…,
+'yyyy-MM-dd HH:mm:ss[.SSSSSS]')</code>、numeric columnに <code>cast("double")</code>、<code>is_on_time = delay_hours &lt;= 2.0</code>、派生の <code>transit_hours</code>、続いて <code>dropDuplicates(["shipment_id"])</code> と <code>fillna({"weight_kg": 850.0})</code>。Cell 5はcarrierとlaneのdimensionをjoinします（<code>carrier_id</code>/<code>lane_id</code> でleft join）。Cell 7は <code>kpis</code> aggregation（上の実例）をbuildし、cell 9は <code>rank_in_month</code> windowを追加して各月top-2のcarrierを示します。Cell 11は <code>month</code> でpartitionされた <code>gold_on_time_kpis_spark</code> を書き出します。これがすべてをmaterializeする <strong>action</strong> です。Cells 13〜15は <code>enriched</code> をtemp viewにregisterし、同一の <code>%sql</code> aggregationを実行し、<strong>cross-check</strong>: <code>match: True/False</code> をprintします。<strong>最後のcellは</strong> <code>final on-time rate</code> と <code>enriched rows</code> をprintします。正しい出力: <code>match: True</code>（二つのpathが1e-6まで一致）、high-0.8sのon-time rate、dedupe後のshipment数に等しい <code>enriched rows</code>。</p>
+<p><strong><code>02-streaming-and-dlt-pipeline.ipynb</code></strong>: declarative pipeline。Cell 1は <code>from pyspark import pipelines as dp</code> をimportします。Cell 3は <code>@dp.table</code> の <strong><code>bronze_events</code></strong> です: <code>events/</code> volume folderに対する <code>spark.readStream.format("cloudFiles")</code>。<code>cloudFiles.schemaLocation</code> がschema inferenceを固定します。Cell 5は <strong><code>silver</code></strong>、二つのexpectation decoratorを重ねた <code>@dp.materialized_view</code> です。Cell 7は <strong><code>gold_on_time_kpis</code></strong>、silverをcarrier/lane/monthでaggregateする <code>@dp.materialized_view</code> です。Cell 9は <code>@dp.temporary_view</code> です（persistされない）。Cell 11は <strong>SQL比較</strong> です: <code>CREATE OR REFRESH STREAMING TABLE bronze_events_sql AS SELECT *
+FROM STREAM read_files(…)</code> と <code>MATERIALIZED VIEW silver_sql CONSTRAINT
+weight_positive EXPECT (weight_kg &gt; 0) ON VIOLATION DROP ROW</code>。実行するには、<strong>Jobs &amp; Pipelines → Pipelines</strong> でpipelineを作り、notebookを指定し、target schemaを設定し、bad-weight CSVを <code>events/</code> にdropしてgateが発火するのを見ます。<strong>最後のcellは</strong> <code>silver rows</code> をprintします（初回実行前は0、その後dedupe済みcount）。「正しい」状態は <strong>event log</strong> で見えます: <code>weight_positive</code> がdropped-row countを報告し、<code>silver</code> のrow countはbronzeの数以下（≤）です。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> bronzeがAuto Loaderでevents volumeを読み、silverが <code>weight_kg</code> と <code>status</code> にexpectationを強制し、goldがon-time KPIsを出すLakeflow Pipelines pipeline（Python）。加えて、その結果に対する監視queryをLakeflow Jobとしてscheduleしたもの。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人がUI（Jobs &amp; Pipelines → Pipeline）でpipelineを設定し、あなたのnotebookとtarget schemaを指して実行し、expectationが発火した（keep / drop / failしたrow数）event logを読めること。DAG、最終gold row count、quality gateが実際に悪いrowを除去したことを証明するbefore/after row countを見せられること。</p>
+<p><strong>Stretch variant:</strong> 三つ目のexpectation <code>@dp.expect_or_fail("non_negative_delay",
+"delay_hours &gt;= 0")</code> を追加し、違反するrowでpipelineを再実行し、updateに何が起きるか（failする）を <code>@dp.expect_or_drop</code> と対比してmarkdown cell一文で記述する。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>なぜ起きるか</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>「cellは一瞬で終わったのに何も変わらない」</td>
+<td>transformationはlazy</td>
+<td>write/countを明示的なactionにする</td>
+</tr>
+<tr>
+<td>大きなDataFrameでの <code>collect()</code>/<code>toPandas()</code></td>
+<td>すべてdriverに引き込む</td>
+<td>小さくfilterした結果だけに使う</td>
+</tr>
+<tr>
+<td><code>@dp.table</code> function内のaction</td>
+<td>eager実行を強制し、planを壊す</td>
+<td>DataFrameをreturnする。中で <code>count</code>/<code>save</code> は絶対しない</td>
+</tr>
+<tr>
+<td>一つのcheckpoint pathの共有</td>
+<td>checkpointはqueryごとのexactly-once stateを保持</td>
+<td>queryごとに一つのUC volume path</td>
+</tr>
+<tr>
+<td>noisyなinvariantへの <code>fail</code></td>
+<td>許容noiseのためにupdate全体をblockする</td>
+<td>noiseには <code>drop</code>。<code>fail</code> はinvariantだけに</td>
+</tr>
+<tr>
+<td>watermarkなしのstream</td>
+<td>stateful opがすべての遅いkeyを保持する</td>
+<td><code>withWatermark</code> がstateに上限を付ける</td>
+</tr>
+<tr>
+<td>all-purpose clusterでのscheduled work</td>
+<td>自動workに対話rateを払っている</td>
+<td>job clusterかserverless</td>
+</tr>
+<tr>
+<td>row logicへのPython UDF</td>
+<td>row単位でPhotonが効かない</td>
+<td>built-in → pandas UDF → Python UDF</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Lazy evaluation</strong>: transformationはplanをbuildし、actionだけがそれを実行する。</li>
+<li><strong>Action</strong>: 実行をtriggerする操作（<code>count</code>、<code>show</code>、<code>collect</code>、<code>saveAsTable</code>）。</li>
+<li><strong>Photon</strong>: Databricksのvector化C++ engine。SQL/DataFrame/stateless streamingを加速し、UDFs/RDDsは対象外。</li>
+<li><strong>Auto Loader</strong>: 新しいfileをexactly-once semanticsでincrementalに取り込む <code>cloudFiles</code> source。</li>
+<li><strong>Watermark</strong>: 遅い/stateful streaming dataを安全にdropできるようにする時間上限。</li>
+<li><strong>Checkpoint</strong>: exactly-once resumeを可能にするqueryごとのstate（offset、commit）。</li>
+<li><strong>Streaming table</strong>: 各recordを一度だけ処理するpipeline dataset（append-only）。</li>
+<li><strong>Materialized view</strong>: 現在のstateを反映するよう再計算されるpipeline dataset。</li>
+<li><strong>Expectation</strong>: warn/drop/fail action付きのboolean data-quality制約。</li>
+<li><strong><code>AUTO CDC</code></strong>: SCD Type 1/2 tableをbuildするpipeline句（旧 <code>APPLY CHANGES</code>）。</li>
+<li><strong>Lakeflow Job</strong>: <code>depends_on</code> + Run-if gateとschedulingを持つtaskのDAG。</li>
+<li><strong>Lakeflow Connect</strong>: 外部dataをDeltaにcopyするmanaged ingestion（Federationのquery-in-placeと対照的）。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-22/quiz.md"><code>quiz.md</code></a> を受けてください。10問、<strong>8/10で合格</strong>。Concepts sectionとnotebook cellに紐付いたmultiple choiceとshort answerの混成です。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exerciseがhint付きで <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-22/exercises.md"><code>exercises.md</code></a> にあります。portfolio itemはpipelineをscheduled Lakeflow Jobでwrapして、<strong>ZoroLogistics streaming pipeline</strong> milestoneを進めます。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>PySpark on Databricks: https://docs.databricks.com/pyspark/</li>
+<li>Spark DataFrames: https://docs.databricks.com/getting-started/dataframes/</li>
+<li>Lakeflow Pipelines (DLT): https://docs.databricks.com/ldp/</li>
+<li>Pipeline concepts: https://docs.databricks.com/ldp/concepts</li>
+<li>Expectations (data quality): https://docs.databricks.com/ldp/expectations</li>
+<li>Python reference: https://docs.databricks.com/ldp/developer/python-ref</li>
+<li>Structured Streaming: https://docs.databricks.com/structured-streaming/concepts</li>
+<li>Watermarks: https://docs.databricks.com/structured-streaming/watermarks</li>
+<li>Auto Loader: https://docs.databricks.com/ingestion/cloud-object-storage/auto-loader/</li>
+<li>Lakeflow Jobs: https://docs.databricks.com/jobs/</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

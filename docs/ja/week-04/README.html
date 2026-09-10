@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 04: PyTorchで学ぶDeep Learning</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 04</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-04/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-04-pytorchdeep-learning">Week 04: PyTorchで学ぶDeep Learning</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-04/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 04 of 24 · Section: Foundations · Category: Deep Learning
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-04/notebooks/01-pytorch-tensors-and-autograd.ipynb">01-pytorch-tensors-and-autograd.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-04/notebooks/02-mlp-eta-train-and-eval.ipynb">02-mlp-eta-train-and-eval.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsにはWeek 3で動くgradient-boostingのETA modelがあり、<em>正直に訓練・評価すれば</em> neural networkがもっと良くなるかもしれない、という疑いがあります。誘惑はdisciplineをskipすることです。大きなMLPを訓練し、訓練lossが下がるのを見て、勝利を宣言する。しかしneural netはtoolboxで最も速いoverfitterです。noiseを暗記でき、tuneされていないlearning rateで発散し、<em>静かに</em> failします。その出力は、modelが壊れていてもそれっぽく見える数字です。そしてrandom forestと違い、feature importanceを一目見て何をlearnしたか知ることはできません。error analysisで尋問しなければなりません。</p>
+<p>今週がなければ、ZoroLogisticsが手にするのはmodelではなくdemoです。訓練curveが急落しvalidation curveが浮上するnotebookが、「neural modelが勝った」としてshipされます。今週を終えれば、会社はdemo builderとAI engineerを分けるdisciplineを手にします。Week 3と同じtime-aware splitで訓練された <strong>正則化済みMLP</strong>、gradient-boosting baselineとの比較で <em>勝ち負けに関わらずdeltaを明示</em> し、modelがどこで失敗するかを名指しし、その理由を仮説として述べる <strong>最初のcarrier・lane別error analysis</strong> です。今週の正直な結果は示唆的です。小さなMLPは <strong>MAE ≈ 4.99 h</strong> に対しbaselineは <strong>4.87 h</strong>、<strong>0.12 h</strong> 負ける事実上の互角です。これは <em>正しい</em> 結果であり、それを素直に報告することこそが今週の要点です。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、tensorを構築し、computation graphを読み、autogradがgradientを計算してくれることを実演できる。</li>
+<li>☐ 金曜日までに、DataLoader、training loop、learning curveを使って <code>delay_hours</code> regressionのMLPを訓練できる。</li>
+<li>☐ 金曜日までに、dropoutとweight decayを適用し、validation splitで少なくとも三つのhyperparameterをtuneできる。</li>
+<li>☐ 金曜日までに、carrier/lane別の最大error clusterを名指しし仮説を述べたerror-analysis noteをshipできる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/02-ml-dl-fundamentals.md"><code>reference/knowledge-base/02-ml-dl-fundamentals.md</code></a> §8〜12（tensor、autograd、training loop、regularization）を読む</td>
+<td><code>01-pytorch-tensors-and-autograd.ipynb</code> のtensor + autogradのcell</td>
+<td>手計算によるgradient check</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>training loop。loss vs. metric</td>
+<td>MLP notebookをend-to-endで実行。curveをplot</td>
+<td>最初のlearning curveの読み取り</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>正則化（dropout、weight decay）、hyperparameter</td>
+<td>width、dropout、weight decayを <strong>val</strong> でtune</td>
+<td>最良のval-MAEの組み合わせ</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>evalとerror analysis</td>
+<td>testでneural vs baselineを比較。carrier/laneでslice</td>
+<td>error-cluster表</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>予測できない出力 → eval</td>
+<td>error-analysis noteを書く</td>
+<td><code>week-04-model-card.md</code> をcommit</td>
+<td>約3時間</td>
+</tr>
+<tr>
+<td><strong>Sat</strong></td>
+<td>週の復習</td>
+<td>quiz（<code>quiz.md</code>、8/10で合格）を受ける</td>
+<td>scoreをNotesに記録する</td>
+<td>約45分</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p>Deep learningは、Week 3の教師あり学習を超えて <em>新しい概念を何も</em> 追加しません。変わるのはmodel family（gradient descentでend-to-endに訓練される、parameter化された関数のstack）と訓練の方法（batching、optimizer、regularization）です。Week 3のすべて、metricを先に、time-aware split、baseline、は引き続き適用され、しかも今はもっと重要です。neural netはrandom forestより速くoverfitし、より静かにfailするからです。</p>
+<h3 id="1-tensordevicegpumps">1. tensorとdevice（GPU/MPS）</h3>
+<p><strong>tensor</strong> はdtypeとdeviceを持つ多次元arrayです。scalarはrank-0、vectorはrank-1、matrixはrank-2、matrixのbatchはrank-3です。PyTorchでは <code>B</code> 個のexampleが <code>D</code> 個のfeatureを持つbatchは <code>(B, D)</code> tensorで、GPU（やApple MPS）への移動は <code>.to(device)</code> 一つです。Week 1〜4は意図的にCPUのみです。modelはlaptopで十分なほど小さい。しかしtensorのdevice abstractionこそが、後で <em>同じ</em> codeをdatacenter GPUで動かせるようにするものです。</p>
+<h3 id="2-autogradcomputation-graph">2. autogradとcomputation graph</h3>
+<p>PyTorchは <code>requires_grad=True</code> のtensor上のすべての操作を <strong>computation graph</strong> に記録します。scalar lossを計算した後、<code>loss.backward()</code> の一回の呼び出しがそのgraphを逆向きにたどり、すべてのparameterの <code>.grad</code> を埋めます。あなたはforwardの数学を書き、frameworkがgradientを導出します。これが「automatic differentiation」です。</p>
+<p><strong>実例1：頭の中で計算できるgradient。</strong> <code>f(x) = x²</code> では <code>df/dx = 2x</code>、だから <code>x = 3</code> でのgradientは <code>6.0</code> です。notebookのautograd cellはまさにそれをassertします。別のcellは <code>w = [2.0, -1.0]</code> で二乗和loss <code>loss = (w**2).sum()</code> を構築します。<code>sum(w²)</code> のgradientは <code>2w</code> なので、<code>w.grad</code> は <code>[4.0, -2.0]</code> をprintします。この二つのcheckがmental modelのすべてです。<strong>backwardはchain ruleからgradientを埋める。</strong></p>
+<h3 id="3-nnmodulelinear-layeractivation">3. <code>nn.Module</code>、linear layer、activation</h3>
+<p><code>nn.Module</code> はparameterを保持します。<strong>linear layer</strong> は <code>y = xW + b</code> を計算します。<strong>activation</strong> は非線形性を挿入します（これがないと、積み重ねたlinear layerは一つに崩壊します）。ReLUはhidden layerの主力で、regression netの最終layerは単一出力かつactivation <em>なし</em> です（delayは任意の実数値を取れます）。notebook 1のtoy MLPは <code>Linear(3,16) → ReLU → Linear(16,1)</code>、notebook 2のETA MLPは <code>Linear(n_in,128) → ReLU → Dropout → Linear(128,64) → ReLU → Linear(64,1)</code> です。</p>
+<h3 id="4-lossoptimizertraining-loop">4. loss、optimizer、training loop</h3>
+<p><strong>loss</strong> は微分可能な単一の数値です（regressionではMSE）。<strong>optimizer</strong> はgradientを使って重みを更新します（AdamWはdecoupled weight decay付きのAdam）。<strong>training loop</strong> は五行で、どのmodelでも同一です。</p>
+<pre><code class="language-python">for xb, yb in loader:        # a batch of inputs and targets
+    opt.zero_grad()          # clear last step's gradients
+    loss = loss_fn(model(xb), yb)
+    loss.backward()          # autograd fills .grad
+    opt.step()               # optimizer updates weights
+</code></pre>
+<p>forward、loss、backward、step。この五行を記憶に刻んでください。これがprogramの残りのengineです。</p>
+<table>
+<thead>
+<tr>
+<th>行</th>
+<th>目的</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>opt.zero_grad()</code></td>
+<td>前stepのgradientが蓄積されないようclearする</td>
+</tr>
+<tr>
+<td><code>loss = loss_fn(model(xb), yb)</code></td>
+<td>forward pass、続いてerrorを測る</td>
+</tr>
+<tr>
+<td><code>loss.backward()</code></td>
+<td>autogradがgraphをたどり <code>.grad</code> を埋める</td>
+</tr>
+<tr>
+<td><code>opt.step()</code></td>
+<td>optimizerがgradientから重みを更新する</td>
+</tr>
+</tbody>
+</table>
+<h3 id="5-batchdataloaderlearning-curve">5. batch、DataLoader、learning curve</h3>
+<p>example一つずつのgradient descentはnoisyで、全datasetでは高くつきます。<strong>batching</strong> はmini-batch（ここでは256）でgradientを計算してstepします。安く、悪い極小から逃げられる程度にnoisyで、GPUに優しい。<code>DataLoader</code> は訓練dataをshuffleし（val/testの順序は決してshuffleしない）batchを供給します。<strong>learning curve</strong> はepochごとのtrainとvalidation lossをplotした、最も重要な診断手段です。値だけでなくcurve間の <em>gap</em> を読みます。二つのnotebookは意図的に両極端を使い、対比を見える化します。notebook 1のtoy MLPは <em>完全な</em> 200行datasetを一括で訓練し（batch = 全部、<code>lr=0.05</code>）、notebook 2のETA MLPは <code>lr=1e-3</code> でepochごとに228のmini-batchをstepします。full-batchのtoy runは速く、lossがほぼゼロに落ちるのを見られるほど安定です。mini-batch runは58,000行で本物のmodelがgeneralizeする方法です。</p>
+<p><strong>実例2：curveの読み方。</strong> ETA modelは256ずつのbatchで58,392行を訓練するので、各epochは <strong>228 batch</strong> をloopに通します。23 feature（7 numeric + 4 one-hot weather + 12 one-hot commodity）で、最初のepochは <strong>train MSE 82.5 / val MSE 76.8</strong> をprintし、20 epochの最後には <strong>train 80.0 / val 76.4</strong> です。gapは小さく安定したまま。modelはoverfittingして <em>おらず</em>、val MSEのplateauは、それ以上epochを重ねてもあまり得がないことを示しています。</p>
+<table>
+<thead>
+<tr>
+<th>curveの形</th>
+<th>診断</th>
+<th>対応</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>両方高くて平坦</td>
+<td>underfitting</td>
+<td>capacityかより良いfeatureを追加</td>
+</tr>
+<tr>
+<td>trainが低くvalが高く、gapが拡大</td>
+<td>overfitting</td>
+<td>dropout、weight decay、data追加</td>
+</tr>
+<tr>
+<td>両方低く収束</td>
+<td>healthy</td>
+<td>さらに訓練してもよい</td>
+</tr>
+</tbody>
+</table>
+<h3 id="6-dropoutweight-decay">6. 正則化：dropoutとweight decay</h3>
+<p>どちらも同じ症状（trainがvalよりはるかに良い）を、別の仕組みで攻撃します。<strong>dropout</strong> は <em>訓練中のみ</em> activationの一部をrandomにゼロにします（すべてのforward passは間引かれたnetworkです）。<strong>weight decay</strong> は二乗重みpenaltyをlossに追加します（PyTorchではoptimizerの <code>weight_decay=</code> 引数です）。必要かどうかを知る誠実な方法は、learning curveのgapです。</p>
+<table>
+<thead>
+<tr>
+<th>Regularizer</th>
+<th>仕組み</th>
+<th>使うとき</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dropout</td>
+<td>activationの一部をrandomにゼロにする。訓練中のみ</td>
+<td>単一のneuronが不可欠になっている</td>
+</tr>
+<tr>
+<td>Weight decay</td>
+<td>lossに二乗重みpenaltyを追加する</td>
+<td>重みが大きくなり、関数がギザギザになる</td>
+</tr>
+</tbody>
+</table>
+<h3 id="7-evalerror-analysis">7. 予測できない出力 → evalとerror analysis</h3>
+<p>これが今週が <em>インストール</em> する習慣で、Ngがteamの速度の最大の予測因子と位置づけるものです。<strong>evalとerror analysis</strong>（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/01-ai-engineering-discipline.md"><code>reference/knowledge-base/01-ai-engineering-discipline.md</code></a> を参照）。あなたのneural ETAは <em>test setでWeek 3 baselineと比較され、deltaが明示されなければ</em> なりません（eval gate）。<em>それから</em> errorを <strong>carrierとlane</strong> でsliceし、最大のclusterを見つけ、仮説を立てます。metricは <em>どれだけ間違っているか</em> を、error analysisは <em>どこを見るべきか</em> を教えます。</p>
+<p><strong>実例3：正直な直接対決。</strong> held-out test setでneural MLPは <strong>MAE 4.987 h / RMSE 9.377 h</strong>、再訓練したgradient-boosting baselineは <strong>MAE 4.871 h / RMSE 9.372 h</strong> です。<strong>deltaは+0.116 h</strong>、MLPは平均で約7分負けています。事実上の互角です。絶対errorをcarrierでsliceすると、最悪のcarrierは <strong>C002の6.68 h</strong>（平均~5.0 hに対し）、最悪のlaneは <strong>L016の5.78 h</strong> です。正しい仮説は「modelが悪い」ではなく「少数の極端なdelayがそれらのsliceを支配している。networkのせいにする前にweatherと季節性を確認せよ」です。そのnoteこそが成果物です。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart TD
+    A[same features + split as Week 3&lt;br/&gt;23 features, CUT1/CUT2] --&gt; B[scale, wrap in tensors, DataLoader]
+    B --&gt; C{training loop&lt;br/&gt;20 epochs}
+    C --&gt;|zero_grad · forward · loss · backward · step| D[learning curves&lt;br/&gt;train vs val MSE]
+    D --&gt; E[regularize&lt;br/&gt;dropout + AdamW weight_decay]
+    E --&gt; F[&quot;eval gate: neural vs GradientBoosting&lt;br/&gt;on test, state the delta&quot;]
+    F --&gt; G[&quot;error analysis&lt;br/&gt;slice |error| by carrier and lane&quot;]
+    G --&gt; H[&quot;hypothesis: extreme delays dominate the worst slice&quot;]
+</div>
+<h3 id="_5">うまくいかない理由</h3>
+<p>loopは四つの古典的な方法で壊れます。<strong><code>opt.zero_grad()</code> を忘れる</strong> とbatchをまたいでgradientが蓄積し、訓練が発散します。<strong><code>model.eval()</code> を忘れる</strong> と推論でもdropoutが有効のままになり、test予測が汚染されます。<strong>100倍のlearning rate</strong> はlossを爆発させます（Week 4のexerciseは意図的にこれを誘発し、curveからその惨状を読み取ります）。<strong>scalerを全dataでfitする</strong> とval/testの統計量が訓練にleakします。さらに概念的に、<strong>baseline比較をskipする</strong> と壊れます。自分自身の訓練lossに対してだけ「改善した」neural netは何も証明しません。<strong>tune中にtest setに触れる</strong> 場合も同様です。width/dropout/weight decayはvalidationだけでtuneし、testはちょうど一度だけ評価します。そして <strong>勝利を期待する</strong> ときも壊れます。tabular dataでは、小さなMLPはしばしばよくtuneされたgradient-boosting baselineに <em>迫る</em> だけです。成果物は勝利ではなくdisciplineです。</p>
+<p>さらに深く学ぶには：discipline fileの§8〜12、そして予測できない出力がなぜevalとerror analysisを要求するかについては <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/01-ai-engineering-discipline.md"><code>reference/knowledge-base/01-ai-engineering-discipline.md</code></a> §"Building and deploying AI applications"。</p>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><strong><code>notebooks/01-pytorch-tensors-and-autograd.ipynb</code></strong> はtorchをimportし、deviceを検出し（ここではCPU）、<code>torch.manual_seed(0)</code> でseedを固定してから、<code>(2, 3)</code> tensorを構築して <code>shape</code>/<code>dtype</code>/<code>device</code> とmatrix積 <code>a @ b</code> を示します。autograd cellは <code>x**2</code> が <code>x=3</code> でgrad <code>6.0</code> を、<code>(w**2).sum()</code> が <code>w=[2,-1]</code> で <code>[4,-2]</code> を出すことを証明します。toy-MLP cellは <code>TinyMLP</code> を定義し、完全にlinearなdata（<code>y = 2*x0 − 1.5*x1 + 0.5*x2</code> + noise）で400 epoch訓練し、最終lossをprintします。ほぼゼロならsignalをlearnしたということです。最後のcellは <strong><code>TOY_MLP_FINAL_LOSS</code></strong> をprintします。</p>
+<p><strong><code>notebooks/02-mlp-eta-train-and-eval.ipynb</code></strong> はWeek 3のfeatureとsplitを再構築し、<code>prep.fit_transform(train)</code> でscaleし（trainのみでfit）、tensorを <code>TensorDataset</code>/<code>DataLoader</code> でwrapし（batch 256、shuffleはtrainのみ）、dropout付きの <code>EtaMLP</code> を定義して、epochごとのtrainとval MSEを記録する20-epoch loopを実行します。learning curveをplotし、testで評価し、同じsplitで <code>GradientBoostingRegressor</code> を再訓練し、両方のMAE/RMSEと <strong>delta</strong> をprintしてから、絶対errorを <code>carrier_id</code> と <code>lane_id</code> でsliceし（各 Worst 5）、最大clusterと仮説をprintします。最後のcellは <strong><code>NEURAL_TEST_MAE</code></strong>、<strong><code>BASELINE_TEST_MAE</code></strong>、<strong><code>DELTA</code></strong> をprintします。≈ 4.99 vs. 4.87、delta ≈ +0.12を期待してください。「正しい」出力：curveは小さく安定したgapを示し、deltaは <em>明示され</em>（勝ちでも負けでも）、error clusterに仮説が添えられていること。</p>
+<p>変更するcell：Standard exerciseはちょうど一行、learning rate（<code>lr=1e-3</code> → <code>lr=0.1</code>）かscaling stepを変え、printされたcurveから惨状を読み取ります。Stretch exerciseは固定の <code>width=128</code>、<code>dropout=0.1</code>、<code>weight_decay=1e-4</code> を、validationでscoreする小さなgrid loopに置き換えます。二つのseed（<code>torch.manual_seed(0)</code> と共有の <code>CUT1</code>/<code>CUT2</code>/feature builder）には触れないでください。触れるとneural vs baseline比較が公平な直接対決でなくなります。正しいrunは三つの数字に加えてworst-carrierとworst-laneの表をprintします。成果物はそれらの数字 <em>とともに</em> 仮説であり、数字だけでは決してありません。metricの前にcurveを読んでください。拡大するtrain/val gapはoverfitting、高くて平坦なpairはunderfittingです。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> model card v2（<code>week-04-model-card.md</code>）。neural test MAE、比較対象のWeek-3 baseline MAE、そしてerror-analysis note（carrierおよび/またはlane別の最大error clusterと、その原因に関する一文の仮説）。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人があなたの訓練notebookを再実行し（同じseed、同じsplit、同じhyperparameter）、あなたのtest MAEを再現できること。そしてあなたは <em>modelがどこで失敗するか</em> を見せられます。errorが集中するcarrier/lane sliceと、その理由の仮説です。数字と「なぜ」は一緒にshipされるか、どちらもshipされません。</p>
+<p><strong>Stretch variant:</strong> validation MAEで駆動する小さな <strong>hyperparameter sweep</strong>（hidden width × dropout × weight decay）を実行し、最良の組み合わせを記録してから、testをちょうど一度だけ評価します。さらに二つ目のmodel（例：より広いnetかより浅いnet）を追加し、余分なcapacityがgapを助けたか傷つけたかを示します。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>なぜ起きるか</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>lossが発散する</td>
+<td>learning rateが高すぎる（または <code>zero_grad</code> なし）</td>
+<td>LRを下げる。<code>backward()</code> の前に必ず <code>opt.zero_grad()</code></td>
+</tr>
+<tr>
+<td>推論でもdropoutが有効</td>
+<td><code>model.eval()</code> を忘れる</td>
+<td>validation/testでは <code>model.eval()</code> + <code>torch.no_grad()</code> を呼ぶ</td>
+</tr>
+<tr>
+<td>gradientの蓄積</td>
+<td><code>zero_grad()</code> の欠落</td>
+<td>毎batch loopの先頭で <code>opt.zero_grad()</code> を置く</td>
+</tr>
+<tr>
+<td>scalerを全dataでfit</td>
+<td>分割前に <code>prep.fit_transform(df)</code></td>
+<td>trainのみでfitし、val/testにtransform</td>
+</tr>
+<tr>
+<td>curveの誤読</td>
+<td>値を見て、gapを見ていない</td>
+<td><em>gap</em> を読む。拡大gap＝overfitting、高く平坦＝underfitting</td>
+</tr>
+<tr>
+<td>test setでtuneする</td>
+<td>「もう一度だけ確認」したくなる</td>
+<td>validationでtune。testにはちょうど一度だけ触れる</td>
+</tr>
+<tr>
+<td>baseline比較なし</td>
+<td>訓練lossを信じている</td>
+<td>Week 3 baselineを同じsplitで再訓練し、deltaを明示する</td>
+</tr>
+<tr>
+<td>MLPが勝つと期待する</td>
+<td>tabular dataでのdeep netの過大評価</td>
+<td>互角/敗北を正直に報告する。成果物はdiscipline</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Tensor</strong>: dtypeとdeviceを持つ多次元array。</li>
+<li><strong>Autograd</strong>: 記録されたcomputation graphによるPyTorchの自動微分。</li>
+<li><strong><code>requires_grad</code></strong>: tensorがbackprop用に操作を記録するようにするflag。</li>
+<li><strong><code>nn.Module</code></strong>: parameterを保持するmodel構成要素のPyTorch base class。</li>
+<li><strong>Linear layer</strong>: <code>y = xW + b</code>。基本的なaffine構成要素。</li>
+<li><strong>Activation</strong>: layer間の非線形性（ReLU、sigmoid）。</li>
+<li><strong>Loss vs. metric</strong>: 最適化するもの（MSE）と報告するもの（MAE）。</li>
+<li><strong>Optimizer</strong>: gradientから重みを更新するalgorithm（Adam/AdamW）。</li>
+<li><strong>Training loop</strong>: <code>zero_grad → forward → loss → backward → step</code>。</li>
+<li><strong>Batch / DataLoader</strong>: exampleのmini-batch。shuffleして供給するiterator。</li>
+<li><strong>Dropout / weight decay</strong>: overfittingと戦う二つのregularizer。</li>
+<li><strong>Learning curve</strong>: epochごとのtrainとvalidation loss。gapを読む。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-04/quiz.md"><code>quiz.md</code></a> を開き、10問すべてに答えます。合格ラインは <strong>8/10</strong> です。各問題には、対応するConceptsのsubsectionまたはnotebook cellが記載されています。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exerciseがあります。<strong>Easy</strong>（tensor/autograd notebookを実行してgradientを確認）、<strong>Standard</strong>（一つを壊してcurveから診断する）、<strong>Stretch</strong>（validationで三つのhyperparameterをtuneし、testは一度だけ）、<strong>Portfolio</strong>（error-analysis note付きのmodel card v2をcommit）。各hintは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-04/exercises.md"><code>exercises.md</code></a> にあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>PyTorch documentation：https://pytorch.org/docs/stable/</li>
+<li>PyTorch autograd tutorial：https://pytorch.org/tutorials/beginner/blitz/autograd_tutorial.html</li>
+<li>PyTorch <code>nn</code> / <code>DataLoader</code> / optimizers：https://pytorch.org/docs/stable/nn.html</li>
+<li>scikit-learn user guide：https://scikit-learn.org/stable/user_guide.html</li>
+<li>Andrew Ng, <em>The AI Engineering Skills Map</em>, The Batch issue 366：https://www.deeplearning.ai/the-batch/issue-366</li>
+<li>Andrew Ng, <em>Improve Agentic Performance with Evals and Error Analysis, Part 1</em>：https://www.deeplearning.ai/the-batch/improve-agentic-performance-with-evals-and-error-analysis-part-1</li>
+<li>Fereydun Hashemi（Zorost）, <em>The AI Engineering Skills Map, turned into a training plan</em>：https://zorost.com/ai-engineering-skills-map-training-guide</li>
+<li>Aurélien Géron, <em>Hands-On Machine Learning</em>, 3rd ed. (O'Reilly, 2022)：https://www.oreilly.com/library/view/hands-on-machine-learning/9781098125967/</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 13: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 13</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-13/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-13-quiz10810">Week 13: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-13/quiz.md">英語版</a> · <a href="README.html">Week 13 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>まず記憶だけで答えてから、Answer keyで確認してください。各問には対象のsectionまたはcellが明記されているので、間違えたら何を読み直すべきかが分かります。</p>
+<h2 id="questions">Questions（問題）</h2>
+<ol>
+<li>
+<p><strong>(MCQ)</strong> 分scaleのcadenceで回り、verifierに対して閉じるのはどのloopですか？
+   <em>(Concepts「The three loops」を参照)</em>
+   - A) External feedback
+   - B) Developer feedback
+   - C) Agentic coding
+   - D) The configuration-management loop</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> unit checkとmini evalは二つの <em>異なる</em> verifier層です。なぜなら…
+   <em>(Concepts「The verifier has layers」を参照)</em>
+   - A) unit testは統計的でevalはbinaryだから
+   - B) evalは多数のexampleにわたるaccuracyをrateとして測り、手書きcheckがmissしたclass全体を捕まえるから
+   - C) evalのほうがunit testより実行が安いから
+   - D) unit testがevalの必要性をなくすから</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> notebookの最終cellがverifier pass rateの計算に使う式を正確に書いて
+   ください。 <em>(notebook cell §7を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> spec-driven developmentでは、feedbackがgapを見つけたとき、fixはどこへ入りますか？
+   <em>(Concepts「SPEC.md patterns」を参照)</em>
+   - A) まずcodeへ。時間があればその後specへ
+   - B) まずspecへ、次にcode、次にtest/eval caseへ
+   - C) agentへのchat messageへ。そして失われる
+   - D) eval setだけへ</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> Support Bot classifierが区別する六つのcategoryをすべて挙げてください。
+   <em>(notebook cell §1を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> blast-radius ruleはactionごとにautonomyを調整します。最も厳しいleashが必要な
+   actionはどれですか？ <em>(Concepts「Blast-radius rules」を参照)</em>
+   - A) scratch fileを読むこと
+   - B) branch上でrepoを編集すること
+   - C) production dataに書き込むこと
+   - D) unit testを実行すること</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> <code>classify_ticket('hello')</code> は何を返しますか？そしてなぜ？
+   <em>(notebook cell §1と <code>_check_unknown</code> unit checkを参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <code>PreToolUse</code> hookの存在理由は… <em>(Concepts「Harness primitives」を参照)</em>
+   - A) 編集後にdiffを要約すること
+   - B) toolが走る <em>前に</em> policyを強制またはblockすること（例: <code>data/raw/</code> への書き込みを拒否）
+   - C) skillをon-demandでloadすること
+   - D) subagentをspawnすること</p>
+</li>
+<li>
+<p><strong>(Short answer、数字付き)</strong> 三つのagentic cycleで合計12,000 input tokenと3,000 output
+   tokenを、$3.00/1M inputと$15.00/1M outputで使いました。計算を示し、合計costをdollarで
+   答えてください。 <em>(Concepts「実例1」を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> external loopのbug reportを永続的な変更に変える正しい方法は…
+    <em>(Concepts「実例2」を参照)</em></p>
+<ul>
+<li>A) codeを直して先へ進む</li>
+<li>B) fileし、それからspec行と新しいeval caseを追加して、静かにregressできないようにする</li>
+<li>C) userにそのinputの使用をやめてもらう</li>
+<li>D) loop logに記録して他には何もしない</li>
+</ul>
+</li>
+</ol>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>C.</strong> agentic codingは数分で回ります。書く → testする → 失敗を読む → 直す、を
+   verifierがpassするまで。developer feedbackは数十分〜数時間、external feedbackは
+   数時間〜数週間です。</p>
+</li>
+<li>
+<p><strong>B.</strong> 6つのunit checkはbinaryで手書きです。60-ticket evalはaccuracyをrateとして
+   報告し、手書きcheckが決して名指ししなかったclass全体（例: customs）をsurface化
+   できます。</p>
+</li>
+<li>
+<p><strong><code>verifier_pass_rate = (unit_passed + eval_correct) / (unit_total + eval_total)</code></strong>。
+   <code>round(verifier_pass_rate, 3)</code> としてprintされます。すなわち <code>(unit checks passed + eval correct) / (unit
+   checks + eval cases)</code> です。</p>
+</li>
+<li>
+<p><strong>B.</strong> まずspec、次にcode、次にtest/eval case。この順序がloopのdriftを防ぎます。
+   specがsource of truthであり、codeはその現在のimplementationです。</p>
+</li>
+<li>
+<p><strong>tracking、damage、refund、documents、customs、billing</strong>（keywordが一致しない場合の
+   fallback <code>'unknown'</code> もあります）。</p>
+</li>
+<li>
+<p><strong>C.</strong> production dataへの書き込みはreal customerへの害をもたらし、元に戻すのが
+   難しい。手動approvalが必要です。scratch fileのreadはほぼタダで間違えられます。</p>
+</li>
+<li>
+<p><strong><code>'unknown'</code>。</strong> <code>'hello'</code> はどのkeywordにも一致しないので、すべてのcategoryの
+   scoreが0になります。<code>classify_ticket</code> はscoreが <code>&gt; 0</code> のときだけ最良のcategoryを
+   返し、それ以外では <code>'unknown'</code> です。</p>
+</li>
+<li>
+<p><strong>B.</strong> <code>PreToolUse</code> hookはtool callの前に走り、それをblockできます。「Xに触れないと
+   覚えておいて」を、harnessが強制するものに変えます。</p>
+</li>
+<li>
+<p><strong>$0.081。</strong> Input: 12,000 × $3.00 / 1,000,000 = $0.036。Output: 3,000 × $15.00 / 1,000,000 =
+   $0.045。Total = $0.036 + $0.045 = $0.081。</p>
+</li>
+<li>
+<p><strong>B.</strong> fileし、spec-vs-evalを決め、失敗したinputをeval setに追加する。それが
+    feedbackを一回限りのfixではなく永続的なものにするtriage ruleです。</p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

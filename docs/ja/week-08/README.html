@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 08: Open ModelsとLocal Inference — GPUs、Ollama、llama.cpp</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 08</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-08/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-08-open-modelslocal-inference-gpusollamallamacpp">Week 08: Open ModelsとLocal Inference — GPUs、Ollama、llama.cpp</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-08/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 08 of 24 · Section: LLM Core · Category: Local Models &amp; GPUs
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-08/notebooks/01-local-model-playground.ipynb">01-local-model-playground.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-08/notebooks/02-vram-sizing-and-model-selection.ipynb">02-vram-sizing-and-model-selection.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsは、<strong>internet接続のない</strong> クライアント先のaudit roomでsupport ticketのtriageをしようとしています。しかもticketには、laptopの外に決して出してはならないconsignee名とshipment詳細が含まれています。Hosted APIは二重に問題外です。privacyがdata egressを禁じ、air-gapがnetworkを禁じます。誘惑的なshortcutはleaderboardから「最良のmodel」を掴むことですが、70B modelは8 GB Windows laptopに載りませんし、「open weights」とopen licenseは同じではなく、技術的にはloadできるがdiskにpageするmodelは、memoryに留まる小さいmodelより遅いのです。</p>
+<p>今週は、自分のhardwareでmodelを動かす流儀に習熟します。決定は常にこの順で回す三つのpartからなるquestionです。<strong>self-hostが必要か、licenseは互換か、そして十分小さいmodelはtaskをこなせるか。</strong> Before/afterは具体的です。beforeでは、teamは「CUDA」をinstallしてGPUが動いていると思い込みながら、modelは静かにCPUで動いています。afterでは、laptopでJSON-mode triageを実行し、<strong>tokens/sec</strong> をreportし、16 GB Macと8 GB Windows boxに対してmodel + quantを推奨するpickerを示せます。推定GB footprintとlicense付きです。</p>
+<h2 id="_2">目標</h2>
+<p>金曜日までに、次のことができるようになります。</p>
+<ul>
+<li>☐ open-weightとclosed modelを区別し、license（Apache-2.0 vs. MIT vs. Llama vs. Gemma）を読んで、modelが合法的にdeployできる場所を言える。</li>
+<li>☐ local stackを操作できる。Ollama（CLI、Modelfile、JSON mode）、llama.cpp（GGUF、<code>-ngl</code>、<code>--ctx-size</code>）、MLX/LM Studio。そしてtokens/secをbenchmarkする。</li>
+<li>☐ VRAM mathができる。<code>weights = bytes/param × params</code>、KV cache + activations + OS headroomの追加、そして7B/13B/70B sizing tableを読む。</li>
+<li>☐ laptopでJSON-mode structured outputによるoffline ticket triageを実行し、16 GB（Mac）と8 GB（Windows）に収まるmodel + quantを選ぶ。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run / build</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/08-local-inference-gpu.md"><code>reference/knowledge-base/08-local-inference-gpu.md</code></a> §1〜2でopen vs. closed、license、family</td>
+<td><code>02-vram-sizing-and-model-selection.ipynb</code> を流し読みする</td>
+<td>Notes: 「open weights ≠ open license」</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>Local stack（§3）</td>
+<td>Ollamaをinstall。<code>ollama pull llama3.2</code>。<code>01-local-model-playground.ipynb</code> のchat cellを実行</td>
+<td>最初のlocal chat + tokens/sec</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>GGUF + llama.cpp + MLX/LM Studio（§3）</td>
+<td>ModelfileのJSON-triage cellを実行する</td>
+<td>Structured triage output</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>GPU setupと「GPUは動いているか」（§4）</td>
+<td>notebook 2（VRAM math + picker）をend-to-endで実行</td>
+<td>16 GBと8 GBへのpicker推奨</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>VRAM math（§5）、structured outputとprivacy（§7〜8）</td>
+<td>use caseを組み立てる。triage + picker + benchmark表</td>
+<td>金曜日のdeliverable + license notes</td>
+<td>約3時間</td>
+</tr>
+</tbody>
+</table>
+<p><em>（Sat: Week 8のquizを受け、<code>exercises.md</code> のchecklistを確認する。）</em></p>
+<h2 id="_4">概念</h2>
+<p>まず <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/08-local-inference-gpu.md"><code>reference/knowledge-base/08-local-inference-gpu.md</code></a> を読んでください。完全なcommand referenceは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/research/03-harnesses-local-stacks.md"><code>reference/knowledge-base/research/03-harnesses-local-stacks.md</code></a> にあります。「Open weights」は <em>distribution</em> の事実、「open license」は <em>legal</em> の事実です。混同しないでください。</p>
+<h3 id="open-vs-closedlicense">Open vs. closedとlicense</h3>
+<p><strong>Closed model</strong>（flagship GPT/Claude/Gemini tier）はAPI-onlyです。weightは決して見えません。<strong>Open-weight model</strong> はweightを公開するので、download、実行、quantize、fine-tuneができます。しかし、合法的に何をしてよいかを決めるのはdownload buttonではなくlicenseです。順番に三つのquestion: self-hostが必要か？ licenseは互換か？ taskに十分小さいmodelか？</p>
+<table>
+<thead>
+<tr>
+<th>License</th>
+<th>Type</th>
+<th>商用利用?</th>
+<th>注意点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Apache-2.0</td>
+<td>Permissive</td>
+<td>可</td>
+<td>Attribution + patent grant。Qwen、いくつかのMistral release</td>
+</tr>
+<tr>
+<td>MIT</td>
+<td>Permissive</td>
+<td>可</td>
+<td>非常に短い。DeepSeekのopen model、Phi-3</td>
+</tr>
+<tr>
+<td>Llama Community License</td>
+<td>Custom（Meta）</td>
+<td>可、scale capまで</td>
+<td>~700M MAU threshold。attribution。大規模時のoutput再利用を制限</td>
+</tr>
+<tr>
+<td>Gemma Terms of Use</td>
+<td>Custom（Google）</td>
+<td>可、制約付き</td>
+<td>Prohibited-use list。OSI未承認</td>
+</tr>
+<tr>
+<td>Research-only</td>
+<td>Custom</td>
+<td>不可</td>
+<td>学習には良いがproductには不可</td>
+</tr>
+</tbody>
+</table>
+<p>ZoroLogisticsのlabでは、<strong>Apache-2.0/MITが安全なdefault</strong> です。LlamaとGemmaは商用利用可能ですが、compliance fileに記録すべき条項を伴います。</p>
+<h3 id="model-familyhub-workflow">Model familyとHub workflow</h3>
+<table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Maker</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Llama</td>
+<td>Meta</td>
+<td>General-purposeなdefault。最大のecosystem。Llama license</td>
+</tr>
+<tr>
+<td>Mistral / Mixtral</td>
+<td>Mistral AI</td>
+<td>parameterあたりのqualityが高い。MixtralはMoE</td>
+</tr>
+<tr>
+<td>Qwen</td>
+<td>Alibaba</td>
+<td>Apache-2.0。多言語/codingが強い。安全なlicense pick</td>
+</tr>
+<tr>
+<td>Gemma</td>
+<td>Google</td>
+<td>小さくdense。Gemma Terms of Use</td>
+</tr>
+<tr>
+<td>Phi</td>
+<td>Microsoft</td>
+<td>体格以上に強いtiny model。MIT</td>
+</tr>
+<tr>
+<td>DeepSeek</td>
+<td>DeepSeek AI</td>
+<td>MIT。reasoning/codingが強い。MoE variantはtokenあたりが安い</td>
+</tr>
+</tbody>
+</table>
+<p><strong>license → size → task</strong> の順で選びます。Hugging Face Hub workflowが毎日のloopです。まず <strong>model card</strong> を読み（license、quantization story、VRAM）、次に <strong>GGUF</strong> mirrorを取ります。llama.cpp/Ollama/LM Studioすべてが動かす、単一fileのquantized format（file名の <code>Q4_K_M</code>）です。<strong>自分のeval setで検証する</strong> こと。cardのbenchmarkを自分の数値として信じてはいけません。</p>
+<h3 id="local-stack-runtime">Local stack: 四つのruntime</h3>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>何であるか</th>
+<th>使うとき</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ollama</td>
+<td>llama.cppの上のfriendlyなwrapper。CLI + REST + OpenAI互換endpoint</td>
+<td>最速のzero→動くpath。最初の立ち寄り先</td>
+</tr>
+<tr>
+<td>llama.cpp</td>
+<td>C/C++のGGUF基盤。<code>-ngl</code>、<code>--ctx-size</code>、grammar decoding</td>
+<td>最大の制御。dependency-freeなbinary</td>
+</tr>
+<tr>
+<td>LM Studio</td>
+<td>Desktop GUI + local OpenAI互換server（<code>:1234/v1</code>）</td>
+<td>Discovery。「このmodelはしっくりくるか？」</td>
+</tr>
+<tr>
+<td>MLX</td>
+<td>unified memory上のAppleのframework</td>
+<td>Apple Siliconで最速</td>
+</tr>
+</tbody>
+</table>
+<p>Ollamaの <strong>Modelfile</strong> は <code>SYSTEM</code> promptと <code>PARAMETER temperature 0</code> を焼き込み、<code>--format json</code> が出力を制約します。llama.cppの <strong>GGUF</strong> は自己完結し（weight + tokenizer + chat template）、<strong>grammar-constrained decoding</strong> をsupportします。「JSONを出力してください」という懇願ではなくGBNF grammarによる、最も強いstructured-output保証です。Apple Siliconなら <strong>MLX</strong>（speed）またはOllama（simplicity）。NVIDIA Linux serverなら、throughputにはvLLM/SGLang、single-boxの制御にはllama.cppです。</p>
+<h3 id="gpu-setup-gpu">GPU setup: 「GPUは本当に動いているか？」</h3>
+<p>CUDAはdriver + toolkit + cuDNNが必要です。AppleはMetal/MPS（driver不要）、AMDはROCmを使います。「CUDAをinstallした」と「GPUが仕事をしている」を分けるchecklist: (1) OSがdeviceを認識する（<code>nvidia-smi</code>/<code>rocm-smi</code>）、(2) frameworkがbackendを見つける（<code>torch.cuda.is_available()</code>）、(3) 本物のtensorがそこで動く、(4) modelがend-to-endで動き、<em>かつ tokens/secを報告する</em>、(5) VRAMが枯渇していない。<code>-ngl</code> が低ければ、気づかずにCPUで動いています。<strong>decode</strong> tokens/secをreportしてください。userが感じるのはそれです（Apple Silicon上のMLX経由の7〜8B Q4でballpark ~20〜40 tokens/sec。CPU-onlyなら~5〜10）。</p>
+<h3 id="vram-math-decision-engine">VRAM math: decision engine</h3>
+<p>唯一のrule: <strong>weights = bytes/param × params。</strong> Formatがbytes/paramを決めます。</p>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Bytes/param</th>
+<th>1B paramsあたりの~GB</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FP32</td>
+<td>4</td>
+<td>~4 GB</td>
+</tr>
+<tr>
+<td>FP16 / BF16</td>
+<td>2</td>
+<td>~2 GB</td>
+</tr>
+<tr>
+<td>INT8</td>
+<td>1</td>
+<td>~1 GB</td>
+</tr>
+<tr>
+<td>INT4 / GGUF Q4</td>
+<td>0.5</td>
+<td>~0.5 GB</td>
+</tr>
+</tbody>
+</table>
+<p>Weightは始まりにすぎません。<strong>KV cache</strong>（<code>2 × layers × heads × head_dim × seq_len × bytes_per_param</code>）、<strong>activations</strong>（weightの~10〜20%）、そして <strong>OS headroom</strong>（2〜4 GB）を追加します。Sizing table（weightのみ）:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>FP16</th>
+<th>INT8</th>
+<th>INT4 (Q4)</th>
+<th>Typical fit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7B</td>
+<td>~14 GB</td>
+<td>~7 GB</td>
+<td>~4 GB</td>
+<td>8 GB (Q4) / 16 GB (FP16)</td>
+</tr>
+<tr>
+<td>13B</td>
+<td>~26 GB</td>
+<td>~13 GB</td>
+<td>~7 GB</td>
+<td>12〜16 GB (Q4)</td>
+</tr>
+<tr>
+<td>70B</td>
+<td>~140 GB</td>
+<td>~70 GB</td>
+<td>~35 GB</td>
+<td>2×24 GB (Q4) または 48〜80 GB</td>
+</tr>
+</tbody>
+</table>
+<p><strong>欲しいmodel sizeから始めて、headroom付きで収まる最大のquantを選ぶ</strong>。決して「物理的にloadできる最大のmodel」ではありません。responsiveさを保つのはheadroomだからです。</p>
+<h3 id="local-structured-outputprivacy">Local structured outputとprivacy</h3>
+<p>ModelがlocalだからといってJSONを諦める必要はありません。四つのruntimeすべてが構造を強制します。Ollamaの <code>format:"json"</code>、llama.cppの <strong>grammar-constrained decoding</strong>（GBNF grammarは出力を <em>証明可能に</em> validにする、最も強い保証）、LM Studio/MLXのOpenAI互換endpointはhosted APIと同じJSON-schema toolingを再利用します。Ticket triageでは、<code>{"category", "summary", "priority"}</code> を出力するgrammarが「valid JSONだがshapeが違う」というfailure classを完全に消し去ります。<strong>promptの懇願ではなくgrammar/schemaを選ぶ</strong> こと。</p>
+<p>Local inferenceは、dataが建物の外に出られないときの答えでもあります。API callなし、token課金なし、第三者がtextを見ることもなし。Zorostのair-gapped・sovereign-AI deploymentがproductionで使っているpatternです。Air-gapped workflowは機械的です。接続されたmachineでGGUF + model card + licenseをdownloadし、条項を記録し、media経由でfileを移し、offline packageからruntimeをinstallし、networkを無効にして実行します。privacy、硬いlatency、zero-marginal-costのvolumeが求めるときはlocalを選ぶ。taskが本当にfrontier modelを必要とするときはAPIを選ぶ。ほとんどのproduction systemは、易しい/privacyに敏感なworkをlocalに、難しいworkをAPIに振り分けます。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart TD
+    A[&quot;Task: offline ticket triage&quot;] --&gt; B{Self-host required?}
+    B -- no --&gt; C[Use hosted API]
+    B -- yes --&gt; D{License compatible?}
+    D -- no --&gt; E[&quot;Reject; pick another family&quot;]
+    D -- yes --&gt; F[&quot;Compute memory budget:&lt;br/&gt;RAM − OS − other apps&quot;]
+    F --&gt; G[Largest family that fits at a quality quant&lt;br/&gt;Q4_K_M → Q5/Q6 → Q8]
+    G --&gt; H{Clears your eval?}
+    H -- no --&gt; I[&quot;Model too small: bigger hardware or hosted&quot;]
+    H -- yes --&gt; J[Ship it, record license + terms]
+</div>
+<h3 id="1-q47bvram-sizing">実例1: Q4の7BのVRAM sizing</h3>
+<p>4,096 contextの7B-class model（32 layers、32 heads、head_dim 128）を考えます。</p>
+<pre><code>weights     = 7.0 × 0.5          = 3.50 GB   (Q4_K_M)
+KV cache    = 2×32×32×128×4096×2 ≈ 2.15 GB  (FP16 cache)
+activations = 0.12 × 3.50        = 0.42 GB
+OS headroom = 2.00 GB
+total       ≈ 8.07 GB
+</code></pre>
+<p>これは8 GB cardにも16 GB MacBookにも余裕を持って収まります。だからこそ、<strong>local workのsweet spotはQ4の7〜8B</strong> です。同じmodelをFP16で動かすには合計~19.8 GBが必要です（14 weight + 2.15 KV + 1.68 act + 2 OS）。だからFP16の7Bは8 GB cardに <em>収まりません</em> 。Q4の13Bは合計~12.6 GB、Q4の70Bは~51.9 GBで、24 GB card二枚、または64 GB M-series Macです。</p>
+<h3 id="2-hardwarepicker">実例2: 実hardware上のpicker</h3>
+<p>notebookの <code>pick_model</code> は、<strong>余裕を持って収まる最大のmodel</strong> を返します（2 GBのOS reserveに <code>0.8</code> comfort factorを上乗せ）。Offline triageに適用すると（<code>MIN_PARAMS["triage"] = 3.0</code>）:</p>
+<pre><code>16 GB MacBook (budget 16 × 0.8 = 12.8 GB):
+  → Llama 3.1 8B at Q4_K_M  ≈ 8.63 GB  (Llama license)
+  → Qwen2.5 7B at Q4_K_M    ≈ 7.90 GB  (Apache-2.0)   ← the license-safe pick
+
+8 GB Windows laptop (budget 8 × 0.8 = 6.4 GB):
+  → Llama 3.2 3B at Q4_K_M  ≈ 4.73 GB  (Llama)
+  → Qwen2.5 3B at Q4_K_M    ≈ 4.89 GB  (Apache-2.0)
+</code></pre>
+<p>Taskを変えると推奨も変わります。<code>task="coding"</code> はfloorを7Bに上げます（16 GBでは引き続きLlama 3.1 8B Q4）。<code>task="reasoning"</code> は13Bに上げ、16 GB boxではpickerは <strong><code>None</code></strong> を返します。catalog内で最小のreasoning-class model（14B）はQ4で~14 GB必要で、12.8 GB budgetを超えるからです。この <code>None</code> こそが <em>教訓</em> です。taskがfloorを決め、hardwareがceilingを決めます。</p>
+<h3 id="_5">うまくいかない理由</h3>
+<ul>
+<li><strong>GPU backend忘れ。</strong> Modelは動くが <code>-ngl</code> が0で、CPUの上を這います。「CUDAを持っている」のにGPUが仕事をしていません。</li>
+<li><strong>Contextが小さすぎる。</strong> 入力がtruncateされ、答えが狂います。<code>-c</code>/<code>num_ctx</code> を上げ、追加のKV memoryを計上する。</li>
+<li><strong>Boxに大きすぎるquant。</strong> OOMまたはdisk paging。pageするmodelは、residentに留まる小さいmodelより遅い。一段下げる（Q8 → Q4_K_M）。</li>
+<li><strong>Model cardを信じた。</strong> 実taskのqualityが期待外れ。shipする前に自分のevalを走らせる。</li>
+<li><strong>Licenseを無視した。</strong> Compliance reviewでの驚き。最初にlicense + 条項を記録する。</li>
+<li><strong>Structured outputなし。</strong> 下流のparse失敗。Promptの懇願ではなくJSON schemaまたはGBNF grammarを追加する。</li>
+</ul>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><strong><code>01-local-model-playground.ipynb</code></strong>（⚠️ Ollamaのinstallが必要）。Cell 2は <code>data.support_tickets(20, seed=99, n_shipments=10000)</code> から5つのsupport ticketをloadします。cell 3は <code>ollama list</code> を実行し、preference順（<code>llama3.2</code>、<code>qwen2.5:3b</code>、…）からprimary modelを選びます。Cell 5はone-shotの <code>ollama run MODEL "prompt"</code> chat、subprocess境界を通る最も単純なcallです。Cell 7は <strong>Modelfile</strong> を書き（<code>FROM &lt;model&gt;</code>、<code>SYSTEM You are a ZoroLogistics support triage assistant…</code>、<code>PARAMETER temperature 0</code>）、<code>zoro-triage</code> を作成し、<code>--format json</code> で <code>{"category", "priority", "summary"}</code> を返させます。続いて結果を <code>json.loads</code> し、parseしたdictをprintしてdataとして扱います（schemaはshapeを縛るだけで、truthは縛らない）。Cell 9は <code>benchmark</code> を定義し、繰り返しrunにわたって <code>ollama run --verbose</code> のstderrから <strong>eval rate</strong> をparseします。cell 11は、最大四つのinstall済みmodelにわたる比較表（model、tokens/sec、json_ok、output_len）を作ります。最後のcellは <code>WEEK8_NB1_TOKENS_PER_SEC</code>、primary modelの平均generation tokens/secをprintします（Ollamaがなければ <strong>0.0</strong>。Apple SiliconのMLX経由で20〜40なら健全な数値です）。</p>
+<p><strong><code>02-vram-sizing-and-model-selection.ipynb</code></strong>（純Python、GPU不要）。Cell 2はbytes/param表（<code>FP32 4.0 … INT4/Q4 0.5</code>）をprintします。cell 4は7B/13B/70B sizing表と「4-bitなら1B paramsあたり~1 GB」というrule of thumbです。cell 6は <code>kv_cache_gb</code> と <code>total_footprint</code> を定義し、7B @ FP16をsanity-checkします（weight + KV + activations + 2 GB OS reserveで合計~19.8 GB）。Cell 8は <code>CATALOG</code>（各modelに <code>layers</code>/<code>heads</code>/<code>head_dim</code> 付き）、<code>QUANTS</code>、<code>MIN_PARAMS</code>、<code>pick_model</code> を定義し、total footprintが <code>available_gb × 0.8</code> に収まる最大のmodelを返します。Cell 10は16 GB Macと8 GB Windowsのcaseに適用し、rank済みoptionと、license付きの推奨をprintします。最後のcellは <code>WEEK8_NB2_RECOMMENDED_FOOTPRINT_GB</code>、16 GB MacBookのpickの推定合計GB、<strong>≈ 8.63</strong>（Q4_K_MのLlama 3.1 8B）をprintします。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> local model（JSON-mode output）を使ったlaptop上のoffline ticket triage。加えて、そのhardwareに合うmodel + quantを選ぶVRAM basedのmodel pickerと、commit済みのbackend benchmark表（tokens/sec）。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人が成果物をinspectでき、あなたが何をしたかを見せられること。本物のticketに対するtriage JSON、tokens/sec表、そして16 GB MacBookと8 GB Windows laptop両方に対するpickerの推奨と推定GB footprintが見えること。</p>
+<p><strong>Stretch variant:</strong> notebook 1に <code>num_ctx</code> sweep（2048 vs. 8192）を追加し、同じpromptについてtokens/secとVRAMのtradeoffを報告します。続けて大きい <code>seq_len</code> でpickerを再実行し、推奨（またはheadroom）がどう変わるかを示します。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>症状</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPU backendがない</td>
+<td>遅い。<code>-ngl</code> が0</td>
+<td>CUDA/Metal/ROCmでbuild/実行し、<code>-ngl</code> を上げる</td>
+</tr>
+<tr>
+<td>Contextが小さすぎる</td>
+<td>Truncateされた入力、間違った答え</td>
+<td><code>-c</code>/<code>num_ctx</code> を上げる。追加のKV memoryを計上する</td>
+</tr>
+<tr>
+<td>Quantが大きすぎる</td>
+<td>OOMまたはdisk paging</td>
+<td>一段下げる（Q8 → Q4_K_M）</td>
+</tr>
+<tr>
+<td>Model cardを信じた</td>
+<td>実taskのqualityが低い</td>
+<td>shipする前に自分のevalを走らせる</td>
+</tr>
+<tr>
+<td>Licenseを無視した</td>
+<td>Complianceの驚き</td>
+<td>最初にlicense + 条項を記録する</td>
+</tr>
+<tr>
+<td>Structured outputがない</td>
+<td>下流のparse失敗</td>
+<td>JSON schemaまたはGBNF grammar</td>
+</tr>
+<tr>
+<td>「Open weights」をopen sourceだと思い込む</td>
+<td>間違った条項でdeploy</td>
+<td>Download buttonではなくlicenseを読む</td>
+</tr>
+<tr>
+<td>tokens/secの測定なし</td>
+<td>根拠のない「速い」</td>
+<td><em>自分の</em> hardwareでdecode tokens/secを報告する</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Open-weight model</strong>: weightが公開され、実行/quantize/fine-tuneが可能。自動的にopen sourceではない。</li>
+<li><strong>GGUF</strong>: weight + tokenizer + chat templateを束ねる、単一fileのquantized format。</li>
+<li><strong>Quantization</strong>: weightをより少ないbytes/param（INT8、INT4）で格納し、若干のquality costでVRAMを縮めること。</li>
+<li><strong>KV cache</strong>: sequence長とともに増える、residentなkey/value memory。</li>
+<li><strong>Ollama</strong>: 最も単純なlocal runtime（CLI、Modelfile、OpenAI互換endpoint）。</li>
+<li><strong>llama.cpp</strong>: Ollama/LM Studioの下にあるC/C++のGGUF基盤。</li>
+<li><strong>MLX</strong>: unified memory上のAppleのframework。Apple Siliconで最速。</li>
+<li><strong>CUDA / MPS / ROCm</strong>: NVIDIA / Apple / AMDのGPU backend。</li>
+<li><strong><code>-ngl</code></strong>: llama.cppでGPUにoffloadするlayer数。低い値 = 静かにCPUで動いている。</li>
+<li><strong>Tokens/sec (decode)</strong>: generationのspeed。userが感じる数値。</li>
+<li><strong>VRAM headroom</strong>: weight + KV + activationsの後に残る空きmemory。modelがresponsiveであり続くためのもの。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p>概念とnotebook codeをカバーする十問が <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-08/quiz.md"><code>quiz.md</code></a> にあります。合格ラインは <strong>8/10</strong> です。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exercise（easy / standard / stretch / portfolio）、task parameter sweep、二つの新しいcatalog model、<code>num_ctx</code> sweep、そして <code>model_picker.py</code> CLI。各hintは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-08/exercises.md"><code>exercises.md</code></a> にあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>Ollama: https://ollama.com · https://github.com/ollama/ollama</li>
+<li>llama.cpp (GGUF): https://github.com/ggml-org/llama.cpp</li>
+<li>LM Studio: https://lmstudio.ai</li>
+<li>Apple MLX: https://github.com/ml-explore/mlx</li>
+<li>PyTorch installs (CUDA/ROCm): https://pytorch.org/get-started/locally/</li>
+<li>Hugging Face Hub: https://huggingface.co</li>
+<li>Hugging Face, <em>safetensors</em>: https://github.com/huggingface/safetensors</li>
+<li>DeepLearning.AI, <em>Open Source Models with Hugging Face</em>: https://www.deeplearning.ai/courses/open-source-models-hugging-face</li>
+<li>Zorost Intelligence, federal &amp; sovereign AI, air-gapped deployments: https://zorost.com</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

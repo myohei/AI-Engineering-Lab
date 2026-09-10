@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 13: Agentic Coding LoopとSpec-Driven Development</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 13</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-13/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-13-agentic-coding-loopspec-driven-development">Week 13: Agentic Coding LoopとSpec-Driven Development</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-13/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 13 of 24 · Section: Harnesses &amp; Loops · Category: Loops &amp; Specs
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-13/notebooks/01-loop-log-and-eval-gates.ipynb">01-loop-log-and-eval-gates.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsには、六つのbucket — tracking、damage、refund、documents、customs、billing — でsupport ticketが届きます。どれも、誰かがstatusを待っている本物のshipmentです。今日は人間がtriageしています。遅く、一貫性がありません。今週の仕事はSupport Bot MVPです。ticketを読み、そのcategoryを言い、canned replyを返すclassifier。それが実際に正しいかどうかを言うverifierとともに。</p>
+<p>Week 12では <em>一つのharnessをsteerする</em> ことを学びました。今週は、<em>softwareを生み出すloop</em> を回し、そしてほとんどの人が飛ばす部分、それを測定します。verifierがなければ「完了」は感覚です。botはconfidentでplausibleで未検証のものを作り、checkは最も都合の悪い瞬間にあなたに降りかかります。三つのloopがなければ、botはreal userに出会わず、重要なdefectはproductionまで不可視のままです。before/after: beforeは、手書きの二つの例で「正しく見える」keyword classifier。afterは、二層のverifier（unit check + 60-ticket eval）、すべてのcycleとそのdefectを示すloop log、そしてreal feedbackが要求したために変わったspecです。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、Support Bot MVPの <code>SPEC.md</code> を書ける。verifier（unit check + eval）を完了の定義として明記する。</li>
+<li>☐ 金曜日までに、verifierがpassするまでagentic loop（build → test → fix）を回し、すべてのcycleをtimestamp、token、defect付きでlogできる。</li>
+<li>☐ 金曜日までに、developer loop（fresh-eyes review）を回し、見つけたものからspecとverifierを更新できる。</li>
+<li>☐ 金曜日までに、external loop（real user）を回し、feedbackをspec変更と新しいeval caseに変換し、printされたdefect metricで終えられる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run</th>
+<th>Ship（その日までに）</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/01-ai-engineering-discipline.md"><code>KB 01</code></a> の三つのloopを再読する。<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/09-harnesses-tools.md"><code>KB 09</code></a> のverifier pattern</td>
+<td>Notebook §0、§2（classifier + eval set）</td>
+<td>MVP <code>classify_ticket</code> + 60-ticket eval setをload</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>verifierの層。<code>SPEC.md</code> のpattern</td>
+<td>Notebook §2（unit check + mini eval）</td>
+<td>greenな二層verifier + spec v1</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>agentic loop。headless mode</td>
+<td>Notebook §3、§4（headless loop + loop log）</td>
+<td>≥2のagentic cycleを持つloop log</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>developer loop。blast-radiusのtier</td>
+<td>Notebook §5のreview prompt。missしたcheckを追加</td>
+<td>Spec v2 + 新しいverifier check</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>external loop。loopの測定</td>
+<td>Notebook §6、§7（feedback form + defect metric）</td>
+<td>Spec v3 + loop log + printされたpass rateをcommit</td>
+<td>約1.5時間</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p>Week 12は <em>道具</em> について。Week 13は <em>その道具が走るprocess</em> と、そのprocessを感覚ではなく測定する方法についてです。</p>
+<h3 id="loop">異なる時計で回る三つのloop</h3>
+<p>Ngは0-to-1のbuildingを <strong>異なる時計で回る三つのloop</strong> として捉えます（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/01-ai-engineering-discipline.md"><code>KB 01</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/research/07-zorost-skills-map-guide.md"><code>07-zorost-skills-map-guide.md</code></a>）。</p>
+<table>
+<thead>
+<tr>
+<th>Loop</th>
+<th>Cadence</th>
+<th>起きること</th>
+<th>何がそれを閉じるか</th>
+<th>今週のあなたのartifact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Agentic coding</strong></td>
+<td>数分</td>
+<td>agentがcodeを書き、verifierを実行し、失敗を読み、直し、繰り返す</td>
+<td>verifier</td>
+<td>Support Bot MVP + greenなverifier</td>
+</tr>
+<tr>
+<td><strong>Developer feedback</strong></td>
+<td>数十分〜数時間</td>
+<td>あなたがfreshな目でreviewする。userとcontextについては、agentより多くをあなたが知っている</td>
+<td>あなたのjudgment。spec + checkへ変換される</td>
+<td>Spec v2 + 新しいunit check</td>
+</tr>
+<tr>
+<td><strong>External feedback</strong></td>
+<td>数時間〜数週間</td>
+<td>real userが使う。その行動がvision → spec → agentを更新する</td>
+<td>現実</td>
+<td>Feedback form + filed issue</td>
+</tr>
+</tbody>
+</table>
+<p>loopは <strong>nest</strong> します。developer feedbackはagentic loopを包み、external feedbackはその二つを包みます。このnestingこそがpointです。内側のloopはcodeを速く生み、外側のloopはspecに還元される <em>judgment</em> を生みます。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart TD
+    S[SPEC.md&lt;br/&gt;the definition of done] --&gt; A
+    subgraph A[Agentic coding · minutes]
+        A1[write code] --&gt; A2[run verifier]
+        A2 --&gt;|red| A1
+    end
+    A --&gt;|green| D[Developer feedback · tens of min to hours]
+    D --&gt;|spec v2 + new checks| A
+    D --&gt; E[External feedback · hours to weeks]
+    E --&gt;|issues update vision → spec| S
+    E --&gt; A
+</div>
+<p>load-bearingな部品は <strong>verifier</strong> です。checkのないloopは、confidentで未検証の出力を生むだけです。Zorostのぶっきらぼうな版（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/research/07-zorost-skills-map-guide.md"><code>07-zorost-skills-map-guide.md</code></a>）: <em>agent loopは、自分が完了したかどうかを伝えるsignalと同じ分だけしか良くない。</em></p>
+<h3 id="verifier">Verifierには層がある</h3>
+<p>verifierとは「完了」の実行可能なstatementです。今週は二つの層を意図的に使います。違うものを捕まえるからです。</p>
+<table>
+<thead>
+<tr>
+<th>Verifier</th>
+<th>何をcheckするか</th>
+<th>何を捕まえるか</th>
+<th>いつ使うか</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Unit test</strong></td>
+<td>一つの既知のinput → 一つの既知の出力</td>
+<td>特定のregression、すでに知っている境界</td>
+<td>specにある名前付きのすべての動作</td>
+</tr>
+<tr>
+<td><strong>Eval set</strong></td>
+<td>多くのseed付きexampleにわたるaccuracy</td>
+<td><em>分布</em>、忘れていたclass、静かなmiss</td>
+<td>統計的な「これくらいの頻度で正しいか」</td>
+</tr>
+<tr>
+<td><strong>Type check</strong></td>
+<td>programがwell-typedか</td>
+<td>間違ったfield名、shapeの不一致</td>
+<td>Python/typed codebaseで、testの前に</td>
+</tr>
+<tr>
+<td><strong>Linter</strong></td>
+<td>style + 有りそうなbug</td>
+<td>dead code、shadowing、foot-gun</td>
+<td>すべてのcommitで。安くて速い</td>
+</tr>
+</tbody>
+</table>
+<p>あなたがbuildする二つ: <strong>6つのunit check</strong>（tracking、damage、refund、customs、unknown input、answer shape）と、<code>zoro.data.support_tickets(n=60, seed=123)</code> からの <strong>60-ticket mini eval</strong>（notebook cell §1、§2）です。unit checkは <em>安くてbinary</em> な層、evalは <em>統計的</em> な層です。botは手書きのunit checkをすべてpassしながら、testしようと思いつきもしなかったreal ticketの一classでfailしえます。まさにerror analysisの存在理由です（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/07-evals-error-analysis.md"><code>KB 07</code></a>）。</p>
+<h3 id="specmdpattern">SPEC.mdのpatternと更新</h3>
+<p>Spec-driven developmentとは、buildの <em>前に</em> specを書き、feedback <em>から</em> 更新することであって、一回限りのdocumentとして扱うことではありません。specはuser、constraints、交換を拒むもの、buildを証明するtest planを明記します（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/01-ai-engineering-discipline.md"><code>KB 01 §3</code></a>）。Week 13の追加: verifierは、完了の定義としてspecの <em>中に</em> あります。だから「shipping」は「打ち込んだ」ではなく「verifierがpassした」です。</p>
+<p>developerやexternal reviewがgapを見つけたとき、fixは <strong>まずspecに</strong> 入り、それからcodeに入ります。この順序 — spec → code、決して逆ではない — こそがloopのdriftを防ぎます。これは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/research/07-zorost-skills-map-guide.md"><code>07-zorost-skills-map-guide.md</code></a> のartifact-gate disciplineでもあります。動くsystemを見せる人は誰にでもなれる。<em>最初に何を信じ、現実が何を修正し、どうやって知ったか</em> を見せられる人はほとんどいない。そのdiffこそがjudgmentのevidenceです。</p>
+<h3 id="harness-primitives-hooksskillsmcpsubagents">Harness primitives: hooks、skills、MCP、subagents</h3>
+<p>manifestは、今あなたに使う理由のある四つのharness primitiveを挙げています。同じquestion — 「loopをより安全に、より再利用可能に、あるいはより広くするには？」— への異なる答えです。</p>
+<table>
+<thead>
+<tr>
+<th>Primitive</th>
+<th>何をするか</th>
+<th>使うとき</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Hooks</strong></td>
+<td>tool callの前後にcommandを自動実行。危険なactionを <em>block</em> できる</td>
+<td>policyを <em>覚えてもらう</em> のではなく <em>強制</em> したい（例: <code>data/raw/</code> への書き込みを拒否）</td>
+</tr>
+<tr>
+<td><strong>Skills</strong></td>
+<td>taskが一致したときにloadされるon-demandのinstruction pack</td>
+<td>再利用したい繰り返し可能な手順やrepo convention</td>
+</tr>
+<tr>
+<td><strong>MCP</strong></td>
+<td>外部serverをtoolとしてattach（data source、APIs、あなた自身のserver）</td>
+<td>agentがrepoの外に届く必要がある。Week 16のtopic</td>
+</tr>
+<tr>
+<td><strong>Subagents</strong></td>
+<td>自分自身のcontextでboundedな仕事をし、並列にも走る子agent</td>
+<td>独立した、明確にscopeされた仕事。main contextを小さく保つ</td>
+</tr>
+</tbody>
+</table>
+<p>これらは組み合わさります。<code>PreToolUse</code> hookが危険なshell commandをblockし、skillがrepoのrelease checklistをencodeし、MCP serverがagentに <code>track_shipment</code> toolを与え、subagentが五つのfileをauditして一つのsummaryを報告します。それぞれが、あなた自身のcontextを広げずに、blast radiusを <em>狭める</em> かreachを <em>広げる</em> ものです（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/09-harnesses-tools.md"><code>KB 09 §5</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/skills/claude-code.md"><code>reference/skills/claude-code.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/skills/deepseek-harness.md"><code>reference/skills/deepseek-harness.md</code></a>）。</p>
+<h3 id="blast-radius-rules">Blast-radius rules</h3>
+<p>blast-radius ruleはautonomyを <strong>session単位ではなくaction単位</strong> で調整します（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/01-ai-engineering-discipline.md"><code>KB 01 §3</code></a>）。scratch fileのreadはほぼタダで間違えられますが、production dataへの書き込みや不可逆なcommandの実行は違います。同じagentでも、この二つには別のleashが要ります。</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Blast radius</th>
+<th>Autonomy</th>
+<th>Guardrail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>scratch fileを読む</td>
+<td>ほぼゼロ</td>
+<td>完全に許す</td>
+<td>不要</td>
+</tr>
+<tr>
+<td>branch上でrepoを編集する</td>
+<td>回復可能（git）</td>
+<td>実行し、その後diffをreview</td>
+<td>never-touch list</td>
+</tr>
+<tr>
+<td>production dataに書き込む</td>
+<td>real customerへの害</td>
+<td>手動approval</td>
+<td>hook + 明示的なconfirm</td>
+</tr>
+<tr>
+<td>secretsをcontextに読み込む</td>
+<td>leak。回復不能</td>
+<td>決して</td>
+<td>「secretsは決して読まない」rule + hook</td>
+</tr>
+<tr>
+<td>不可逆なcommand（drop、force-push）</td>
+<td>回復不能</td>
+<td>approvalなしには決して</td>
+<td>permission/deny-list</td>
+</tr>
+</tbody>
+</table>
+<p>今週のbotはread-onlyでofflineなのでblast radiusは小さいのですが、それでも <em>明記</em> します。そのhabitこそが、後で恐れずに多くのautonomyを与えられるようにするからです。</p>
+<h3 id="loop_1">Loopを測定する</h3>
+<p>時間、token、defect per cycleは、agentic codingの <strong>unit economics</strong> です（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/01-ai-engineering-discipline.md"><code>KB 01</code></a>）。loop logは「agentは役立った」を「三cycle、12k token、二つのdefectを捕獲、三つ目はあなたの落ち度」に変えます。notebookの <code>log_loop()</code> はcycleごとに一行（<code>loop</code>、<code>event</code>、<code>tokens_in</code>、<code>tokens_out</code>、<code>defect</code>、<code>notes</code>）をappendし、最終cellがそれを一つの数字、<strong>verifier pass rate</strong> に畳み込みます。</p>
+<h3 id="1-loop-logcost">実例1: loop-logのcost計算</h3>
+<p>Support Botでの現実的な三loop runを、例示的なOpenRouter rate（$3.00/1M input、$15.00/1M output、<em>引用前に再確認を</em>）で価格付けしたものです。</p>
+<table>
+<thead>
+<tr>
+<th>Loop</th>
+<th>Cycle</th>
+<th>Tokens in</th>
+<th>Tokens out</th>
+<th>surface化したdefect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>agentic</td>
+<td><code>classify_ticket</code> の初期build</td>
+<td>4,200</td>
+<td>1,100</td>
+<td>refund textがtrackingと誤判定</td>
+</tr>
+<tr>
+<td>agentic</td>
+<td>keyword listをfix。verifierを再実行</td>
+<td>3,100</td>
+<td>900</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>agentic</td>
+<td>billing unit checkを追加（spec v2どおり）</td>
+<td>2,700</td>
+<td>800</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>developer</td>
+<td>fresh-eyes review</td>
+<td>0</td>
+<td>0</td>
+<td>unknown textへのcheckがない</td>
+</tr>
+<tr>
+<td>external</td>
+<td>user: 「一つのticketに二つのshipment id」</td>
+<td>0</td>
+<td>0</td>
+<td>二id ticket → 誤reply</td>
+</tr>
+</tbody>
+</table>
+<p>agentic token = 10,000 in + 2,800 out。Cost =
+<code>(10,000 × 3.00 + 2,800 × 15.00) / 1,000,000 = (30,000 + 42,000) / 1,000,000 = $0.072</code>。
+二つのdefectは、直すのが安いloopの <em>内側</em> でsurface化しました。developerとexternalのloopはtokenゼロ（あなたが読み、友人に頼んだだけ）ですが、それぞれのfindingを新しいcheckに変える <em>spec変更</em> を生みました。これがeconomicsのすべてです。高いのはtokenではなく、inner loopから逃がしたdefectです。</p>
+<h3 id="2-feedbackspec">実例2: feedbackが駆動するspec更新</h3>
+<p>external loopの前後で変わった <code>SPEC.md</code> の行です。</p>
+<p><strong>Spec v1（Tue）</strong>: <code>## What it does: classify a ticket into one of six categories and return a canned reply.</code></p>
+<p><strong>Spec v2（Thu）</strong>: developer reviewの後、追加: <code>## Out of scope: unknown or ambiguous
+tickets are NOT auto-answered; route to a human.</code></p>
+<p><strong>Spec v3（Fri）</strong>: real userが <em>"where is S0000001 and S0000002, they're both late"</em> を貼った後、追加: <code>## New eval case: a ticket mentioning two shipment ids must route to human, not
+answer the first id.</code>、さらに一致するeval row。</p>
+<p>進む方向に注目してください: feedback → <strong>specの行</strong> → code → 新しいeval case。specはloopが収束するsource of truthであり、codeはその現在のimplementationにすぎません。</p>
+<h3 id="_5">うまくいかない理由</h3>
+<ul>
+<li><strong>Verifierがない</strong> → agentは一回のsmoke testの後で勝利を宣言する。classifierはdamageをrefundに黙って誤fileし、誰も見ないうちに金が動きます。</li>
+<li><strong>Verifier theatre</strong> → 「functionがstringを返す」ことだけをassertするcheckは永遠にpassし、specが約束するものを何も測りません。</li>
+<li><strong>一層だけのverifier</strong> → unit checkはすべてgreenだがevalが一度も走らない。ticketの一class全体（例えばcustoms）が間違っていて不可視です。</li>
+<li><strong>一回限りのdocumentとしてのspec</strong> → codeは直すがspecは直さない。次のsessionでagentは古く間違った挙動をrebuildします。</li>
+<li><strong>Feedbackがtestにならない</strong> → real userがbugを報告。うなずいて先へ進む。来週、静かにregressします。</li>
+<li><strong>Blast radiusの無視</strong> → 「fileを読む」と「このshell commandを実行する」に、同じsession由来という理由で同じleashを与える。</li>
+<li><strong>測定されないloop</strong> → 「役立った」とは言えても、何cycle、何token、何defectだったかは言えない。見えないprocessは上達できません。</li>
+</ul>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><code>notebooks/01-loop-log-and-eval-gates.ipynb</code> はWeek-1のenvironmentでend-to-endに動きます。API key不要、GPU不要。headless <code>claude -p</code> cellは、<code>claude</code> がなければgracefulにskipします。</p>
+<ul>
+<li><strong>§0: The three loops, in one page</strong> はcadence tableを示し、verifierをload-bearingな部品として名指しします。</li>
+<li><strong>§1: The Support Bot MVP</strong> は <code>CATEGORY_KEYWORDS</code>（六つのcategory）、<code>REPLIES</code>、<code>classify_ticket(text)</code>（最もscoreの高いkeyword match、なければ <code>'unknown'</code>）、<code>answer_ticket(text)</code>（<code>{category, shipment_id, reply}</code> を返す）を定義します。smoke testが一つのanswerをprintし、続いて <code>data.support_tickets(n=60, seed=123)</code> が、ground-truth category付きの60のseeded ticketからなるeval setをloadします。</li>
+<li><strong>§2: The verifier</strong> は <code>UNIT_CHECKS</code>（tracking、damage、refund、customs、unknown、answer-shapeの6つの手書きassertion）をbuildし、10行の <code>run_checks</code> runnerで実行し、続いて60 ticketにわたるclassification accuracyを計算するmini evalをbuildします。最初のpassでは何も変更せず、printされた <code>unit checks: 6/6</code> と <code>mini eval: N/60</code> の行を読むだけです。</li>
+<li><strong>§3: The agentic loop（headless）</strong> は、<code>claude</code> があれば <code>claude -p '…add a billing unit check…'</code> を実行し、なければmanual fallbackをprintする <code>%%bash</code> cellです。loop oneの、scriptedでCI-ableな形です。</li>
+<li><strong>§4: The loop log</strong> は <code>log_loop()</code> を定義し、三つのexample rowをseedします。<code>cycles
+  logged</code> と <code>defects surfaced</code> をprintします。seedを自分の実際のcycleに置き換えてください。</li>
+<li><strong>§5: Developer loop</strong> は五つのreview promptを与えます（agentは何をassumeしたか？ 誰もtestしていないinputは？ blast radiusは？ 何をhumanにrouteすべきか？ verifierはspecが約束するものを測っているか？）。</li>
+<li><strong>§6: External feedback</strong> は、fill-in form templateとtriage rule（file → spec-vs-eval → 失敗したinputをeval setに追加）です。</li>
+<li><strong>§7: Defect metric</strong> は <code>unit checks</code>、<code>eval correct</code>、<code>defects caught</code>、そして <strong>一つの数字</strong>: <code>round(verifier_pass_rate, 3)</code>（ただし <code>verifier_pass_rate = (unit_passed + eval_correct) / (unit_total + eval_total)</code>）をprintします。</li>
+</ul>
+<p>「正しい」出力: unit checkは <code>6 / 6</code> と読め、mini evalは <code>60 / 60</code> かそれに極めて近い値です（seeded ticketはgenerator自身の六つのtemplateを使い回すので、よく調整されたkeyword listなら <code>1.0</code> に近づくはずです。意味ありげに低い値は、error analysisで追うべきdefectです）。最終cellは <code>1.0</code> のような一つの数字をprintします。deliverableは <em>その数字と、それを生んだsample</em> であり、赤いcellのscreenshotではありません。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> (a) greenなverifier（unit check + eval）を持つSupport Bot MVP、(b) 三つのloopすべてをcoverするloop log、(c) あなたが受けたfeedbackに駆動されたspec更新。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人がnotebookを開き、end-to-endに実行し、一つの数字 — verifier pass rate — と、それを生んだsampleを読み取れること。さらに <strong>各loopが何を変えたか</strong> を見せられること。developer loopがどのspec行を編集したか、external loopがどの失敗inputをeval setに追加したか、defect metricが前後でどう動いたかです。verifierなし、loop logなし、ならshipなし。</p>
+<p><strong>Stretch variant:</strong> §3のとおりnotebookに対して <em>本物の</em> headless agent loop（<code>claude -p</code> またはあなたのharnessの等価物）を回し、出力をcaptureし、実際のtokenとdefectをlogします。そして、実際の出力がseeded example rowとどう違ったかを一文で書きます。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>verifierが実際には一度も実行されない</td>
+<td>変更のたびに§2を再実行する。「動いた」ではなくprintされたpass rateを引用する</td>
+</tr>
+<tr>
+<td>unit checkはgreenだがevalが未test</td>
+<td>evalは <em>別の</em> 層です。両方を、毎回実行する</td>
+</tr>
+<tr>
+<td>codeは直したがspecは直していない</td>
+<td>Spec first: specの行を書き、次にcode、次にtest</td>
+</tr>
+<tr>
+<td>事後にfeedbackが無視される</td>
+<td>triage rule: file → spec-vs-evalを決める → 失敗したinputをeval setに追加</td>
+</tr>
+<tr>
+<td>loop logが空のまま</td>
+<td>seeded rowを置き換える。見えないloopはvibeです</td>
+</tr>
+<tr>
+<td>すべてのactionに同じleash</td>
+<td>blast-radius tableを使う。不可逆なcommandにhookを付ける</td>
+</tr>
+<tr>
+<td>一つのticketに二つのshipment idが未処理</td>
+<td>「humanにrouteする」rule + 一致するeval row</td>
+</tr>
+<tr>
+<td>defect metricの誤読</td>
+<td><code>(unit_passed + eval_correct) / (unit_total + eval_total)</code> です。sample付きの <em>rate</em> です</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Agentic loop</strong>: agentがverifier passまで書き、testし、直す、数分scaleのloop。</li>
+<li><strong>Developer loop</strong>: specとcheckを更新するfresh-eyesな人間review（数十分〜数時間）。</li>
+<li><strong>External loop</strong>: vision → spec → agentを更新するreal userのfeedback（数時間〜数週間）。</li>
+<li><strong>Verifier</strong>: 完了の実行可能なstatement。test、eval、type check、linter、schema。</li>
+<li><strong>Eval set</strong>: accuracyをbinaryではなくrateとして測るために使う、label付きexample set。</li>
+<li><strong>SPEC.md</strong>: feedbackから更新され、loopが収束する、書かれた完了の定義。</li>
+<li><strong>Loop log</strong>: cycleごとにloop、timestamp、token、defectを記録する一行。</li>
+<li><strong>Blast-radius rule</strong>: 間違えたactionのdamageの大きさで、actionごとに調整するautonomy。</li>
+<li><strong>Hook</strong>: policyを強制またはblockできる、自動化されたpre/post-tool command。</li>
+<li><strong>MCP</strong>: 外部serverをagent toolとしてattachするprotocol。</li>
+<li><strong>Subagent</strong>: main contextにsummaryを報告する、boundedな子agent。</li>
+<li><strong>Verifier pass rate</strong>: <code>(unit checks passed + eval correct) / (unit checks + eval cases)</code>。notebookの最終数字。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-13/quiz.md"><code>quiz.md</code></a> を受けましょう。conceptとnotebook codeについての10問です。<strong>8/10で合格</strong> です。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exercise（easy / standard / stretch / portfolio）は <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-13/exercises.md"><code>exercises.md</code></a> にあります。notebookを実行してpass rateを出す、billing check + edge-case eval rowを追加する、本物のheadless loopを回す、そしてMVP + loop log + spec diffをcommitする。hintは同じfileにあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>Andrew Ng, <em>Three Key Loops for Building Great Software</em>: https://www.deeplearning.ai/the-batch/three-key-loops-for-building-great-software</li>
+<li>Andrew Ng, <em>The AI Engineering Skills Map</em>, The Batch issue 366: https://www.deeplearning.ai/the-batch/issue-366</li>
+<li>Fereydun Hashemi (Zorost), <em>The AI Engineering Skills Map, turned into a training plan</em>: https://zorost.com/ai-engineering-skills-map-training-guide</li>
+<li>Claude Code (Anthropic) docs: https://docs.claude.com/en/docs/claude-code/overview · hooks: https://docs.claude.com/en/docs/claude-code/hooks</li>
+<li>OpenCode (SST) docs: https://opencode.ai/docs/</li>
+<li>Cursor (Anysphere) docs: https://cursor.com/docs</li>
+<li>DeepSeek Harness (DSH): https://deepseek.com/harness/en/ · GitHub: https://github.com/deepseek-ai/deepseek-harness</li>
+<li>OpenRouter docs: https://openrouter.ai/docs/quickstart.md</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

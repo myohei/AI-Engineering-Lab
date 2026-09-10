@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 09: QuantizationとEfficient Inference</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 09</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-09/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-09-quantizationefficient-inference">Week 09: QuantizationとEfficient Inference</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-09/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 09 of 24 · Section: Model Engineering · Category: Quantization &amp; Serving
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-09/notebooks/01-quantization-lab.ipynb">01-quantization-lab.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-09/notebooks/02-vllm-serving-and-benchmarks.ipynb">02-vllm-serving-and-benchmarks.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsは、inboundのsupport ticketを <code>{tracking, damage, refund, documents, customs, billing}</code> に分類する7B open modelを動かしています。正確ですが、FP16では~14 GBのVRAMを消費し、rentalしたA10 GPUでは、解決されたticketあたり約$0.031かかります。pilotとしてはそれでよく、月50,000 ticketでは不条理です。素朴なfixは「もっと大きいGPUを買う」か「すべてをhosted APIに投げる」ですが、どちらも、より安いquestionを先に問いません。<em>すでに持っているmodelは、同じ仕事を四分の一のmemoryでできるか？</em></p>
+<p>このquestionこそが <strong>quantization</strong> です。各weightをより少ないbitで格納して、modelをほぼ線形に縮め、decodeを速くし、小さなquality costを払います。これがなければ、二つの悪い選択の間で行き詰まります。taskに必要以上に大きいmodelに定価を払うか、仕事をAPIに任せて、latency、cost、data-controlが手から離れるのを見るか。これがあれば、<em>数値付きの</em> 決定が得られます。同じtriage evalをFP16、8-bit、4-bitで実行し、serving benchmarkを加えれば、quality-vs-cost curveがどこで曲がるかが正確に分かります。その測定がなければ当てるしかなく、当てることは、billing ticketをclaimsに静かにmisrouteする2-bit modelをshipするか、taskが決して必要としないprecisionにお金を払うかのどちらかを意味します。今週は「modelを縮めた」を「Q4_K_Mをshipすると擁護できる」に変えます。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、FP16 / INT8 / INT4のbytes-per-parameter mathを言え、model cardだけから、あるmodelが指定されたVRAM budgetに収まるかを予測できる。</li>
+<li>☐ 金曜日までに、bitsandbytes経由でmodelをFP16、8-bit（<code>LLM.int8()</code>）、4-bit（<code>NF4</code>）でloadし、shipment notes上でperplexityの差を測れる。</li>
+<li>☐ 金曜日までに、30のlabeled support ticketで三つのprecisionにわたるtriage-accuracy evalを実行し、表からquality-vs-cost tradeoffを読める。</li>
+<li>☐ 金曜日までに、vLLM（OpenAI互換）でmodelをserveし、複数のbatch sizeでlatency/throughputをbenchmarkし、quality-vs-costの推奨をpublishできる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td>数値format（FP32/FP16/BF16/FP8/INT8/INT4）と <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/06-model-engineering.md">reference/knowledge-base/06-model-engineering.md</a> のbytes-per-param rule</td>
+<td>1.5B/7B/13B modelのVRAM表を手計算で再現する</td>
+<td>VRAM mathを書いたmarkdown cell</td>
+<td>2時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>Quantization method: GGUF k-quants、bitsandbytes、AWQ、GPTQ</td>
+<td>lab notebookで1.5B modelをFP16/8-bit/4-bitでloadする</td>
+<td>記録したperplexity ladder</td>
+<td>2時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>なぜperplexityはscreenであってverdictではないか（perplexity vs task eval）</td>
+<td>各precisionで30-ticket triage evalを実行する</td>
+<td>Quality-vs-VRAM表</td>
+<td>2時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>Serving engine（vLLM/SGLang/TGI）、continuous batching、throughput vs latency</td>
+<td>vLLMを起動し、batch size 1〜8をbenchmark、Ollamaと比較する</td>
+<td>Speed表</td>
+<td>2時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>Tradeoffを読む: costとqualityのcurveが交差する場所</td>
+<td>二つのnotebookからreportを組み立てる</td>
+<td><code>week-09-quality-vs-cost-report.md</code></td>
+<td>2時間</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p>今週は、一つのideaを二度適用する週です。<strong>modelを安くする最も安い方法は、weightをより少ないbitで格納すること。そして <em>どれだけ</em> 少なくするかを決める唯一の許容される方法は、sizeではなくtaskを測ること。</strong> through-lineは、Week 10のreadingで見た「cheapest lever first」の順序を、trainingではなく <em>inference</em> に向けたものです。より大きいGPUにお金を払う前に、すでに持っているmodelが仕事を壊さずに安くなるかを問うてください。Quantizationがそのleverです。</p>
+<h3 id="format">Formatごとに一つの数値</h3>
+<p>Weightはただのfloatであり、すべてのfloatはmemoryを消費します。bytes-per-parameter ruleを覚えれば、VRAM計画問題全体が掛け算にcollapseします。</p>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Bits/param</th>
+<th>Bytes/param</th>
+<th>7Bのmemory</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>FP32</strong></td>
+<td>32</td>
+<td>4</td>
+<td>~28 GB</td>
+<td>Training checkpoint。servingにはほぼ使わない</td>
+</tr>
+<tr>
+<td><strong>FP16</strong></td>
+<td>16</td>
+<td>2</td>
+<td>~14 GB</td>
+<td>「full-precision」のserving baseline</td>
+</tr>
+<tr>
+<td><strong>BF16</strong></td>
+<td>16</td>
+<td>2</td>
+<td>~14 GB</td>
+<td>Trainingで安定。inferenceでは ≈ FP16</td>
+</tr>
+<tr>
+<td><strong>FP8</strong></td>
+<td>8</td>
+<td>1</td>
+<td>~7 GB</td>
+<td>Transformer Engine経由のHopper-class GPUs</td>
+</tr>
+<tr>
+<td><strong>INT8</strong></td>
+<td>8</td>
+<td>1</td>
+<td>~7 GB</td>
+<td>ほぼlosslessなruntime quant（<code>LLM.int8()</code>）</td>
+</tr>
+<tr>
+<td><strong>INT4 / NF4</strong></td>
+<td>4</td>
+<td>0.5</td>
+<td>~4 GB</td>
+<td>攻撃的だが広く受け入れられたchat/inferenceのdefault</td>
+</tr>
+</tbody>
+</table>
+<p>4-bitでのrule of thumbは、<em>10億paramsあたり約1 GB</em>。だから7B modelはlaptop GPUに、1.5B modelはphone-class cardに収まります。もう、一byteもdownloadする前に、model cardから「これは自分のcardに収まるか？」に答えられます。完全なformatの理屈は <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/06-model-engineering.md">reference/knowledge-base/06-model-engineering.md §2.1</a> を参照してください。</p>
+<p><strong>実例1: bytes-per-parameter math。</strong> <code>Qwen/Qwen2.5-1.5B-Instruct</code> は~1.54B paramsを持ちます。Weightのみのmemoryは <code>params × (bits / 8)</code> なので、FP16は <code>1.54e9 × 2 = 3.08 GB</code>、INT8は <code>1.54 GB</code>、INT4/NF4は <code>0.77 GB</code> です。7B triage modelにscaleすると、<code>7e9 × 2 = 14 GB</code>（FP16）、<code>7 GB</code>（INT8）、<code>3.5 GB</code>（INT4）。この一つの掛け算が、「A100をrentalしなければ」と「freeのColab T4で動く」の分かれ目です。</p>
+<p><strong>実例2: integer quantizerがfloatをどうmapするか。</strong> 内部では、integer quantizationは各float weight <code>w</code> をinteger <code>q = round(w / scale) +
+zero_point</code> にmapし、<code>ŵ = scale × (q − zero_point)</code> を再構成します。weightが <code>[−0.5, 0.5]</code> に広がるlayerは <code>scale = (0.5 − (−0.5)) / 255 ≈ 0.0039</code> を得るので、<code>0.5 →
+round(0.5 / 0.0039) = 128</code>、<code>−0.5 → −128</code> で、weightあたりの最大errorは~0.002です。このerrorは数百万のweightにわたって合計しても知覚できず、だからこそper-channel scale factor（あるいは非線形なNF4 grid）が、一つのoutlier weightが膨らませてしまう単一のper-tensor scaleに勝つのです。良いquantizerのcraftのすべては、最小限のsignalしか捨てない <code>scale</code> を選ぶことにあります。</p>
+<h3 id="jobquantizer-family">二つのjobのための、二つのquantizer family</h3>
+<p>Methodは <em>いつ</em> 適用するかで分かれます。<strong>bitsandbytes</strong>（8-bit <code>LLM.int8()</code> と4-bit <strong>NF4</strong>）は、<code>load_in_8bit=True</code> / <code>load_in_4bit=True</code> でnotebookにdropできる <em>runtime</em> quantizerで、来週のQLoRAのsubstrateでもあります。<strong>GGUF k-quants</strong>（<code>Q2_K</code> → <code>Q8_0</code>）は、llama.cppとOllamaがlocalで実行する <em>staticなartifact</em> で、Week 8で会いました。<strong>AWQ</strong> と <strong>GPTQ</strong> はその中間です。高品質な4-bit <em>serving</em> のために作られた、staticでcalibration-awareなquantです。</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Family</th>
+<th>Bits</th>
+<th>Calibration dataが必要?</th>
+<th>最適な用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bitsandbytes <code>LLM.int8()</code> / NF4</td>
+<td>Runtime</td>
+<td>8 / 4</td>
+<td>不要</td>
+<td>notebookで大きいmodelをloadすること。QLoRA fine-tuning</td>
+</tr>
+<tr>
+<td>GGUF k-quants</td>
+<td>Static file</td>
+<td>2〜8</td>
+<td>不要</td>
+<td>llama.cpp / Ollamaによるlocal CPU/GPU inference</td>
+</tr>
+<tr>
+<td>AWQ</td>
+<td>Static（activation-aware）</td>
+<td>4 (3/8)</td>
+<td>不要（activation stats）</td>
+<td>vLLM/TGI上の高品質4-bit serving</td>
+</tr>
+<tr>
+<td>GPTQ</td>
+<td>Static（Hessian）</td>
+<td>4/8/3</td>
+<td>必要</td>
+<td>一度batch-quantizeして、どこでもserve</td>
+</tr>
+</tbody>
+</table>
+<p>早めに解除すべきtrapが一つあります。ほとんどのlocal quantは <strong>weight-only</strong> で、memoryの勝利は本物ですが、<em>speed</em> の勝利はkernel次第です。4-bit = 4×速いと思ってはいけません。確実に~4×小さく、そして <em>しばしば</em> 速くなります。<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/06-model-engineering.md">reference/knowledge-base/06-model-engineering.md §2.2</a> を参照してください。</p>
+<h3 id="perplexityscreenverdict">Perplexityはscreenであってverdictではない</h3>
+<p>Perplexity、つまりheld-out text上の <code>exp(cross-entropy loss)</code> は、速いproxyです。低いほど、modelはそのtextをあまり「surprising」と感じません。一般のladderは、inferenceではFP16/BF16 ≈ FP32、8-bit ≈ 無視できる損失、4-bit = 小さく、chat/summarization/RAGでは通常知覚できない損失、そして2〜3-bit = 顕著なdegradationです。問題は、<strong>perplexityはtask accuracyではない</strong> ことで、だからこそ <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/07-evals-error-analysis.md">reference/knowledge-base/07-evals-error-analysis.md</a> が登場します。Quantizeされたmodelは、perplexityがほぼ同一のまま、<em>あなたの</em> jobをしくじれます。named entityを見逃す、壊れたJSONを出す、billing ticketをclaimsにrouteする。</p>
+<p><strong>実例3: perplexity-vs-evalのtradeoff。</strong> 7B triage modelでは、Q4_K_M vs FP16のperplexity比は約 <strong>1.06</strong>。「surprise」が6%増えるだけで、<em>無視できる</em> と読めます。しかし、本当の話を語るのはtask metricです。同じgolden triage eval（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/06-model-engineering.md">reference/knowledge-base/06-model-engineering.md §6</a> のもの）で測ると：</p>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>VRAM</th>
+<th>Triage F1</th>
+<th>p95 latency</th>
+<th>$/task</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FP16</td>
+<td>~14 GB</td>
+<td>0.912</td>
+<td>820 ms</td>
+<td>$0.031</td>
+</tr>
+<tr>
+<td>Q8_0 / 8-bit</td>
+<td>~7 GB</td>
+<td>0.909</td>
+<td>540 ms</td>
+<td>$0.017</td>
+</tr>
+<tr>
+<td><strong>Q4_K_M</strong></td>
+<td>~4 GB</td>
+<td>0.897</td>
+<td>410 ms</td>
+<td>$0.009</td>
+</tr>
+<tr>
+<td>Q2_K</td>
+<td>~2.4 GB</td>
+<td>0.831</td>
+<td>320 ms</td>
+<td>$0.006</td>
+</tr>
+</tbody>
+</table>
+<p>Q4_K_Mは、<strong>3.5×少ないVRAMと~3.4×低いcost</strong> のために <strong>1.5 F1 point</strong> を失うだけです。mis-routeが人間による素早いre-routeで済むtriageでは、明らかに割に合います。Q2_Kは <strong>8.1 point</strong>（0.912 → 0.831）を失い、これは相当な数のticketを静かにmisrouteする本物の低下です。それなのに、perplexityだけを見れば「少し悪いだけ」に見えたでしょう。このgapこそがlessonのすべてです。<strong>perplexityがcandidateをscreenし、あなたのtask evalが決める。</strong> 二つの数値は <em>一緒に</em> 読みます。それこそが、まさに今週のlab notebookが生み出すものです。</p>
+<h3 id="serving-continuous-batchingthroughputlatencytrade">Serving: continuous batchingとthroughput/latencyのtrade</h3>
+<p>Serving側では、一つのideaが支配します。素朴なservingは、次のrequestを始める前にbatch全体の完了を待つため、一つの遅いresponseが全員を止めます。<strong>vLLMのPagedAttention</strong>（KV cacheを固定sizeのpageに格納してfragmentationを殺す）と <strong>continuous batching</strong>（新しいrequestをtoken-by-tokenで受け入れ、終わったものを即座にevict）の組み合わせが、modern engineがconcurrency下ではるかに高いthroughputを維持できる理由です。知っておくべきknob: <code>gpu_memory_utilization</code>、<code>max_num_batched_tokens</code>/<code>max_num_seqs</code>、そして <code>max_model_len</code>。<strong>throughputはlatencyで買います</strong>。大きいbatchは合計tokens/secを上げますが、requestあたりのlatencyも上げるので、workloadがどちらを気にするかに合わせてtuneします（batch job → throughput。interactive UX → p95 latency）。そして、三つのengine（vLLM、SGLang、TGI）すべてが <strong>OpenAI互換</strong> の <code>/v1/chat/completions</code> surfaceを出すので、local serverに対してdevelopし、一行の <code>base_url</code> 変更でhosted endpointに（あるいはその逆に）切り替えられます。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart TD
+    A[&quot;Model too big / slow / expensive&quot;] --&gt; B[&quot;Compute bytes/param: FP16≈2 · INT8≈1 · INT4≈0.5&quot;]
+    B --&gt; C[&quot;Screen: perplexity ladder over shipment notes&quot;]
+    C --&gt; D{&quot;Task eval (30-ticket triage) within tolerance?&quot;}
+    D -- &quot;no&quot; --&gt; E[&quot;Step up (Q5/Q8) or keep FP16&quot;]
+    E --&gt; C
+    D -- &quot;yes&quot; --&gt; F[&quot;Serve with vLLM (PagedAttention + continuous batching)&quot;]
+    F --&gt; G[&quot;Benchmark latency vs throughput at batch 1 to 8&quot;]
+    G --&gt; H[&quot;Pick engine + quant at the knee of the cost-vs-quality curve&quot;]
+</div>
+<h3 id="_5">うまくいかない理由</h3>
+<p>Quantizationは一つのfailure（必要のないprecisionへの支払い）を <em>防ぎ</em>、盲目的に適用すれば別のfailureを <em>起こします</em>。</p>
+<ul>
+<li><strong>小さいmodelはより速くdegradeする。</strong> 4-bitの1B modelは、4-bitの70Bより危険です。errorを吸収するredundancyが少ないからです。思い込まず、testする。</li>
+<li><strong>Perplexityはtaskについて嘘をつく。</strong> ほぼ平坦なperplexityが、壊れたJSON、見逃されたentity、misrouteされたticketを隠せます。それこそgolden-set evalが捕まえるbugです。</li>
+<li><strong>Weight-only quantは自動的には速くならない。</strong> GPUでは、speedの勝利はfused kernelを必要とします。なければ、小さくはなるが速くはなりません。</li>
+<li><strong>Runtime quantはCUDA-only。</strong> bitsandbytesはApple MPSをsupportしないので、liveの8/4-bit cellはそこではskipされます。notebookはcrashではなく、大声でdegradeします。</li>
+<li><strong>Memory costはweightだけではない。</strong> 長いcontextはKV cacheを膨らませます（7B modelはFP16でtokenあたり~0.5 MBのKVを保持）。だから <code>max_model_len</code> はafterthoughtではなく一級のmemory knobです。</li>
+<li><strong>Batchingはlatencyでthroughputを買う。</strong> 大きいbatchはp95を上げます。max throughputにtuneされたinteractive endpointは、人間には遅く感じられます。</li>
+</ul>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p>二つのnotebookが今週を担います。<strong><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-09/notebooks/01-quantization-lab.ipynb"><code>notebooks/01-quantization-lab.ipynb</code></a></strong> がreportのquality半分をbuildします。標準のseeded setup（cell 2）と、CUDA/MPS/CPUを選んで <code>LIVE_QUANT</code> / <code>LIVE_FP16</code> flagを設定する <code>detect_device()</code> cell（cell 4）の後、cell 6が、<code>data.shipments()</code> を <code>data.lanes()</code> とjoinした8つの <strong>shipment notes</strong> と、<code>data.support_tickets()</code> からの30の <strong>labeled tickets</strong> を取り出します。Cell 8は（modelに触れる前に）まずVRAM mathを計算します。続いてcells 10〜18が1.5B modelをFP16、8-bit <code>LLM.int8()</code>、4-bit NF4でloadし、cell 12の <code>perplexity()</code> helperをnotesに実行します。決定的なのはcell 20の <code>triage_accuracy()</code> で、ticketごとに一つのcategory wordをgreedy-decodeしてground truthと比較します。続いてcell 21が三つのaccuracyをprintし、cell 23が <strong>quality-vs-VRAM table</strong> を組み立てます。Cell 25はCPU fallbackで、documentされたladder（FP16 0.92 / INT8 0.92 / INT4 0.89）を <em>estimateとして明示</em> して再現します。Cell 27は最終数値 <code>QUALITY_RETENTION_PCT</code>、つまり最小のquantのtask accuracyのFP16比をprintします。健全な結果は8-bit ≈ 100% retention、4-bit ≈ 95%+です。4-bit retentionが明確に低ければ、それがprecisionを上げるsignalです。</p>
+<p><strong><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-09/notebooks/02-vllm-serving-and-benchmarks.ipynb"><code>notebooks/02-vllm-serving-and-benchmarks.ipynb</code></a></strong> がspeed半分をbuildします。Cell 6はvLLMのOpenAI互換serverをsubprocessとして起動します（<code>--gpu-memory-utilization 0.85 --max-model-len 2048</code>）。cell 8は <code>/models</code> をpollしてreadinessを確認します。cell 10の <code>benchmark()</code> はconcurrentなrequestのthread poolを撃ち、平均latencyと合計tokens/secを返します。Cell 12はbatch size 1/2/4/8をsweepし、cell 15はOllamaの <code>/v1</code> endpointに対して同じことを繰り返し（同じOpenAI SDK、異なる <code>base_url</code>）、cell 17が二つを一つのspeed表にstackします。Cell 19はWeek 9のquantization factsを折り込み、例示的なcost-per-1M-tokensとvLLM/Ollama speedupをprintします。cell 21は最終の <code>BEST_THROUGHPUT_TOK_PER_SEC</code> をprintし、serverを終了します。見るべきshapeは、batchが大きくなるにつれてthroughputがlatencyより速く上がること。そのgapがcontinuous batchingの仕事ぶりです。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> 四つのものを含む <code>week-09-quality-vs-cost-report.md</code>。(a) shipment notes上で測定したperplexity ladder（FP16 → 8-bit → 4-bit）、(b) 30-ticket golden setでの各precisionのtriage accuracy、(c) 測定したbatch sizeでのvLLM-vs-Ollama latency/throughput表、(d) それを正当化する数値を付けた一文のproduction推奨。</p>
+<p><strong>Acceptance gate（Zorost式）:</strong> 見知らぬ人がreportを開き、あなたの推奨quantizationが <em>なぜ</em> 勝つのかを見られること。「4-bitがpopularだから」ではなく「4-bitは25%のVRAMと2×のthroughputでFP16 triage accuracyの96.8%を保ち、misfileする3 ticketはこれです」と。quantizeされたmodelが何を間違えたかを見せられます。Task evalなしのperplexity、あるいは二つの数値のどちらかを欠いた推奨は、半分のdeliverableです。</p>
+<p><strong>Stretch variant:</strong> benchmarkを第三のengine（SGLangまたはTGI）に、<em>同じ</em> modelとbatch sizeで拡張し、そのcolumnを追加します。そして、(a) 高QPS servingと (b) すべてのrequestが長いsystem promptを共有するworkload のそれぞれについてどのengineを選ぶかを一文で書きます。後者が、SGLangのRadixAttentionが狙うprefix-cache scenarioです。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Perplexityだけでのquant判定</td>
+<td>常にtask eval（triage accuracy）を実行する。perplexityはscreen、evalが決める</td>
+</tr>
+<tr>
+<td>4-bit = 4×速いと思い込む</td>
+<td>Weight-only quantはmemoryを確実に縮めるが、speedにはfused kernelが要る。思い込まず測る</td>
+</tr>
+<tr>
+<td>小さいmodelで2-bitをship</td>
+<td>小さいmodelはquantizationで速くdegradeする。難しいcase用に高precision fallbackを残す</td>
+</tr>
+<tr>
+<td>KV cacheの無視</td>
+<td><code>max_model_len</code> にcapをかける。長いcontextではKVがweightを超えうる</td>
+</tr>
+<tr>
+<td>一つのbatch sizeでtuneして止まる</td>
+<td>batch 1〜8をsweepし、throughput-vs-latency curveを読む</td>
+</tr>
+<tr>
+<td>bitsandbytesがCUDA-onlyなのを忘れる</td>
+<td>MPSではFP16をliveで実行し、残りは明示されたCPU fallbackを使う</td>
+</tr>
+<tr>
+<td>異なるmodelでengineを比較する</td>
+<td>modelとbatch sizeを固定する。そうでなければ比較は無意味</td>
+</tr>
+<tr>
+<td>閾値のない数値の報告</td>
+<td>retention % <em>と</em> ship/no-ship lineを述べる</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Quantization</strong>: weightをより少ないbit（FP16/INT8/INT4）で格納し、memoryを縮め、しばしばinferenceを速くすること。</li>
+<li><strong>NF4</strong>: 「normal-float-4」。bitsandbytesの、weight分布に合わせたdata-awareな4-bit format。QLoRAのsubstrate。</li>
+<li><strong>GGUF</strong>: llama.cppの自己完結file formatと、Ollama/LM Studioが実行するk-quantのfamily（<code>Q4_K_M</code>、<code>Q8_0</code>）。</li>
+<li><strong>AWQ / GPTQ</strong>: activation-aware（AWQ）とHessian-based（GPTQ）の、高品質4-bit serving用static quantizer。</li>
+<li><strong>Perplexity</strong>: <code>exp(cross-entropy loss)</code>。held-out textに対してmodelがどれだけ「surprised」かを示す速いproxy（低いほど良い）。</li>
+<li><strong>Continuous batching</strong>: 新しいrequestをtoken-by-tokenで受け入れ、終わったものをevictすることで、GPUがstragglerでidleにならないようにする。</li>
+<li><strong>PagedAttention</strong>: vLLMの、KV cacheを固定sizeのpageに格納してfragmentationをほぼ消すtechnique。</li>
+<li><strong>KV cache</strong>: 過去のtokenにattendするためにmodelが保持する、tokenごとのkey/value vector。context × layers × hidden sizeとともに増える。</li>
+<li><strong>Throughput vs latency</strong>: 合計tokens/sec vs requestあたり時間。batch sizeで片方をもう片方と交換する。</li>
+<li><strong>OpenAI-compatible API</strong>: どのOpenAI SDK clientも <code>base_url</code> でlocal serverを指せるようになる、engineの <code>/v1/chat/completions</code> surface。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-09/quiz.md">quiz.md</a> を受けてください。十問、合格は <strong>8/10</strong>。scoreをtracker Notesに記録します。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exerciseは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-09/exercises.md">exercises.md</a> にあります。<strong>Easy</strong>（labを実行してladderを記録）、<strong>Standard</strong>（VRAM表を手計算で再現）、<strong>Stretch</strong>（第三のserving engineを追加）、<strong>Portfolio</strong>（quality-vs-cost reportをcommit）。hintは同じfileにあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>bitsandbytes (8-bit / NF4): https://github.com/TimDettmers/bitsandbytes</li>
+<li>vLLM: https://docs.vllm.ai</li>
+<li>SGLang: https://github.com/sgl-project/sglang</li>
+<li>llama.cpp (GGUF k-quants): https://github.com/ggml-org/llama.cpp</li>
+<li>AWQ: https://github.com/mit-han-lab/llm-awq</li>
+<li>GPTQ: https://github.com/IST-DASLab/gptq</li>
+<li>Hugging Face PEFT (QLoRA substrate): https://huggingface.co/docs/peft</li>
+<li>Ollama: https://ollama.com</li>
+<li>Andrew Ng, <em>The AI Engineering Skills Map</em>, The Batch issue 366: https://www.deeplearning.ai/the-batch/issue-366</li>
+<li>Zorost Signal, <em>Cost and latency engineering for LLM systems</em>: https://zorost.com/llm-cost-latency-engineering</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

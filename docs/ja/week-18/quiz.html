@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 18: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 18</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-18/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-18-quiz10810">Week 18: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-18/quiz.md">英語版</a> · <a href="README.html">Week 18 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<ol>
+<li>
+<p><strong>MCQ</strong>: Foundryのhierarchyで、<strong>hub</strong>が所有するresourceはどれですか？ <em>(Concepts §Model catalog / hub-projectを参照)</em>
+   - A) Deployment、eval、trace
+   - B) Azure OpenAI instance、AI Search index、storage、key vault、そしてnetwork boundary
+   - C) agent定義のみ
+   - D) 何も所有しない。projectがすべてを所有する</p>
+</li>
+<li>
+<p><strong>MCQ</strong>: Azureに対してOpenAI SDKを呼ぶとき、<code>model=</code>引数はあなたの… <em>(notebook 01 cell 3を参照)</em>
+   - A) 生のmodel ID。例えば<code>gpt-4.1</code>
+   - B) deploy時にあなたが選んだdeployment name
+   - C) region名
+   - D) API version文字列</p>
+</li>
+<li>
+<p><strong>MCQ</strong>: 使っても使わなくても課金されるdeployment optionはどれですか？ <em>(Concepts §Deployment tableを参照)</em>
+   - A) Serverless endpoint (MaaS)
+   - B) Provisioned throughput (PTU)
+   - C) Pay-per-token on-demand
+   - D) どれでもない</p>
+</li>
+<li>
+<p><strong>Short answer</strong>: notebook 01で、<code>field_matches</code>がintegerとして（文字列一致ではなく数値比較で）比較するBoL fieldは<strong>どの二つ</strong>ですか？ <em>(notebook 01 cell 12を参照)</em></p>
+</li>
+<li>
+<p><strong>MCQ</strong>: 暴走agentがbudgetを使い切れないようにする、<em>月次spend</em>をcapするのに正しいAI Gateway controlはどれですか？ <em>(Concepts §AI Gatewayを参照)</em>
+   - A) Token-rate limit
+   - B) Semantic cache
+   - C) Token-usage quota / cost cap
+   - D) Model routing</p>
+</li>
+<li>
+<p><strong>MCQ</strong>: notebook 02のdry-runで、fixの<em>前</em>に失敗するgolden questionはどれで、なぜですか？ <em>(notebook 02 cell 10を参照)</em>
+   - A) Q1（refund）。promptが間違っているから
+   - B) Q4（customs）。<code>KEYWORD_DOCS</code>に<code>customs</code> → <code>POL-004</code>の対応がないから
+   - C) Q2（address）。<code>$85</code>がmisspellだから
+   - D) Q3（dangerous goods）。docに<code>UN number</code>がないから</p>
+</li>
+<li>
+<p><strong>Short answer</strong>: Week 6の<code>EXTRACT_PROMPT</code>がmodelにJSONとして返させる十fieldのうち、少なくとも<strong>五つ</strong>を挙げてください。 <em>(notebook 01 cell 4を参照)</em></p>
+</li>
+<li>
+<p><strong>MCQ</strong>: Foundry codeに対する推奨されるproduction認証（keyの代わり）はどれですか？ <em>(Concepts §How it breaksを参照)</em>
+   - A) HardcodeされたAPI key
+   - B) <code>DefaultAzureCredential</code> / managed identity経由のEntra ID
+   - C) 共有のteam password
+   - D) 認証なし</p>
+</li>
+<li>
+<p><strong>Short answer</strong>: notebookのplaceholder price（$0.15/1M input、$0.60/1M output）で、150 input tokenと120 output tokenを使うBoL抽出一回のcostを計算してください。計算過程を示すこと。 <em>(notebook 01 cell 15を参照)</em></p>
+</li>
+<li>
+<p><strong>MCQ</strong>: 「fixのないtraceはbug reportである」の意味は… <em>(Concepts §Evaluation &amp; tracingを参照)</em></p>
+<ul>
+<li>A) 失敗したtraceは削除すべき</li>
+<li>B) scoreが変わらなくても、traceを読めば十分</li>
+<li>C) eval loopが完了するのは、traceを読み、最悪の失敗をfixし、before/after scoreを示したときだけ</li>
+<li>D) traceはLLM-as-judge run専用</li>
+</ul>
+</li>
+</ol>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li><strong>B</strong>: hubが共有enterprise resourceを所有し、projectがteamのdeployment、eval、traceを持ちます。この分離こそgovernanceの要点です。</li>
+<li><strong>B</strong>: Azureでは<code>model=</code>は生のmodel IDではなくあなたの<em>deployment name</em>です。Week 18のclassic gotchaです。</li>
+<li><strong>B</strong>: PTUはcapacityを予約し、使用に関係なく課金します。serverlessはpay-per-tokenです。</li>
+<li><strong><code>quantity</code>と<code>gross_weight_kg</code></strong>: どちらも<code>int(float(pred)) == int(float(truth))</code>で比較されます。</li>
+<li><strong>C</strong>: token-usage quota / cost capが累積spendを抑えます。rate limitはburst rateを絞るだけです。</li>
+<li><strong>B</strong>: <code>KEYWORD_DOCS</code>は意図的に<code>customs</code>/<code>storage</code>を省くので、Q4（customs hold fee）は対応するdocがなく、fixが<code>customs → POL-004</code>を追加するまで失敗します。</li>
+<li>次のうち五つ: <code>shipper</code>、<code>consignee</code>、<code>port_of_loading</code>、<code>port_of_discharge</code>、<code>commodity</code>、<code>quantity</code>、<code>gross_weight_kg</code>、<code>declared_value_usd</code>、<code>freight_terms</code>、<code>date_of_issue</code>。</li>
+<li><strong>B</strong>: productionのguidanceは<code>DefaultAzureCredential</code>経由のmanaged identity / service principalです。keyはlegacyなquick-startの道です。</li>
+<li>Input 150 × $0.15/1M = $0.0000225。output 120 × $0.60/1M = $0.0000720。<strong>合計 ≈ $0.0000945</strong>（一セントの十分の一以下）。</li>
+<li><strong>C</strong>: loopが閉じるのは、traceがbefore/after付きの数字へつながるときだけです。診断のないscoreも、fixのない診断も不完全です。</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

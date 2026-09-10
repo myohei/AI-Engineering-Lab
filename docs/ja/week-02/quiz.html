@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 02: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 02</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-02/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-02-quiz10810">Week 02: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-02/quiz.md">英語版</a> · <a href="README.html">Week 02 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>十問すべてに答えてから、Answer keyで確認してください。<em>(Concepts §Xを参照)</em> はREADMEのsubsection、<em>(notebook cell Yを参照)</em> は <code>01-pandas-cleaning.ipynb</code> または <code>02-sql-with-duckdb.ipynb</code> のcellを示します。</p>
+<ol>
+<li>
+<p><strong>Multiple choice。</strong> seed 42では、rawのshipments tableは100,200行で、cleaning notebookの最終silver row countは100,000行です。この200行の違いは何が原因ですか？ <em>(Concepts §6、Step 4を参照)</em>
+   a. 200個の <code>NaN</code> weightがdropされた
+   b. 200行のduplicate rowが <code>drop_duplicates()</code> で取り除かれた
+   c. 200個の非正のweightがdropされた
+   d. 200行の不良transit rowがdropされた</p>
+</li>
+<li>
+<p><strong>Short answer。</strong> notebookは <code>NaN</code> の <code>weight_kg</code> を、global medianではなく <strong>commodityごとのmedian</strong> でimputeするのはなぜですか？ <em>(Concepts §2、Step 4を参照)</em></p>
+</li>
+<li>
+<p><strong>Multiple choice。</strong> company全体のon-time rateを計算する単一のSQL expressionはどれですか？ <em>(notebook「on-time rate」cellを参照)</em>
+   a. <code>COUNT(is_on_time)</code>
+   b. <code>SUM(is_on_time) / COUNT(*)</code>
+   c. <code>AVG(CAST(is_on_time AS INT))</code>
+   d. <code>MAX(is_on_time)</code></p>
+</li>
+<li>
+<p><strong>Short answer。</strong> <code>GROUP BY</code> とwindow functionの違いを、それぞれ一文で説明してください。 <em>(Concepts §4を参照)</em></p>
+</li>
+<li>
+<p><strong>Multiple choice。</strong> window functionのqueryで、<code>QUALIFY rnk &lt;= 2</code> は何をしますか？ <em>(notebook「window functions」cellを参照)</em>
+   a. 結果全体を2行に制限する
+   b. windowで計算されたrankが2以下のrow、すなわち各月のtop 2 carrierだけにfilterする
+   c. carrierをアルファベット順にsortする
+   d. <code>monthly</code> CTEをdeduplicateする</p>
+</li>
+<li>
+<p><strong>Short answer。</strong> Step 5の12のvalidation checkのうち三つを挙げ、それぞれが守る性質を述べてください。 <em>(notebook Step 5を参照)</em></p>
+</li>
+<li>
+<p><strong>Multiple choice。</strong> このdatasetにおける <strong>referential integrity</strong> とは何で、それを強制するcheckはどれですか？ <em>(Concepts §5を参照)</em>
+   a. すべての <code>weight_kg</code> が正であること。<code>(ships["weight_kg"] &gt; 0).all()</code> で強制される
+   b. すべての <code>shipments.carrier_id</code>/<code>lane_id</code> が既存のmaster keyと一致すること。<code>isin(...)</code> で強制される
+   c. すべての <code>shipment_id</code> が一意であること。<code>duplicated().sum() == 0</code> で強制される
+   d. すべての <code>delay_hours</code> が範囲内であること。<code>between(-48, 240)</code> で強制される</p>
+</li>
+<li>
+<p><strong>Multiple choice。</strong> DuckDBはregisterされたpandas DataFramesの上で直接SQLを実行します。<code>con.register("shipments", ships)</code> は何を達成しますか？ <em>(notebook「register」cellを参照)</em>
+   a. DataFrameを永続的な <code>.db</code> fileに書き込む
+   b. in-memoryのDataFrameを、<code>shipments</code> という名前のquery可能なtableとして公開する
+   c. DataFrameをParquetに変換する
+   d. DuckDB server processを起動する</p>
+</li>
+<li>
+<p><strong>Short answer。</strong> rateはbooleanの平均です。100,000行のsilver rowのうち79,566行がon-timeの場合、on-time rate（小数点以下3桁）はいくつですか？また、その <em>complement</em>（≈20.4%）はWeek 3のclassification problemにとって何を意味しますか？ <em>(Concepts §6、Step 3を参照)</em></p>
+</li>
+<li>
+<p><strong>Short answer。</strong> cleaning workflowは、一回限りのscriptではなく、<strong>gate付きの再実行可能なrecipe</strong> である必要があるのはなぜですか？ <em>(Concepts §5〜6を参照)</em></p>
+</li>
+</ol>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>b。</strong> generatorは約0.2%のduplicate row（100,200行中の200行）を仕込みます。<code>drop_duplicates()</code> がそれらを取り除き、100,000行が残ります。防御的なdrop（非正のweight、不良transit）は、それらの欠陥が存在しないため0行を取り除きます。</p>
+</li>
+<li>
+<p><strong>Weightはcargo typeによって変わる</strong> ので、commodityごとのmedianは、単一のglobal数値よりも誠実な推定です。notebookは <code>groupby("commodity")["weight_kg"].transform("median")</code> を使います。medianがたまたま近い場合でも、（group内でimputeする）この習慣が重要です。</p>
+</li>
+<li>
+<p><strong>c。</strong> booleanを <code>INT</code>（0/1）にcastして平均すると、on-timeの割合が得られます。<code>AVG(CAST(is_on_time AS INT))</code> → ≈0.7957。選択肢a、b、dはrateを計算しません。</p>
+</li>
+<li>
+<p><strong><code>GROUP BY</code> はrowをgroupごとに一行にcollapse</strong> してreduceします（count/avg/sum）。<strong>window functionは、すべての元のrowを保持したままgroup横断で値を計算します</strong>。例：各carrierをその月の中でrankする。</p>
+</li>
+<li>
+<p><strong>b。</strong> <code>RANK() OVER (PARTITION BY month ORDER BY on_time_rate DESC)</code> が月ごとのrankを割り当て、<code>QUALIFY rnk &lt;= 2</code> はrank 1〜2だけ、つまり <em>各月内の</em> top二つのcarrierだけを残します。</p>
+</li>
+<li>
+<p>次のうち三つ：duplicate rowなし。<code>NaN</code> の <code>weight_kg</code> なし。weightはすべて正。<code>NaN</code> の <code>delay_hours</code> なし。<code>NaN</code> の <code>is_on_time</code> なし。<code>value_usd</code> は非負。<code>carrier_id</code>/<code>lane_id</code> のreferential integrity。<code>is_on_time</code> はboolean。<code>delay_hours</code> は <code>[-48, 240]</code> 内。arrivalはdepartureより後。lanesに <code>NaN</code> のdistanceなし。それぞれが「silver」contractが必要とする一つのinvariantを守ります。</p>
+</li>
+<li>
+<p><strong>b。</strong> referential integrityとは、すべてのforeign keyの値（<code>carrier_id</code>、<code>lane_id</code>）が実在するmaster recordを指すことです。<code>isin(carriers["carrier_id"])</code> / <code>isin(lanes["lane_id"])</code> のcheckがそれを強制します。</p>
+</li>
+<li>
+<p><strong>b。</strong> <code>con.register</code> はin-memoryのDataFrameをtable名にbindするので、fileもserverもなしでSQLの <code>FROM shipments</code> が動きます。dataはmemoryに残ります。</p>
+</li>
+<li>
+<p><strong>0.796</strong>（79.6%）。complementは <strong>late share ≈ 20.4%</strong> で、これはWeek 3の「on-time vs late」のtargetがimbalancedであることを意味します。常に「on time」と言うclassifierは約79.6%正確でありながら、すべてのlate shipmentを見逃すので、accuracyはheadline metricとして禁止されます。</p>
+</li>
+<li>
+<p><strong>dataは届き続ける</strong> ので、一回限りのfixは次のbatchでdirtyなtableへと劣化します。recipe + gate（12-check suite）があれば、誰でも <code>raw → silver</code> を再実行して、結果がcleanであると <em>証明</em> できます。再実行できないcheckは、artifactではなく願望です。</p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

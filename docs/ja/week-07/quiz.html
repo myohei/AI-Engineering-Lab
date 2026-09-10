@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 07: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 07</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-07/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-07-quiz10810">Week 07: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-07/quiz.md">英語版</a> · <a href="README.html">Week 07 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>概念とnotebook codeから答えてください。各問にどこを見ればよいかが記載されています。</p>
+<ol>
+<li>
+<p><strong>(MCQ)</strong> RAGが主に提供するもの、production順に並べると次のどれですか。(a) speed、cost、scale、(b) grounding、freshness、permissions、(c) より少ないtoken、より長いcontext、より低いtemperature、(d) fine-tuning、quantization、caching。<em>(Concepts §「七段階のpipeline」を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> RAG pipelineの七つのstageを順に挙げてください。<em>(Conceptsのdiagram / KB §2を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <code>01-rag-policy-bot.ipynb</code> で、<code>section_aware_chunks</code> は何を基準にsplitしますか。(a) 256 tokenごと、(b) <code>##</code> 見出し、(c) 文境界、(d) embedding-similarityの低下。<em>(notebook cell 4を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> 10問のgolden setで、vector-only retrievalは7問hitし、hybrid+rerankは9問hitします。両方のrecall@5の値を書き、deltaが何を意味するか説明してください。<em>(Concepts 実例1を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> RRFはranked listをどうfuseしますか。(a) 生のscoreの平均、(b) list横断で1/(k+rank)を合計、(c) 最大のscoreを取る、(d) rankを掛ける。<em>(Concepts 実例2を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> <code>02-knowledge-graph-lab.ipynb</code> で、<code>SERVES</code> edgeの <code>cost</code> attributeは何と等しくなっていますか？また、仕込まれたNaN distanceにもかかわらず、graphはどうやってconnectedに保たれていますか？<em>(notebook cell 4を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> answer qualityに対する、単一で最もleverageの高いretrieval upgradeは次のどれですか。(a) より大きなembedder、(b) cross-encoderによるreranking、(c) より長いchunk、(d) eval setにより多くのquestion。<em>(Concepts §「Hybrid searchとreranking」を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> retrieval（recall@k）とgeneration（groundedness）はなぜ別々に測らなければならないのですか？それぞれの失敗は何を指し示しますか？<em>(Concepts §「Retrieval eval」を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> vector RAGよりもknowledge graphで答えるのが最も適切なquestionは次のどれですか。(a) 「late-deliveryのrefundはいくらか？」、(b) 「Long Beachに届くcarrierはどれで、そのcostはいくらか？」、(c) 「dangerous goodsを定義せよ」、(d) 「customs policyを要約せよ」。<em>(Concepts §「Knowledge graph」を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> notebook 1のcell 8で、<code>recall_at_k</code> はなぜ、正確なchunkそのものを要求するのではなく、top-k chunkの <code>doc_id</code> の <em>いずれか</em> がrelevantな <code>doc_id</code> と一致するかをcheckするのですか？<em>(notebook cell 7〜8を参照)</em></p>
+</li>
+</ol>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li><strong>(b)</strong>: grounding（citation可能なtext）、freshness（retrainではなくre-index）、permissions（retrievalの前にindexをfilterする）。</li>
+<li><strong>ingest → chunk → embed → index → retrieve → rerank → generate</strong>（citation付き）。</li>
+<li><strong>(b)</strong>: <code>##</code> のsection見出しで分割するため、各chunkは、citation metadataとして <code>doc_id</code> とsection名を持つ一貫した一つのpolicy sectionになります。</li>
+<li><strong>vector-only recall@5 = 0.70、hybrid+rerank recall@5 = 0.90。</strong> delta（回復した2問）は、vector-onlyがmissしたqueryに対してkeyword arm + rerankerが正しいdocumentをfetchしたことを示します。recallはanswer qualityについては何も言いません。</li>
+<li><strong>(b)</strong>: <code>1/(60+rank_vec) + 1/(60+rank_kw)</code>。signal間の合意が一つの強いsignalをrankで上回り、score normalizationは不要です。</li>
+<li><code>cost = carrier base_rate_usd_per_km_ton × lane distance_km</code>。NaN distance（とtransit days）はdefault値（900 km / 3 days）で埋められ、すべてのlaneがconnectedのままになります。</li>
+<li><strong>(b)</strong>: cross-encoder rerankerはqueryとpassageを一緒に再採点します。generationに比べて安価で、最良のchunkをtopに動かします。</li>
+<li>recall@kが低いのはindexing/chunkingの問題です（data pathを直す）。recallが高いのにgroundednessが低いのはprompt/generationの問題です（instruction/citationを直す）。単一のend-to-end scoreは、どのlayerが壊れているかを隠します。</li>
+<li><strong>(b)</strong>: これは明示的な <code>SERVES</code>/<code>ARRIVES_AT</code> relationship上のconstrained traversal（shortest/cheapest path）であり、chunk retrievalでは近似しかできません。他はvector RAGが扱うlookup/definition型のquestionです。</li>
+<li>recall@kは <em>正しいdocumentをsurfaceしたか</em> に関するものであって、正確なchunkそのものではありません。relevantなdocumentは複数のchunkに分割されることがあり、正確なpassageを保証するには <code>k</code> を巨大にしなければなりません。doc_id checkが標準的なrecallの定義です。</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

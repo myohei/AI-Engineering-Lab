@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 16: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 16</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-16/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-16-quiz10810">Week 16: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-16/quiz.md">英語版</a> · <a href="README.html">Week 16 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>各問は、出元のsectionまたはnotebook cellを明記しています。答えてからkeyを確認してください。</p>
+<ol>
+<li>
+<p><strong>(MCQ)</strong> MCP architectureで、LLMを動かしてconnectionを開始する役割と、能力をexpose
+   する役割はどれですか？ <em>(Concepts §「MCP: one protocol instead of N integrations」を参照)</em>
+   - (a) hostがLLMを動かして開始し、serverが能力をexposeする。
+   - (b) serverがLLMを動かし、hostが能力をexposeする。
+   - (c) clientがLLMを動かし、serverがconnectionを開始する。
+   - (d) hostとserverは同じもの。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> MCPのmessageは、二つのtransport上のJSON-RPC 2.0です。正しい組はどれで、
+   notebookが使うのはどちらですか？ <em>(Concepts と notebook 01 cell [8] を参照)</em>
+   - (a) stdioとStreamable HTTP。notebookは <strong>stdio</strong> を使う。
+   - (b) WebSocketとgRPC。notebookはWebSocketを使う。
+   - (c) stdioとgRPC。notebookはgRPCを使う。
+   - (d) HTTP/1.1とHTTP/2。notebookはHTTP/2を使う。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> 次のうち、MCP serverがexposeできる <strong>primitive</strong> はどれで、READMEで挙げられて
+   いるZoroLogisticsでの例はどれですか？ <em>(Concepts §「MCP: one protocol instead of N
+   integrations」を参照)</em>
+   - (a) 「tool」。<code>track_shipment(shipment_id)</code> のような、modelがinvokeするfunction。
+   - (b) 「channel」。WebChatのようなmessaging surface。
+   - (c) 「checkpoint」。保存されたgraph state。
+   - (d) 「thread」。会話のkey。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> 最初に <strong>supervisor / manager-worker</strong> patternを選ぶべき、最も重要な理由は:
+   <em>(Concepts §「Multi-agent: the first lesson is restraint」を参照)</em>
+   - (a) 常に最速だから。
+   - (b) controlを中央化し（decompose、delegate、synthesize）、保守的でdebugしやすいままでいられるから。
+   - (c) context isolationが不要だから。
+   - (d) bad handoffを決して起こさないから。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> MCPとA2Aは競合ではなく補完的です。正しいstatementはどれですか？
+   <em>(Concepts §「MCP vs. A2A」を参照)</em>
+   - (a) MCPはagent間delegation用で、A2Aはtool用。
+   - (b) MCPは一つのagentをtool/dataにつなぎ、A2Aはagentがsystemをまたいでagentにdelegateできるようにする。
+   - (c) A2Aはすべての場面でMCPを置き換える。
+   - (d) 同じprotocolの別名。</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> notebookの <code>team_run</code> は、specialistの仕事に加えて、固定の <code>+200</code>
+   tokenを課します。この200 tokenは何を表していて、それを <em>省いた</em> A/Bは、なぜsingle
+   agentに対して不公平ですか？ <em>(notebook 02 cell [8] と Concepts §「うまくいかない理由」を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> 10-ticket A/Bで、notebookの <code>justification</code> は、このsliceではteamは正当化
+   されないと結論します。その結論を導く観察の組合わせはどれですか？
+   <em>(notebook 02 cell [13] を参照)</em>
+   - (a) accuracyは同等なのに、teamはaccuracy gainなしにhandoff + synthesisへより多くのtokenを使っている。
+   - (b) teamのほうが正確だが、遅い。
+   - (c) single agentのほうが精度が低く、安い。
+   - (d) teamは何も正しくrouteしていない。</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> MCP clientの <code>list_tools()</code> は、<code>track_shipment</code> のtool schemaを
+   返します。そのschemaの <code>required</code> arrayに何が入るかを書き、呼び出しを決めるとき、
+   modelがそのschemaを何に使うかを説明してください。 <em>(notebook 01 cell [10] と
+   Concepts §「MCP: one protocol instead of N integrations」を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> notebook 02のground-truth mappingは、ticket category <code>"billing"</code> をどの
+   specialist routeにmapしますか？ <em>(notebook 02 cell [2] を参照)</em>
+   - (a) <code>tracking</code>
+   - (b) <code>docs</code>
+   - (c) <code>refunds</code>
+   - (d) <code>escalate</code></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> multi-agent systemの <em>benefit</em> を二つと <em>cost</em> を二つ挙げ、分割が
+    見合うかを決めるAnthropicのruleを述べてください。 <em>(Concepts §「Multi-agent: the
+    first lesson is restraint」を参照)</em></p>
+</li>
+</ol>
+<hr>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>(a)</strong>: hostがLLMを動かしてconnectionを開始します。（hostの中の）clientがconnectionを
+   持ち、serverが能力をexposeします。</p>
+</li>
+<li>
+<p><strong>(a)</strong>: stdio（local subprocess）とStreamable HTTP（remote）。notebookは
+   <code>StdioServerParameters</code> 経由で、serverをstdio subprocessとして起動します。</p>
+</li>
+<li>
+<p><strong>(a)</strong>: toolはmodelがinvokeするfunction、例: <code>track_shipment(shipment_id)</code>。
+   resourcesとpromptsが他の二つのprimitiveで、channel/checkpoint/threadはMCP primitive
+   ではありません。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: supervisorはcontrolを中央化し（decompose → delegate → synthesize）、保守的で
+   debug可能なdefaultです。それでもbottleneckになり、誤routeもするので、(a)/(d) は誤りです。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: MCPはcapability layer（agent ↔ tool/data）で、A2Aはinterop layer
+   （agent ↔ agent）です。二つは補完的です。</p>
+</li>
+<li>
+<p>+200 tokenは、supervisorのhandoffとsynthesis stepをmodel化しています。これを省くと、
+   teamの実際のcostを過小評価します。single agentにはhandoffがないので、比較はteamを
+   不当に有利にします。（「supervisor handoff + synthesis overhead」と「teamを実際より
+   安く見せる」に触れた答えで満点です。）</p>
+</li>
+<li>
+<p><strong>(a)</strong>: accuracyが同等なのに、handoff + synthesisによるtoken/costの増え分でaccuracy
+   gainがないなら、このsliceではteamは正当化されません。</p>
+</li>
+<li>
+<p><code>"required": ["shipment_id"]</code>。modelはschema（name、properties、required）を、toolの
+   <em>呼び方</em> の契約として読みます。どの引数を、どんな型で渡すべきか。protocolによって
+   強制されるようになった、あの「descriptionはprompt engineering」という考えです。</p>
+</li>
+<li>
+<p><strong>(c)</strong>: <code>CAT_TO_ROUTE</code> は <code>billing</code>（と <code>refund</code>、<code>damage</code>）を <code>refunds</code> にmapします。</p>
+</li>
+<li>
+<p>benefit（二つ）: context isolation、role specialization、並列性、failure isolation。
+    cost（二つ）: coordination overhead、latency、token、bad handoff。rule: よくprompt
+    された一つのagentと良いtoolから始め、agentの前にworkflowを追加し、測定されたbenefitが
+    costを上回るときにだけ分割する。</p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

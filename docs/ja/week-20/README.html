@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 20: AWS BedrockとSageMaker AI</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 20</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-20/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-20-aws-bedrocksagemaker-ai">Week 20: AWS BedrockとSageMaker AI</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-20/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 20 of 24 · Section: Cloud AI Platforms · Category: AWS
+🎯 <strong>Use case:</strong> Guardrails付きのBedrock RAG support agent。さらにGreat Platform Comparison matrix。
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-20/notebooks/01-bedrock-converse-and-knowledge-bases.ipynb">01-bedrock-converse-and-knowledge-bases.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-20/notebooks/02-bedrock-agents-and-guardrails.ipynb">02-bedrock-agents-and-guardrails.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>三週間、三つのcloud、一つのagent。Foundryではgovernanceが<em>gateway</em>であることを学び、Vertexではfree tierが<em>liability</em>でありmultimodalが<em>superpower</em>であることを学びました。いまagentがAWSに着地し、質問は「ここでXをどうやるか」から、clientやemployerが実際に尋ねる質問へ変わります。<strong>どのcloudにstandardizeすべきか？</strong> AWSの「agentに間違ったことを言わせない方法」への答えは、また別の形です。gatewayもfree sandboxもなく、あるのは<strong>いたるところのIAM</strong>と、すべてのcallにbolt-onされた<strong>Guardrails</strong>という名前のsafety filterだけです。</p>
+<p>AWSはまた、他の二つのcloudがぼかしていた区別を口にさせるものです。<strong>Bedrockはmodelを消費するため、SageMakerはmodelを所有するためです。</strong> Bedrockは、Claude、Nova、Llama、Mistralにわたる一つのprovider-neutralな<strong>Converse API</strong>を与え、その上にmanaged RAG（Knowledge Bases）、agent、guardrailが載ります。SageMakerは、fine-tuningが測定可能なgapを残したときにだけ手を伸ばす、build/train/deploy-your-ownの層です。自分がどの層の上に立っているかを言えることが、今週最初のskillです。AWSのGenAI混乱の大半は、一つに見せかけられた重なる二つのproductなのです。</p>
+<p>今週のdeliverableは<strong>Great Platform Comparison matrix</strong>です。Foundry vs Vertex vs Bedrock、行はmodel access、unified API、agent、RAG、eval、fine-tuning、serving、governance、pricing。すべてのcellを、Week 18〜20で測った数字で裏付けます。per-cell evidenceのない比較はblog postであり、あればprocurement decisionです。最後に、どのcloudを、どんなworkloadでstandardizeするかを、costを明示的なinputとして一段落で宣言して締めくくります。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、boto3のConverse APIでBedrock modelを呼び、Week 6のprompt suiteを少なくとも二つのmodelにわたって実行できる。</li>
+<li>☐ 金曜日までに、shipping-policy docに対するRAG用のBedrock Knowledge Baseをbuildし、citation付きのrecall/groundednessを測れる。</li>
+<li>☐ 金曜日までに、Bedrock AgentとGuardrailを作成し、blockされたpromptをtestし、blocked/allowed countをreportできる。</li>
+<li>☐ 金曜日までに、三cloud比較matrix（Foundry vs Vertex vs Bedrock）を、Week 18〜20で測った数字とcostで裏付けて公開できる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run / build</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mon</td>
+<td>Bedrock vs SageMaker。IAM least privilege</td>
+<td>AWS accountとleast-privilege roleをsetup。Bedrock modelを有効化</td>
+<td>IAM policy + Model access</td>
+<td>2〜3時間</td>
+</tr>
+<tr>
+<td>Tue</td>
+<td>Converse API。日付付きmodel IDs</td>
+<td>Week 6のprompt suiteを2 modelで実行。それぞれ価格付け</td>
+<td>modelごとのaccuracy/cost</td>
+<td>2〜3時間</td>
+</tr>
+<tr>
+<td>Wed</td>
+<td>Knowledge Bases（managed RAG）</td>
+<td>policy corpusでKBをbuild。citation付きでquery</td>
+<td>recall/groundedness</td>
+<td>2〜3時間</td>
+</tr>
+<tr>
+<td>Thu</td>
+<td>Agents + Guardrails</td>
+<td>agent + guardrailを作成。blockされたpromptをtest</td>
+<td>blocked/allowed count</td>
+<td>2〜3時間</td>
+</tr>
+<tr>
+<td>Fri</td>
+<td>matrix</td>
+<td>cost付きの三cloud比較matrixを公開</td>
+<td>matrix + recommendation</td>
+<td>3〜4時間</td>
+</tr>
+<tr>
+<td>Sat</td>
+<td>復習</td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-20/quiz.md">quiz</a>を受ける（8/10）</td>
+<td>quiz scoreをNotesに記録</td>
+<td>1時間</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/12-cloud-platforms.md"><code>reference/knowledge-base/12-cloud-platforms.md</code></a> の共有mental modelと、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/aws-bedrock/README.md"><code>reference/platforms/aws-bedrock/README.md</code></a> のrunbookを読んでください。AWSのgenerative-AI storyは<strong>相補的な二つの層</strong>であり、どちらの上に立っているかを言うことが今週最初のskillです。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Amazon Bedrock</th>
+<th>SageMaker AI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>役割</td>
+<td>foundation modelの消費 + managed GenAI機能</td>
+<td>自分のmodelのbuild、fine-tune、serve</td>
+</tr>
+<tr>
+<td>例え</td>
+<td>modelをAPIとしてcallする</td>
+<td>modelとtrainingを所有する</td>
+</tr>
+<tr>
+<td>RAG/agent/guardrail</td>
+<td>built-in</td>
+<td>JumpStart + endpoint経由</td>
+</tr>
+<tr>
+<td>手を伸ばすとき</td>
+<td>常にまず</td>
+<td>fine-tuningがgapを残したときだけ</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Converse API</strong>は、三cloudの中でも教育的に最も優れています。一つのprovider-neutralなmessage/tool-calling formatなので、<code>modelId</code>をswapして他は何も変えません。だからWeek 20は<em>同じ</em>Week 6のprompt suiteを複数modelで実行し、それぞれ価格付けします。model選択がvibeではなく、測られたloopになるのです。</p>
+<h3 id="model-catalogids">model catalogと日付付きIDs</h3>
+<p>Bedrockのcatalogは、first-partyとthird-partyのmodelを、すべて同じConverse surfaceの後ろに置きます。</p>
+<table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Vendor</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Nova</strong> (Pro/Lite/Micro)</td>
+<td>Amazon</td>
+<td>最安、深いAWS統合。大volume textのdefault</td>
+</tr>
+<tr>
+<td><strong>Claude</strong> (3.7 Sonnet / 4)</td>
+<td>Anthropic</td>
+<td>frontier reasoning/coding。多くのagentのanchor</td>
+</tr>
+<tr>
+<td><strong>Llama</strong> (3.x/4)</td>
+<td>Meta</td>
+<td>open-weight、portable、self-host path</td>
+</tr>
+<tr>
+<td><strong>Mistral</strong></td>
+<td>Mistral</td>
+<td>open-weight、efficient</td>
+</tr>
+<tr>
+<td><strong>Titan</strong></td>
+<td>Amazon</td>
+<td>古いfirst-party。embeddingは今もRAGのdefault</td>
+</tr>
+</tbody>
+</table>
+<p>早期に内部化する二つのgotcha。Bedrockのmodel IDsは頻繁に置き換えられる<strong>日付付きsuffix</strong>（例: <code>anthropic.claude-3-5-sonnet-20241022-v2:0</code>）を持ち、それを暗記せず、consoleから現在のIDをcopyします。またmodelは<strong>defaultでは有効化されていません</strong>。<code>AccessDeniedException</code>は、codeが間違っているのではなく、Model accessを忘れたことを意味することが多いのです。</p>
+<h3 id="knowledge-basesmanaged-rag">Knowledge Basesによるmanaged RAG</h3>
+<p><strong>Bedrock Knowledge Bases</strong>はfully managedなRAGです。S3を指定すると、chunkingし、embed（TitanまたはCohere）し、vectorを保存し（OpenSearch Serverless、Aurora、Pinecone等）、citation付きの<code>retrieve</code> / <code>retrieve_and_generate</code>を公開します。これはWeek 7と同じ仕事、shipping-policy corpusにanswerをgroundすること、をplatformが行うものです。測る二つのmetricは<strong>recall</strong>（retrievalは正しいdocumentをsurfaceしたか？）と<strong>groundedness</strong>（answerにground-truthのfactが含まれているか、つまりhallucinationではなく実在のcitationから来ているか？）です。</p>
+<h3 id="agentguardrailpromptagentcore">Agent、Guardrail、Prompt管理、AgentCore</h3>
+<p><strong>Bedrock Agents</strong> = model + instructions + knowledge base + action group（Lambda tool）で、multi-agent collaboration付きです。Week 20のsupport agentは、<code>track_shipment</code>をaction groupとして、grounding用にpolicy KBをwireします。<strong>Guardrails</strong>は、model I/Oに適用される設定可能なsafety filterです。</p>
+<table>
+<thead>
+<tr>
+<th>Guardrail filter</th>
+<th>何をするか</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Denied topics</td>
+<td>定義した話題外の主題（例: 競合のpricing）をblock</td>
+</tr>
+<tr>
+<td>Content filters</td>
+<td>hate/sexual/violenceのseverity threshold</td>
+</tr>
+<tr>
+<td>PII redaction</td>
+<td>名前、住所、tracking識別子をmask</td>
+</tr>
+<tr>
+<td>Custom word filters</td>
+<td>特定の語をblockまたはflag</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Prompt management</strong>は、promptをfirst-classでARNから呼び出せるresourceとしてversion管理します。Week 6のprompt-versioning習慣へのplatform-nativeな答えです。<strong>AgentCore</strong>は、code-first agent（LangGraph、Strands）のための、AWSのより新しいmanaged <em>runtime</em>で、memory、session、tool gatewayを持ちます。「自分のagent frameworkをproductionで走らせてくれ」ですが、今週の正しい入り口はBedrock Agentsです。その周りには<strong>Amazon Q</strong>（<em>買う</em>assistant: codeにはQ Developer、職場にはQ Business）と<strong>PartyRock</strong>（freeのno-code playground。boto3を書く前の、最も摩擦の少ない「Bedrockの味見」）があります。Week 20のsupport agentをend-to-endで描くと次のとおりです。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    C[&quot;Client&lt;br/&gt;(boto3)&quot;] --&gt; GR[&quot;Guardrail&lt;br/&gt;denied topics · content filters · PII&quot;]
+    GR --&gt; AG[&quot;Bedrock Agent&lt;br/&gt;model + instructions&quot;]
+    AG --&gt;|&quot;Converse API&quot;| M[&quot;Foundation model&lt;br/&gt;Claude / Nova / Llama&quot;]
+    AG --&gt; KB[&quot;Knowledge Base&lt;br/&gt;S3 → chunk → embed → vector store&quot;]
+    KB --&gt; RT[&quot;retrieve_and_generate&lt;br/&gt;with citations&quot;]
+    RT --&gt; M
+    AG --&gt; TG[&quot;Action group&lt;br/&gt;track_shipment (Lambda)&quot;]
+    GR --&gt; OUT[&quot;Blocked / allowed&lt;br/&gt;counts&quot;]
+</div>
+<p>Guardrailsは<em>edge</em>にいます。すべてのrequestが、agentやmodelがtokenを使う前にここを通ります。だからblocked/allowed countがWeek 20のsafety metricなのです。</p>
+<h3 id="iam-least-privilegepolicy-sketch">IAM least privilegeとpolicy sketchの実例</h3>
+<p>AWSには<strong>model向けのAPI keyがありません</strong>。すべてがIAMで、それ自体がlessonです。codeにkeyを置かない、明示的なallow-list、credentialには<code>aws configure</code>（または<code>aws sso login</code>）。実例、演習が実際に必要とするものにscopeしたleast-privilege policyです。</p>
+<pre><code class="language-json">{
+  &quot;Version&quot;: &quot;2012-10-17&quot;,
+  &quot;Statement&quot;: [
+    {
+      &quot;Effect&quot;: &quot;Allow&quot;,
+      &quot;Action&quot;: [
+        &quot;bedrock:ListFoundationModels&quot;,
+        &quot;bedrock:Converse&quot;,
+        &quot;bedrock:InvokeModel&quot;,
+        &quot;bedrock:Retrieve&quot;,
+        &quot;bedrock:RetrieveAndGenerate&quot;,
+        &quot;bedrock:CreateGuardrail&quot;,
+        &quot;bedrock:ApplyGuardrail&quot;,
+        &quot;bedrock:DeleteGuardrail&quot;
+      ],
+      &quot;Resource&quot;: &quot;*&quot;
+    }
+  ]
+}
+</code></pre>
+<p>productionでは<code>Resource</code>を特定のmodel ARNsとregionにscopeします。演習では、正確なARNsよりも習慣（明示的なallow-list、least privilege、admin actionへの<code>*</code>なし）のほうが重要です。</p>
+<h3 id="pricing-on-demand-vs-provisioned-vs-cross-region">Pricing: on-demand vs provisioned vs cross-region</h3>
+<p>Bedrockはdefaultでserverlessです。<strong>On-demand</strong>はtoken（input/output）ごと、またはimageごとに課金します。Novaが典型的に最安で、Claudeのfrontier modelが最も高価です。<strong>Provisioned Throughput</strong>は、commitment割引で「model unit」を時間あたり予約します。使っても使わなくても課金され、Azure PTUのAWS版です。<strong>Cross-region inference</strong>は、事前定義されたregion setにわたって同じtoken rateでroutingし、throughputと耐障害性を高めます。commitment trapの実例: on-demandのClaudeが1M input tokenあたり~$3で、月に~1M tokenしか流さないなら、~$40/hourで時間あたりの下限を予約するprovisioned model unitは~10,000倍の買いすぎです。provisioned throughputが見合うのは、安定した、高い、予測可能なvolumeだけであり、lab週のZoroLogisticsにはそれがありません。</p>
+<h3 id="_5">うまくいかない理由</h3>
+<p>Bedrockの失敗は、あなたのcodeに見えて、大抵は違います。<strong><code>AccessDeniedException</code>:</strong> modelがModel accessで有効になっていないか、IAM policyにactionがないかのどちらかです。codeに触る前に両方を確認します。<strong><code>ThrottlingException</code>:</strong> on-demandのrate limitを超えました。retry/backoffを追加するか、cross-region inferenceを使います。<strong><code>modelId</code>での<code>ValidationException</code>:</strong> 日付付きIDがstaleです。consoleから現在のものをcopyします。<strong>演習でのProvisioned Throughput:</strong> idleの間もmeterされ、週末のbillになります。<strong>invocation logなし:</strong> S3/CloudWatchへのlogがないとspendをauditできません。<strong>放置されたagent/endpoint:</strong> idleの間もmeterされます。必ずcleanup cellを実行します。そしてmatrix自身の失敗mode: <strong>測られた数字のない比較cell</strong>。per-cell evidenceのないmatrixはdecisionではなくblog postです。</p>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p>二つのnotebookがあり、どちらもAWS（<code>boto3.client("bedrock").list_foundation_models()</code>）をprobeし、credentialやmodel accessがなければdeterministicなdry-runにfallbackします。</p>
+<p><strong><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-20/notebooks/01-bedrock-converse-and-knowledge-bases.ipynb"><code>notebooks/01-bedrock-converse-and-knowledge-bases.ipynb</code></a></strong>
+は<code>REGION</code>を設定してAWSをprobeし、次に<code>MODELS</code>（defaultは<code>amazon.nova-lite-v1:0</code>と<code>anthropic.claude-3-5-sonnet-20241022-v2:0</code>）と、<code>resp["output"]["message"]["content"][0]["text"]</code>を読む<code>converse()</code> helperを定義します。BoL sample四つをloadし、Week 6の<code>EXTRACT_PROMPT</code>と十fieldの<code>field_matches</code>比較器を再利用して<code>accuracy_for(model_id, docs)</code>を計算し、modelごとのaccuracy tableを作ります。次に<code>kb_retrieve_and_generate</code>（<code>bedrock-agent-runtime</code>経由）と<code>data.policy_docs()</code>上の<code>local_retrieve</code> fallbackを定義し、四つのRAG質問（<code>R1</code>、<code>R4</code>）をcitationとgroundednessで採点し、最後に<code>RECALL</code>と<code>GROUNDEDNESS</code>の数字をprintします。dry-runでの正しい出力は<code>RECALL:
+1.000 GROUNDEDNESS: 1.000</code>（local retrieverは四つのkeywordすべてを対応づける）で、これが、本物のKBが同じ質問setで満たすか超えるべき<em>target</em>です。</p>
+<p><strong><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-20/notebooks/02-bedrock-agents-and-guardrails.ipynb"><code>notebooks/02-bedrock-agents-and-guardrails.ipynb</code></a></strong>
+は、<code>topicPolicyConfig</code>（"OffTopic"をdeny）、<code>contentPolicyConfig</code>（HIGH強度のINSULTS/HATE/VIOLENCE）、<code>wordPolicyConfig</code>（custom word <code>competitorpricing</code> + 管理されたPROFANITY list）付きの<code>bedrock.create_guardrail</code>でguardrailを作成します。次に、<code>apply_guardrail</code>を通してblockされるprompt（insult、off-topic）と許可されるprompt（tracking、refund）をtestし、insult語とfreight keywordを欠くものすべてをblockする<code>local_guardrail</code> fallbackを用意します。agent cellは、<code>BEDROCK_AGENT_ROLE_ARN</code>が設定されていれば<code>bedrock-agent.create_agent</code>を呼びます。cleanup cellはagentとguardrailの両方を削除します。最後のcellは、dry-runで<code>BLOCKED: 3 ALLOWED: 2</code>（三つblock、二つ許可）をprintし、これがlive guardrailに対して再現すべき数字です。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> <strong>Great Platform Comparison matrix</strong>。Foundry vs Vertex vs Bedrock、行はmodel access、unified API、agent、RAG、eval、fine-tuning、serving、governance、pricing。各cellをWeek 18〜20で測った数字で裏付ける（加えて、Guardrails付きのWeek 20 Bedrock RAG agentと、そのblocked/allowed count）。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人がmatrixと三つのdeployment guideを読み、すべての「ここでXをどうやるか」の主張を、printされた数字のあるrunnable notebookまでtraceできること。同じgolden set、同じseed、同じmetric。そして、<em>どのcloudにstandardizeするか</em>、どんなworkloadで、costを明示的なinputとして、一段落で述べられること。</p>
+<p><strong>Stretch:</strong> Guardrailを（agentだけでなく）Knowledge Baseのresponse pathに適用し、off-topic query setに対してblocked/allowed countがどう動くかを示します。または、prompt-suite tableに三つ目のBedrock modelを加え、他の二つとのdeltaを述べます。速く進む人は、<code>track_shipment</code> Lambda action groupをBedrock Agentにwireし、end-to-endのtracking queryを一回実行することもできます。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>症状</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>modelが有効化されていない</td>
+<td><code>AccessDeniedException</code></td>
+<td>Bedrock → Model accessで有効化する</td>
+</tr>
+<tr>
+<td>staleな日付付きmodel ID</td>
+<td><code>ValidationException</code></td>
+<td>consoleから現在のIDをcopyする</td>
+</tr>
+<tr>
+<td>演習でのProvisioned Throughput</td>
+<td>idleの間もmetering</td>
+<td>on-demandのみ。lab週にPTUは絶対使わない</td>
+</tr>
+<tr>
+<td>on-demand rate limit超過</td>
+<td><code>ThrottlingException</code></td>
+<td>retry/backoffまたはcross-region inference</td>
+</tr>
+<tr>
+<td>invocation logなし</td>
+<td>spendをauditできない</td>
+<td>S3/CloudWatchへのmodel invocation logを有効化</td>
+</tr>
+<tr>
+<td>resourceを出しっぱなし</td>
+<td>週末のbill</td>
+<td>cleanup cellを実行する（agent + guardrail）</td>
+</tr>
+<tr>
+<td>AWS Budgets alertなし</td>
+<td>surpriseなinvoice</td>
+<td>どんなrunの前にでも$5のalertを設定</td>
+</tr>
+<tr>
+<td>数字のないmatrix cell</td>
+<td>evidenceでなくanecdote</td>
+<td>すべてのcellをprintされたmetricまでtraceする</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Amazon Bedrock</strong>: managed foundation-model層。modelをAPIとしてcallする。</li>
+<li><strong>SageMaker AI</strong>: 自分のmodelをbuild/train/deployする層（JumpStart、HyperPod、customization）。</li>
+<li><strong>Converse API</strong>: provider-neutralなmessage/tool-calling surface。<code>modelId</code>をswap、他はそのまま。</li>
+<li><strong>Knowledge Base</strong>: managed RAG。S3 → chunk → embed → vector store → <code>retrieve_and_generate</code>。</li>
+<li><strong>Guardrail</strong>: model I/Oへの設定可能なsafety filter（denied topic、content filter、PII redaction）。</li>
+<li><strong>Bedrock Agent</strong>: model + instructions + knowledge base + action group（Lambda tool）。</li>
+<li><strong>AgentCore</strong>: memoryとsessionを持つ、code-first agent（LangGraph/Strands）向けmanaged runtime。</li>
+<li><strong>Recall</strong>: retrievalが正しいsource documentをsurfaceした質問の割合。</li>
+<li><strong>Groundedness</strong>: ground-truthのfactを含むanswerの割合（citation付きで、hallucinationでない）。</li>
+<li><strong>On-demand vs Provisioned Throughput</strong>: tokenごと vs 予約したmodel-unit/時間の課金。</li>
+<li><strong>IAM least privilege</strong>: <code>bedrock:*</code> actionの明示的なallow-list。codeにkeyを置かない。</li>
+<li><strong>三cloud matrix</strong>: Week 20のcapstone。Foundry vs Vertex vs Bedrock、すべてのcellを測定。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-20/quiz.md"><code>quiz.md</code></a>を受けてください。これらのconceptとnotebook codeに紐づく10問です。合格ラインは<strong>8/10</strong>。scoreをNotesに記録してください。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exercise（easy / standard / stretch / portfolio）が<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-20/exercises.md"><code>exercises.md</code></a>にあります。recall/groundednessの記録から、三つ目のmodel比較、KB pathへのguardrail適用、三cloud matrix自体の公開まで。hintは同じfileにあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>Amazon Bedrock Converse API supported models: https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference-supported-models-features.html</li>
+<li>Amazon Bedrock overview: https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html</li>
+<li>Amazon Bedrock model availability &amp; compatibility: https://docs.aws.amazon.com/bedrock/latest/userguide/models.html</li>
+<li>Bedrock cross-region inference / inference profiles: https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html</li>
+<li>Bedrock capacity &amp; cost optimization (on-demand vs PTU): https://docs.aws.amazon.com/bedrock/latest/userguide/capacity-limits-cost-optimization.html</li>
+<li>Bedrock Runtime code examples (boto3): https://docs.aws.amazon.com/code-library/latest/ug/python_3_bedrock-runtime_code_examples.html</li>
+<li>SageMaker AI (deploy from JumpStart / HyperPod): https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod-model-deployment-deploy.html</li>
+<li>Amazon Bedrock AgentCore: https://www.aboutamazon.com/news/aws/aws-amazon-bedrock-agent-core-ai-agents</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

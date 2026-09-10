@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 24: Databricks Production: DABs、GovernanceとCapstone</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 24</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-24/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-24-databricks-production-dabsgovernancecapstone">Week 24: Databricks Production: DABs、GovernanceとCapstone</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-24/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 24 of 24 · Section: Databricks Zero to Hero · Category: Production &amp; Capstone
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-24/notebooks/01-governance-and-finopps.ipynb">01-governance-and-finopps.ipynb</a>
+🎯 <strong>Use case:</strong> Capstone。ZoroLogistics Lakehouse Intelligenceを、governanceとFinOps付きでcode（DABs）としてshipする。</p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>Weeks 21〜23は本物のassetsを生み出しました。medallion lakehouse、streaming pipeline、point-in-time ETA model、RAG assistant。しかし、それらはworkspaceで手作業でbuildされました。それは古典的な「works on my workspace」trapです。clickで設定されたpipelineは別のworkspaceで再作成できず、きめ細かい制御なしにshareされたtableは顧客のPIIを誤ったgroupにleakさせ、誰も読んでいないbillは、free trialが驚きのinvoiceになる経路です。productionは追加するfeatureではなく、disciplineです: <strong>すべてをcodeとして、すべてをgovernedに、すべてにcostを。</strong></p>
+<p>三つの失敗modeが最終週を強制します。<strong>第一に、drift。</strong> deployment pathが「誰かがUIでclickする」なら、devとprodは分岐し、<em>job定義</em> は変更されたcodeとともにversion化されることがありません。<strong>第二に、過剰な公開。</strong> Unity Catalogのgrantはadditiveなので、「ほんのdemoのために」shareされたtableは誰からでも読めるまま黙って残ります。<strong>row filter、column mask、dynamic view</strong> がなければ、support担当とdata engineerが同じ顧客dataを見ることになります。<strong>第三に、見えないspend。</strong> DBUは秒単位で課金されるcomputeの単位で、scheduled job clusterとidleなall-purpose clusterの差は一桁違いです。誰かが <code>system.billing.usage</code> をqueryしない限り見えません。</p>
+<p>before/afterはこうです。beforeでは「ship it」はpipelineをclickし直して祈ることです。afterでは <code>databricks bundle deploy -t prod</code> が <code>databricks.yml</code> からstack全体をrebuildし、非特権userはmaskされたPIIを <em>証明つきで</em> 見て、cost dashboardはdocument化された一つの改善のdollar差分を示します。今週は卒業です。Week 13で鍛えた「codeとしてshipする」筋肉を、Databricks stack全体に適用します。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、<strong>row filter</strong>、<strong>column mask</strong>、<strong>dynamic view</strong> を適用して、異なるgroupが同じtableの異なるsliceを見るようにし、その効果をverifyできる。</li>
+<li>☐ 金曜日までに、<strong>audit</strong>（<code>system.access.audit</code>）と <strong>lineage</strong>（<code>system.access.table_lineage</code> / <code>column_lineage</code>）のqueryを書き、誰が何に触れたか、どのtableがgoldを支えるかを証明できる。</li>
+<li>☐ 金曜日までに、<strong>FinOps</strong> data（<code>system.billing.usage</code>）をcost-by-day tableにqueryし、具体的なcost metricをprintできる。</li>
+<li>☐ 金曜日までに、Weeks 21〜23のassetsをCI/CD付きの <strong>Declarative Automation Bundles (DABs)</strong> projectにbundleする方法を説明し、<strong>capstone</strong> のoutlineを書ける（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/capstone"><code>reference/platforms/databricks/capstone/</code></a> を参照）。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td>DABsの構造 + CLI lifecycle（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/15-dabs-ci-cd.md"><code>15-dabs-ci-cd.md</code></a>）</td>
+<td>bundleをscaffoldする。<code>bundle validate --strict</code>。<code>deploy -t dev</code></td>
+<td>validでdeploy可能な <code>databricks.yml</code></td>
+<td>約3時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>CI/CD + auth（M2M/OIDC）（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/15-dabs-ci-cd.md"><code>15-dabs-ci-cd.md</code></a> §5〜6）</td>
+<td>validate + deployするGitHub Actions workflowを組む</td>
+<td>保存されたsecretのないCI job</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>fine-grained governance（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/16-governance-security.md"><code>16-governance-security.md</code></a>）</td>
+<td><code>01-governance-and-finopps.ipynb</code>: row filter + column mask + dynamic view + audit + lineage</td>
+<td>各controlのbefore/afterの証拠</td>
+<td>約3時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>FinOps（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/17-finopps-cost.md"><code>17-finopps-cost.md</code></a>）</td>
+<td>Billing query → cost-by-day。cost改善を一つ見つける</td>
+<td>cost metric + document化されたDBU/dollar差分</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>Capstone + graduation（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/18-certification-path.md"><code>18-certification-path.md</code></a>、capstone）</td>
+<td>Weeks 21〜23の全assetをbundle resourceにmapする。end-to-endでdemoする</td>
+<td>capstone gate（下記）+ portfolio</td>
+<td>約3時間</td>
+</tr>
+</tbody>
+</table>
+<h2 id="montue">概念（まず読むのはMon/Tue）</h2>
+<p>Fact base: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/research/06-databricks-deep-dive.md"><code>reference/knowledge-base/research/06-databricks-deep-dive.md</code></a>（§8、§10）。Deep-dive: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/13-agents.md"><code>13-agents.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/14-apps-dashboards.md"><code>14-apps-dashboards.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/15-dabs-ci-cd.md"><code>15-dabs-ci-cd.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/16-governance-security.md"><code>16-governance-security.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/17-finopps-cost.md"><code>17-finopps-cost.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/18-certification-path.md"><code>18-certification-path.md</code></a>、そして<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/capstone">capstone</a>。</p>
+<h3 id="governancegrantfine-grained-access">Governanceはgrantの上に乗るfine-grained access</h3>
+<p>UCのprivilege modelは <strong>additive-only、<code>DENY</code> は存在しません</strong>。principalには <strong>traversal</strong>（<code>USE CATALOG</code>/<code>USE SCHEMA</code>）<em>plus</em> <strong>action</strong>（<code>SELECT</code>、<code>MODIFY</code>、<code>READ VOLUME</code>、<code>EXECUTE</code>）が必要です。そのtable grantの上に、callerが <em>どのrow</em> を <em>どんな値</em> で見るかを狭める三つのfine-grained controlが乗ります:</p>
+<table>
+<thead>
+<tr>
+<th>Mechanism</th>
+<th>守る対象</th>
+<th>Best for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Row filter</strong></td>
+<td>row。base tableにて（<code>SET ROW FILTER</code> によるBOOLEAN UDF）</td>
+<td>「userは自分のregionだけを見る」</td>
+</tr>
+<tr>
+<td><strong>Column mask</strong></td>
+<td>columnの値。base tableにて（<code>ALTER COLUMN … SET MASK</code>）</td>
+<td>「権限がなければPIIをredact」</td>
+</tr>
+<tr>
+<td><strong>Dynamic view</strong></td>
+<td>row + column。view経由（<code>current_user()</code>/<code>is_account_group_member()</code>）</td>
+<td>read-only consumer。UDF lifecycle不要</td>
+</tr>
+</tbody>
+</table>
+<p><strong>実例: PII control。</strong> notebookはrow filterとcolumn maskの両方を <code>silver_shipments</code> にattachし、続いて <code>support_tickets</code> をdynamic viewでwrapします:</p>
+<pre><code class="language-sql">-- Row filter: carrier_ops sees everything; everyone else sees three carriers.
+CREATE OR REPLACE FUNCTION zrl_.zorologistics.filter_carrier(carrier_id STRING)
+RETURN IF(is_account_group_member('carrier_ops'), TRUE,
+          carrier_id IN ('C001', 'C002', 'C003'));
+ALTER TABLE zrl_.zorologistics.silver_shipments
+  SET ROW FILTER zrl_.zorologistics.filter_carrier ON (carrier_id);
+
+-- Column mask: finance sees value_usd; everyone else sees NULL (return type must match).
+CREATE OR REPLACE FUNCTION zrl_.zorologistics.mask_value(value DOUBLE)
+RETURN IF(is_account_group_member('finance'), value, NULL);
+ALTER TABLE zrl_.zorologistics.silver_shipments
+  ALTER COLUMN value_usd SET MASK zrl_.zorologistics.mask_value;
+
+-- Dynamic view: full ticket text only for the support team.
+CREATE OR REPLACE VIEW zrl_.zorologistics.v_customer_tickets AS
+SELECT ticket_id, shipment_id, customer_id,
+  CASE WHEN is_account_group_member('support_team') THEN text ELSE '*** REDACTED ***' END AS text,
+  category, priority
+FROM zrl_.zorologistics.support_tickets;
+</code></pre>
+<p>policy UDFは <strong>table ownerの</strong> 権限で実行され、callerに <code>EXECUTE</code> は不要です。column maskのreturn typeは <strong>columnの型と一致しなければなりません</strong>（<code>value_usd</code> なら <code>DOUBLE</code>）。間違えると <code>SET MASK</code> が失敗します。なお <code>ai_mask</code>（LLMによるtext書き換え）はcolumn mask（query時のgovernance policy）では <em>ありません</em>。</p>
+<h3 id="system-tablesobservability">System tablesがobservabilityの背骨</h3>
+<p>Unity Catalogはすべてを <strong>system tables</strong> に、<code>system</code> catalog内でread-onlyに記録し、約365日保持します。今週重要な三つ: <code>system.access.audit</code>（誰が何をしたか）、<code>system.access.table_lineage</code> / <code>column_lineage</code>（何が何を支えるか）、<code>system.billing.usage</code>（SKUとtag別のDBUs）。<strong>常に <code>event_date</code> でfilterしてください。</strong></p>
+<p><strong>実例: auditとlineage。</strong> 「機密tableを誰が読んだか。goldを支えるのは何か」:</p>
+<pre><code class="language-sql">-- Audit: recent events, newest first.
+SELECT event_time, action_name, user_identity.email, workspace_id
+FROM system.access.audit
+ORDER BY event_time DESC LIMIT 20;
+
+-- Lineage: which source tables feed the gold KPI table?
+SELECT source_table_full_name, target_table_full_name
+FROM system.access.table_lineage
+WHERE target_table_full_name LIKE '%gold_on_time_kpis';
+
+-- Column lineage for the on_time_rate column.
+SELECT source_table_full_name, source_column_name
+FROM system.access.column_lineage
+WHERE target_column_name = 'on_time_rate';
+</code></pre>
+<p>lineageはcomplianceの背骨です。gold KPIが特定のbronze sourceまで遡ることをregulatorに証明します。（system schemaは有効化が必要で、accessはdefaultではgrantされません: <code>GRANT USE CATALOG ON CATALOG system</code>、続いて <code>USE SCHEMA</code> + <code>SELECT</code>。）</p>
+<h3 id="dabsstackcode">DABsはstack全体をcodeにする</h3>
+<p><strong>Declarative Automation Bundles</strong>（DABs。旧Databricks Asset Bundles）は、data + AI projectのためのinfrastructure-as-codeです。source file + resource定義（job、pipeline、dashboard、model、schema、volume、app）+ testを <code>databricks.yml</code> で宣言し、一つの単位としてdeployします。configはbundle名、<strong><code>targets</code></strong>（dev/staging/prod。<code>mode: development</code> と <code>mode: production</code>）、<strong><code>variables</code></strong>（targetごとのcatalog/schema/warehouse）、<strong><code>resources</code></strong> を宣言します。CLI lifecycle:</p>
+<pre><code class="language-bash">databricks bundle init                              # scaffold
+databricks bundle validate --strict -t dev          # config is sound (warnings = errors)
+databricks bundle deploy -t dev --auto-approve      # create/update resources
+databricks bundle run etl_job -t dev                # run a resource
+databricks bundle destroy -t dev                    # destructive cleanup
+</code></pre>
+<p><strong>実例: capstone bundle。</strong> starterの <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/capstone/databricks.yml"><code>capstone/databricks.yml</code></a> は、variableとtarget付きのpipeline + jobを宣言します:</p>
+<pre><code class="language-yaml">variables:
+  catalog: { default: zrl_ }
+  schema:  { default: zorologistics }
+targets:
+  dev:
+    mode: development
+    workspace: { profile: zrl-dev }
+  prod:
+    mode: production
+    workspace: { profile: zrl-prod }
+resources:
+  pipelines:
+    medallion:
+      name: 'ZoroLogistics Medallion'
+      catalog: ${var.catalog}
+      target: ${var.schema}
+      libraries: [{ file: { path: ./src/pipeline.sql } }]
+      serverless: true
+      photon: true
+      continuous: false
+  jobs:
+    etl_job:
+      name: 'ZoroLogistics Medallion ETL'
+      tasks:
+        - task_key: run_medallion
+          pipeline_task: { pipeline_id: ${resources.pipelines.medallion.id} }
+</code></pre>
+<p>promote = <code>bundle deploy -t prod</code> です。variableが環境ごとのcatalog/schemaをparameterizeするので、同じbundleがdevとprodをきれいに使い分けます。CI/CDは <strong>OAuth M2M</strong>（service principal）か <strong>OIDC token federation</strong> で認証し、CI platformのidentity tokenをDatabricks OAuthと交換するので、<strong>secretはrepoに一切置かれません</strong>（<code>DATABRICKS_AUTH_TYPE=github-oidc-azure</code> のGitHub Actions workflow）。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    GIT[Git repo\ndatabricks.yml + src/] --&gt; CI[&quot;CI: validate --strict&quot;]
+    CI --&gt; DEP[deploy -t dev]
+    DEP --&gt; RUN[run etl_job]
+    RUN --&gt; PROM[tag release]
+    PROM --&gt; PROD[&quot;deploy -t prod\nmode: production&quot;]
+    PROD --&gt; GOV[governance\nrow filter + mask + lineage]
+    PROD --&gt; FIN[FinOps\nsystem.billing dashboard]
+    GOV --&gt; PORT[portfolio\ncapstone demo]
+    FIN --&gt; PORT
+</div>
+<h3 id="finopsloop">FinOpsがloopを閉じる</h3>
+<p><strong>DBU（Databricks Unit）</strong> は時間あたりの処理能力の単位です。cost ≈ <strong>(DBU rate × workload SKU) × instance数 × duration</strong>、秒単位の細かさです。<code>system.billing.usage</code> は細粒度のDBU記録（<code>sku_name</code>、<code>usage_quantity</code>、<code>billing_origin_product</code>、<code>custom_tags</code>）を持ちます。dollarにするには <code>system.billing.list_prices</code> をjoinします。</p>
+<p><strong>実例: cost-by-dayとdollar metric。</strong> notebookはaggregateしてから見積もります:</p>
+<pre><code class="language-sql">CREATE OR REPLACE TABLE zrl_.zorologistics.cost_by_day AS
+SELECT usage_date AS usage_day, sum(usage_quantity) AS total_dbu,
+       count(DISTINCT workspace_id) AS workspaces
+FROM system.billing.usage
+GROUP BY usage_date ORDER BY usage_date;
+</code></pre>
+<pre><code class="language-python">total_dbu = spark.sql(&quot;SELECT sum(total_dbu) FROM cost_by_day&quot;).collect()[0][0] or 0.0
+est_cost  = total_dbu * 0.55   # illustrative $/DBU; join list_prices for real cost
+</code></pre>
+<p>Zorostのmodernization consultantが毎週下すFinOps判断: <strong>serverlessはpremium DBU rateだが、TCOではしばしば勝つ</strong>。idleと過剰provisioningを消せるからです。nightly runの間に約22 h/day idleするall-purpose clusterは、2 hの仕事に対して約24 hのinteractive DBUsを請求します。serverlessは高いrateで約2 hだけ請求し、idleはゼロです。trapは <em>rate</em> 同士を比較して <em>月次総spend</em> を比較しないことです。</p>
+<h3 id="agentappcertification">Agent、App、そしてcertificationの風景</h3>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/13-agents.md"><code>13-agents.md</code></a> と <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/14-apps-dashboards.md"><code>14-apps-dashboards.md</code></a> がGenAI surfaceを完成させます。<strong>Agent Framework</strong>（任意のframeworkを <code>ResponsesAgent</code> でwrapし、MCP toolをattachし、Model Servingまたは <strong>Databricks Apps</strong> でdeploy）と、人に向くsurfaceとしての <strong>AI/BI dashboards + Databricks Apps</strong> です。このmoduleはDatabricks certifications、Data Engineer Associate/Professional、ML Associate/Professional、Generative AI Engineer Associate、Data Analyst Associateにきれいにmapし、無料の <strong>accreditation</strong>（Databricks Fundamentals、Generative AI Fundamentals）がwarm-upになります（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/18-certification-path.md"><code>18-certification-path.md</code></a>）。</p>
+<h3 id="_4">うまくいかない理由</h3>
+<ul>
+<li><strong>間違ったreturn typeのcolumn mask。</strong> <code>DOUBLE</code> columnに対して <code>STRING</code> を返す <code>mask_value</code> は <code>SET MASK</code> で失敗します。mask functionのsignatureはmaskされるcolumnの型と一致しなければなりません。</li>
+<li><strong>縮まない広すぎるgrant。</strong> UCはadditive-onlyなので、「demo用に」grantされた <code>SELECT</code> は明示的に <code>REVOKE</code> するまで残ります。row filter/maskはgrantされたprincipalの見えるものを狭めますが、最もcleanな姿勢は狭いgrant <em>plus</em> fine-grained controlです。</li>
+<li><strong><code>validate --strict</code> なしの <code>bundle deploy</code>。</strong> configのtypo（変数置換の誤り、file pathの欠落）は、resourceを部分的に適用した後でdeployの途中に失敗します。まずvalidateする。warnings-as-errorsがdeploy前に捕まえます。</li>
+<li><strong>idleやscaleによるcost暴騰。</strong> 放置されたall-purpose clusterや、<code>scale_to_zero</code> が無効なserving endpointは課金し続けます。clusterはauto-terminate、endpointはscale-to-zero、そして初日にbudget alertを設定する。</li>
+<li><strong>batch dataをfull tiltで回すstreaming pipeline。</strong> 一晩一回のmedallionにContinuous modeはDBUsの無駄です。<code>availableNow</code>/scheduled triggerが適正サイズにします。</li>
+</ul>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><strong><code>01-governance-and-finopps.ipynb</code></strong>: 一つのnotebookでgovernance + FinOpsの一巡。Cell 1は、Weeks 21〜23が未実行でも成り立つよう、<code>silver_shipments</code> と <code>support_tickets</code> を再作成します。Cells 3〜5は <strong>row filter</strong>（<code>filter_carrier</code>: <code>carrier_ops</code> は全部、それ以外は <code>C001</code>/<code>C002</code>/<code>C003</code>）を適用し、<strong>visible row count</strong> をprintします。非<code>carrier_ops</code> userは、より少ないrowとより少ないdistinct carrierを見ます。Cells 7〜9は <strong>column mask</strong>（<code>mask_value</code>: <code>finance</code> は <code>value_usd</code> を、それ以外は <code>NULL</code> を見る）を適用してpreviewします。Cells 11〜13は <strong>dynamic view</strong> <code>v_customer_tickets</code>（fullの <code>text</code> は <code>support_team</code> のみ）を作り、redact結果をpreviewします。Cells 15〜17は <strong>audit</strong>（<code>system.access.audit</code>）と <strong>lineage</strong>（<code>table_lineage</code> + <code>column_lineage</code>、<code>on_time_rate</code> 対象）をqueryします。Cells 19〜21は <code>system.billing.usage</code> から <strong>cost-by-day</strong> tableをbuildして表示します。<strong>最後のcellは三つの数字をprintします</strong>: <code>total DBUs (billing)</code>、<code>estimated cost USD</code>、そして <code>audit
+events</code>。正しい出力: fresh trialではDBU合計は <code>0.0</code> のこともあります（billing tableは時間とともに埋まる）。queryはそれでも有効な数値を返し、<code>audit events</code> は自分の操作を反映した正のcountになります。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> governance + FinOpsのwrite-up。適用したfilter/mask/view（before/afterの証拠付き）、auditとlineageのquery結果、cost-by-day table、document化されたcost改善、そしてcapstone outline。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人があなたのgovernance notebookを実行し、各access controlの効果を見え（row filterがvisible row countを変える。maskが <code>value_usd</code> をnullにする）、audit/lineage出力を読み、<code>system.billing.usage</code> からあなたのcost metricを再現できること。capstoneについては、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/capstone"><code>reference/platforms/databricks/capstone/</code></a> にDAB deployment planを見つけ、Weeks 21〜23の全assetをbundle resource（pipeline、job、dashboard、model、FinOps view）にmapできること。</p>
+<p><strong>Stretch variant:</strong> <code>gold_on_time_kpis</code> をbronze source tableまで遡るlineage queryを書き、<code>on_time_rate</code> の <strong>column-level</strong> lineageを確認する。regulatorが受け入れる完全なupstream traceです。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>なぜ起きるか</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>maskのreturn type ≠ column型</td>
+<td><code>DOUBLE</code> columnに <code>STRING</code> UDFで <code>SET MASK</code></td>
+<td>UDF signatureをcolumn型に合わせる</td>
+</tr>
+<tr>
+<td>「demo用に」grantされた <code>SELECT</code> がrevokeされない</td>
+<td>additive-only model</td>
+<td>狭いgrant + row filter/mask。<code>SHOW GRANTS</code> でaudit</td>
+</tr>
+<tr>
+<td><code>validate --strict</code> なしのdeploy</td>
+<td>config typoで部分的apply</td>
+<td>まずvalidate。warnings-as-errors</td>
+</tr>
+<tr>
+<td>idle all-purpose clusterが放置される</td>
+<td>auto-termination忘れ</td>
+<td>auto-terminate（10分）かserverless</td>
+</tr>
+<tr>
+<td>batch dataにContinuous pipeline</td>
+<td>triggerの誤り</td>
+<td><code>availableNow</code>/scheduled。continuousは本物のstreamだけに</td>
+</tr>
+<tr>
+<td>低traffic endpointで <code>scale_to_zero</code> 無効</td>
+<td>default provisioning</td>
+<td><code>scale_to_zero_enabled: true</code></td>
+</tr>
+<tr>
+<td>repoの中のsecret</td>
+<td>手作りのPATs</td>
+<td>CIにはOAuth M2M / OIDC federation</td>
+</tr>
+<tr>
+<td>date filterなしのbilling query</td>
+<td><code>system.billing.usage</code> は大きい</td>
+<td>常に <code>usage_date</code> でfilterする</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Row filter</strong>: groupごとにrowを隠す、tableにattachされたboolean UDF。</li>
+<li><strong>Column mask</strong>: 権限のないcallerに対してcolumnの値を書き換えるUDF。</li>
+<li><strong>Dynamic view</strong>: <code>current_user()</code>/<code>is_account_group_member()</code> で自己検閲するview。</li>
+<li><strong>System table</strong>: <code>system</code> catalog内のread-onlyな運用data（audit、lineage、billing）。</li>
+<li><strong>Lineage</strong>: table/columnのdata flowの自動追跡（Catalog Explorer + <code>system.access.*</code>）。</li>
+<li><strong>DBU</strong>: Databricks Unit。時間あたりの正規化された処理能力。秒単位で課金。</li>
+<li><strong>SKU tier</strong>: workloadが分類されるbilling bucket（Jobs、All-Purpose、SQL、Serverless）。</li>
+<li><strong>DAB</strong>: Declarative Automation Bundle。<code>databricks.yml</code> + resources + srcを一つの単位としてdeploy。</li>
+<li><strong>Target</strong>: 独自のworkspace + variableを持つbundle環境（dev/staging/prod）。</li>
+<li><strong><code>mode: production</code></strong>: workspaceをうっかりした上書きから守るbundle target mode。</li>
+<li><strong>OIDC federation</strong>: CI platformのidentity tokenをDatabricks OAuthと交換すること（保存secretなし）。</li>
+<li><strong>Capstone</strong>: ZoroLogistics Lakehouse Intelligence。Weeks 21〜23のstackを一つのDABとしてshipする。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-24/quiz.md"><code>quiz.md</code></a> を受けてください。10問、<strong>8/10で合格</strong>。Concepts sectionとnotebook cellに紐付いたmultiple choiceとshort answerの混成です。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exerciseがhint付きで <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-24/exercises.md"><code>exercises.md</code></a> にあります。portfolio itemはWeeks 21〜23のassetsをtarget、governance、FinOps dashboard付きのDABにbundleして、<strong>ZoroLogistics Lakehouse Intelligence capstone</strong> を完成させます。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>Row filters &amp; column masks: https://docs.databricks.com/data-governance/unity-catalog/filters-and-masks</li>
+<li>Access control: https://docs.databricks.com/data-governance/unity-catalog/access-control</li>
+<li>Data lineage: https://docs.databricks.com/data-governance/unity-catalog/data-lineage</li>
+<li>System tables: https://docs.databricks.com/admin/system-tables/</li>
+<li>Billing system tables: https://docs.databricks.com/admin/system-tables/billing</li>
+<li>Bundles (DABs): https://docs.databricks.com/dev-tools/bundles/</li>
+<li>CI/CD: https://docs.databricks.com/dev-tools/ci-cd/</li>
+<li>Databricks CLI: https://docs.databricks.com/dev-tools/cli/</li>
+<li>Authentication (OAuth M2M / OIDC): https://docs.databricks.com/dev-tools/auth/</li>
+<li>Usage &amp; cost monitoring: https://docs.databricks.com/admin/usage</li>
+<li>Certifications: https://www.databricks.com/learn/certification</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

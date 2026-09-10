@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 02: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 02</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-02/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-02-checklist">Week 02: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-02/exercises.md">英語版</a> · <a href="README.html">Week 02 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-pandas-cleaning.ipynb</code> を最後まで実行します。最後に、
+   clean後のrow countと、取り除かれたduplicate rowの数がprintされます。両方の数字を
+   Week 2のtracker sheetに記録してください。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: raw datasetをprofileし、<strong>五つ</strong>のplanted issueをdocument化します。（1）
+   duplicate row、（2）<code>NaN</code> weight、（3）<code>NaN</code> lane distance、そして自分で見つける
+   もう二つ（不可能な値は <code>delay_hours</code>、非正の値は <code>weight_kg</code>、あるいはlabelと
+   <code>actual_arrival</code> が矛盾するrowの <code>status</code> を確認する）。それぞれについて、finding、
+   evidence（countまたはsample row）、fixをprofile reportに書きます。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: <code>notebooks/02-sql-with-duckdb.ipynb</code> で、「carrier/lane/month別on-time
+   rate」のqueryを、plainな <code>GROUP BY</code> の代わりに <strong>window function</strong>（例：<code>AVG(...) OVER
+   (PARTITION BY carrier_id, lane_id, month ORDER BY month)</code>）で書き直し、
+   二つのapproachがfloating-point tolerance以内で一致することをassertするcellを追加します。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: <strong>ZoroLogistics data generator + silver dataset</strong> のmilestone
+   （<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/projects/README.md"><code>curriculum/projects/README.md</code></a> を参照）を進めます。cleaning
+   workflowを実行可能なscript <code>data/make_silver.py</code> に変えます。raw dataを再生成（または
+   load）し、cleanし、validation suiteを実行し、<code>data/silver/</code> に書き出すものです。
+   一つのコマンドで、一つのreproducibleなsilver tableです。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: 最後のcellは二つの数字、<code>CHECKS_PASSED</code> と
+   <code>SILVER_ROW_COUNT</code> をprintします。両方記録してください。<code>CHECKS_PASSED</code> が
+   12でなければ、最初の <code>FAIL</code> 行までスクロールして、再実行の前にそのdecisionを直します。</li>
+<li><strong>Standard</strong>: <em>仕込まれていない</em> 二つのissueには、<code>delay_hours</code> をprofileする
+   （極端な値はその <code>describe()</code> のtailを見る）ことと、<code>planned_arrival</code> と
+   <code>planned_departure</code> の関係をcheckすることが効きます。arrivalがdepartureに
+   先行するrowはstructural defectです。</li>
+<li><strong>Stretch</strong>: window functionはすべてのrowを保持するので、carrierごとの月次rateをCTEで
+   wrapして <code>AVG(...) OVER (PARTITION BY carrier_id)</code> を追加します。それから
+   二つのapproachが <code>np.allclose</code> で一致することをassertします。</li>
+<li><strong>Portfolio</strong>: <code>make_silver.py</code> は三つの関数、<code>load_or_generate()</code>、
+   <code>clean(df)</code>、<code>validate(df) -&gt; bool</code> として構成します。こうするとscriptは、
+   notebookと同じ <code>raw → clean → validate → save</code> の流れを、一つのコマンドとして
+   読めるようになります。</li>
+</ol>
+<h2 id="checklistmanifestjsonexcel-tracker">Checklist（manifest.jsonとExcel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: data qualityの概念を学ぶ。pandas refresher exerciseを実行する。</li>
+<li>☐ Tue: pandas cleaning notebookを実行する。generator outputの中の5つのdata issueを見つけてdocument化する。</li>
+<li>☐ Wed: DuckDBでSQL queryを書く。carrier/lane/month別on-time rate、window、top-lane analysis。</li>
+<li>☐ Thu: 10以上のcheckを持つdata validation suite（pandera）を追加する。</li>
+<li>☐ Fri: Use case：clean済みsilver datasetとprofile reportを提出する。すべてのcleaning decisionをdocument化する。</li>
+<li>☐ Sat: Week 2 quiz（quiz.md）を受け、8/10で合格する。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新する。silver pipeline scriptをcommitする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

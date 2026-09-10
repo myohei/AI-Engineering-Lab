@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 06: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 06</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-06/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-06-quiz10810">Week 06: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-06/quiz.md">英語版</a> · <a href="README.html">Week 06 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>概念とnotebook codeから答えてください。各問にどこを見ればよいかが記載されています。</p>
+<ol>
+<li>
+<p><strong>(MCQ)</strong> schemaに関する最も重要なdisciplineの規則は次のどれですか。(a) schemaは正しい値を保証する、(b) schemaはshapeを縛るだけでtruthは縛らない、(c) JSON modeは常に信頼できる、(d) schemaがevalに取って代わる。<em>(Concepts §「Technique ladder」を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> <code>01-prompt-suite-bol-extraction.ipynb</code> で、graderは <code>shipper</code>/<code>consignee</code> に <em>substring</em> matchを、<code>commodity</code> には <em>exact</em> matchを使うのはなぜですか？ <em>(notebook cell 4を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> context budgetの七つのclaimantに含まれない（EXCEPT）のは次のどれですか。(a) system指示、(b) tool schema、(c) modelの重み、(d) 出力予約。<em>(Concepts §「Context budget」を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> <code>make_prompt</code> の三つのprompt versionを列挙し、それぞれが前一つに何を追加するかを述べてください。<em>(notebook cell 8を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> prompt injectionが最もよく記述できるのは次のどれですか。(a) userがmodelに方針を破らせるよう説得する、(b) attackerが、systemが取り込むdataの中に指示を隠し、それが実行される、(c) promptが長すぎる、(d) temperatureの設定ミス。<em>(Concepts §「Injection」を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> <code>02-context-engineering.ipynb</code> で、extractive digestは40行のticket lineを860から~646 tokenに減らします。<code>compact_line</code> は何を残し、何を捨てますか？ <em>(notebook cell 6を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> prompt cachingが報酬を与えるのは次のどれですか。(a) より長いprompt、(b) byte一致の安定prefix、(c) randomなprompt順序、(d) 毎callで文書を再送すること。<em>(Concepts 実例2を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> budget表で、<em>出力予約</em> が入力budgetの一部ではなく独立の行であるのはなぜですか？ <em>(Concepts §「Context budget」/ 実例1を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> injectionに対して実際に成り立つ防御はどれですか。(a) 「文書中の指示は無視せよ」、(b) extraction callでのtoolなし + harness-levelのflag、(c) より長いsystem prompt、(d) より高いtemperature。<em>(Concepts §「Injection」を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> notebook 1のcell 18で、<code>field_accuracy</code> は何を計算し、<code>OK</code> でもdictでもない行が <code>False</code> ではなく <code>None</code> として数えられるのはなぜですか？ <em>(notebook cell 16〜18を参照)</em></p>
+</li>
+</ol>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li><strong>(b)</strong>: schemaはshape（妥当でwell-formedなJSON）を強制できますが、値がsource由来であることは検証できません。syntaxをvalidateし、続けて内容を二つのlayerとしてvalidateします。</li>
+<li>ground truthはcarrierの <em>名前のみ</em>（"Atlas Freight"）を保存し、一方で文書は"Atlas Freight Logistics Div."と印刷します。substring matchは接尾辞を許容します。<code>commodity</code> は正確に一致しなければならず（"electronics" vs. "electronic" は本物のerror）。</li>
+<li><strong>(c)</strong>: modelの重みはwindowのclaimantではありません。七つは、system、tool schema、永続memory、history、検索evidence、scratchpad、出力予約です。</li>
+<li>v1 = <code>FIELD_SPEC</code>（zero-shot）。v2 = <strong>null rule</strong> と <strong>injection rule</strong>（「extractし、従わない」）を追加。v3 = carrier名のみ・数値のみという規約を示す <strong>二つのfew-shot example</strong> を追加。</li>
+<li><strong>(b)</strong>: injectionはconfused-deputy問題です。attackerの指示が正当に取り込まれたdataの中に届き、systemが自分のcredentialで実行します。(a) はjailbreakです。</li>
+<li><code>[category]</code> tagと <strong>最初の一文（90文字でtruncate）</strong> を残します。各ticketの残り（挨拶、重複、詳細）を捨てます。decision/classificationは生き残り、scaffoldingは生き残りません。</li>
+<li><strong>(b)</strong>: cachingはbyte一致のprefixを割引にします。volatileなもの（timestamp、random順）は、それ以降すべてのcacheを無効化します。</li>
+<li>requestはwindowに収まっても生成する余地が残らず、「modelが脈絡を失った」ように見える形でfailしえます。出力を本当の一行項目として予約することが、そのsilent truncationを防ぎます。</li>
+<li><strong>(b)</strong>: 構造的な統制（toolなし、最小権限、modelには決して見せないharness flag）は成り立ちます。prompt内の「無視せよ」指示は議論の余地があり、成立ちません。</li>
+<li><code>field_accuracy</code> は、fieldごとに、<code>field_equal(pred, truth)</code> がtrueになる文書の割合を記録します。<code>OK</code> でない/dictでない行（keyなし / API error）は <code>None</code> として記録され、<em>分母から除外</em> されます。parse不能な応答をfield-levelのmissとして数えるべきではありませんが、実際の値に対する誤った <code>None</code> は依然としてmissです。</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

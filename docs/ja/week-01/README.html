@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 01: Python基礎とAI Engineeringの全体像</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 01</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-01/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-01-pythonai-engineering">Week 01: Python基礎とAI Engineeringの全体像</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-01/README.md">英語版</a> · <a href="exercises.html">Week 1の演習</a> · <a href="quiz.html">Week 1のクイズ</a></p>
+<p>AI Engineering Labの一部 · <a href="https://zorost.com">Zorost Intelligence AI Lab</a>が開発 · Week 01 of 24 · Section: Foundations · Category: Python &amp; Environment
+🎯 <strong>Use case:</strong> seed付きのZoroLogistics synthetic dataset（shipments、carriers、lanes）を生成し、後続の全週で再利用する。</p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsには、トラックとは関係なく、これからの23週間すべてに関係する問題があります。<strong>土台にできるdataがない</strong>のです。会社はon-time prediction、ETA model、support triage agent、governed lakehouseを作りたいと考えています。しかしその前に、<em>信頼できるほど堅牢で、現実的な問題も含むdataset</em>を用意しなければなりません。「きれいな」demo CSVをdownloadすれば、Week 2でcleanするものがなく、Week 3でdata leakageを見つけられず、Week 11で意味のあるerror analysisもできません。チームメンバーがそれぞれ別のrandom seedでdataを生成すれば、誰も他の人の数字を再現できません。これは、AI projectを始まる前から壊す典型的な「works on my machine」病です。</p>
+<p>今週はこのfoundationの問題を3つの方法で解決します。第一に、<strong>reproducible environment</strong>を整えます。interpreterとdependenciesを固定し、cleanなGit workflowを使うことで、「自分の環境で動く」を「forkをcloneした見知らぬ人でも動く」に変えます。第二に、<code>zoro/data.py</code>のseed付きgeneratorから <strong>100,000行のZoroLogistics dataset</strong> を生成します。後の週で実際に作業できるよう、duplicates、<code>NaN</code> weights、<code>NaN</code> lane distancesというdata-quality flawを意図的に埋め込んでいます。第三に、<strong>data dictionary</strong>をshipします。これは各columnの意味を見知らぬ人に伝える、人が読めるschemaです。この週がなければ、後の週は砂の上のdemoになります。この週を終えれば、プログラム全体が使い回す <strong>configuration baseline</strong>（同じseed、同じ会社）を自分で管理できます。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、reproducibleなPython environment（uvまたはconda）を構築し、environment-check notebookを合格させる。readiness scoreは6/6。</li>
+<li>☐ 金曜日までに、repoをfork・cloneし、branchを作成してcommitし、GitHubでpull requestを開ける。</li>
+<li>☐ 固定seedで <code>zoro.data</code> から100,000行のZoroLogistics datasetを生成し、AI workでdeterminismが不可欠な理由を説明できる。</li>
+<li>☐ 生成された全columnについて、名前、dtype、business meaningを記載したdata dictionaryをshipする。見知らぬ人が読める成果物にする。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/01-ai-engineering-discipline.md"><code>reference/knowledge-base/01-ai-engineering-discipline.md</code></a>を読む。VS Code、Python（uv/conda）、Gitを設定する</td>
+<td>repoをfork・cloneし、working branchを作成する</td>
+<td>自分のforkでgreenな <code>git status</code></td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>Python refresher：types、functions、classes、collections、comprehensions</td>
+<td><code>01-environment-and-tools.ja.ipynb</code> のNumPy cell（array、broadcast、mask）を実行する</td>
+<td>refresher cellsをエラーなく実行する</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>seedの習慣とreproducibility</td>
+<td>environment-check notebookを最初から最後まで実行する</td>
+<td>readiness scoreを記録する（6/6を目指す）</td>
+<td>約1.5時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>synthetic data generation。<code>zoro/data.py</code> のschemaを読む</td>
+<td><code>02-zorologistics-data-generator.ja.ipynb</code> のpreview cellsを実行する</td>
+<td>各tableを1件以上preview表示する</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>data dictionaryとinspectable artifact</td>
+<td><code>save_all()</code> → <code>data/</code>。<code>data-dictionary.md</code>を書く</td>
+<td>datasetとdictionaryをcommitし、PRを開く</td>
+<td>約3時間</td>
+</tr>
+<tr>
+<td><strong>Sat</strong></td>
+<td>週の復習</td>
+<td>quiz（<code>quiz.ja.md</code>、8/10で合格）を受ける</td>
+<td>scoreをNotesに記録する</td>
+<td>約45分</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p>今週は新しいsyntaxを大量に覚える週ではなく、<strong>discipline</strong>を身につける週です。先に <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/01-ai-engineering-discipline.md"><code>reference/knowledge-base/01-ai-engineering-discipline.md</code></a> を読んでください。これはprogram全体の背骨です。覚える一文はこれです：<em>AI outputは予測できない。</em> LLMが何を返すか、training済みmodelが新しいexampleに何をpredictするかは分かりません。Zorostの方法はこの事実への回答です。<strong>metricをshipし、error analysisをshipし、制御できるrandom drawをすべてreproducibleにする。</strong> そうすればmetricが明日も同じ意味を持ちます。</p>
+<h3 id="1-ai-engineer4skill3loop">1. AI engineerとは：4つのskillと3つのloop</h3>
+<p>Andrew Ngの <em>AI Engineering Skills Map</em> は <strong>4つのskill</strong> を挙げています。(1) AI applicationのbuildingとdeployment、(2) software engineering fundamentals、(3) coding agentの利用、(4) buildの方向付けです。これは4つの別々のcourseではなく、毎週適用する4つの視点です。Week 1は主にskill 2、fundamentalsにあたります。Zorostがskill 2をさらに明確に表現すると、coding agentがcodeを書くとき、90秒で100個ものtradeoffが決まり、reviewしなければならない完成diffとして返ってきます。<strong>実行できないものはreviewできません。</strong> また、reproduceできないものは実行できません。だからenvironmentを先に整えます。</p>
+<p>Ngは0-to-1のproduct buildingを、異なる時間軸で回る <strong>3つのloop</strong> として捉えています（完全な表はdiscipline fileを参照）。</p>
+<table>
+<thead>
+<tr>
+<th>Loop</th>
+<th>Cadence</th>
+<th>起きること</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agentic coding</td>
+<td>数分</td>
+<td>agentがcodeを書き、testを実行し、spec/evalがpassするまでiterateする</td>
+</tr>
+<tr>
+<td>Developer feedback</td>
+<td>数分〜数時間</td>
+<td>人間がproductを調べ、featureとflowの方向を決める</td>
+</tr>
+<tr>
+<td>External feedback</td>
+<td>数時間〜数週間</td>
+<td>real userの反応でvisionが更新され、specも更新される</td>
+</tr>
+</tbody>
+</table>
+<p>Week 12〜13で、この3つのloopをmental modelとして使います。今週はloop 2の最小版、つまり自分でenvironmentとdataをreviewするところから始めます。</p>
+<h3 id="2-zorologisticscase-studyprogram-map">2. ZoroLogisticsのcase studyとprogram map</h3>
+<p><strong>ZoroLogistics</strong>は架空のfreight companyです。Zorostが実際に関わる、規制とtraceabilityを重視する業界をモデルにしています（discipline fileの「Use case connection」を参照）。その世界は <code>zoro/data.py</code> の7つのgenerator、<code>carriers()</code>、<code>lanes()</code>、<code>shipments()</code>、<code>support_tickets()</code>、<code>policy_docs()</code>、<code>bol_samples()</code>、<code>save_all()</code> にあります。3つのcore tableは、programの残りで何度もjoinするrelational shapeを作ります。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    A[carriers&lt;br/&gt;carrier_id, on_time_rate,&lt;br/&gt;base_rate, fleet_size] --&gt;|FK carrier_id| S[shipments&lt;br/&gt;shipment_id, weight_kg,&lt;br/&gt;delay_hours, is_on_time,&lt;br/&gt;weather_severity]
+    B[lanes&lt;br/&gt;lane_id, distance_km,&lt;br/&gt;avg_transit_days, toll_km] --&gt;|FK lane_id| S
+    S --&gt; G[&quot;save_all()&lt;br/&gt;deterministic seed=42&quot;]
+    G --&gt; D[data/*.csv&lt;br/&gt;carriers, lanes,&lt;br/&gt;shipments, support_tickets]
+    D --&gt; W2[Week 2 · clean]
+    D --&gt; W3[Week 3 · ETA + on-time]
+    D --&gt; W4[Week 4 · neural ETA]
+    D --&gt; W5[Week 5+ · LLM weeks]
+</div>
+<p>shipmentsはdenormalizeしたtextではなく、<strong>foreign key</strong>（<code>carrier_id</code>、<code>lane_id</code>）を持ちます。このjoin構造をWeek 2のSQLで利用します。各tableをboundaryとcontractとして扱うのは、Zorostのsystems-engineering spineを小さく体験することでもあります。</p>
+<table>
+<thead>
+<tr>
+<th>Generator</th>
+<th>生成するもの</th>
+<th>主なcolumn</th>
+<th>Rows（seed 42）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>carriers(20, seed=7)</code></td>
+<td>carrier master</td>
+<td><code>carrier_id</code>、<code>on_time_rate</code>、<code>base_rate_usd_per_km_ton</code>、<code>fleet_size</code></td>
+<td>20</td>
+</tr>
+<tr>
+<td><code>lanes(20, seed=11)</code></td>
+<td>route master</td>
+<td><code>lane_id</code>、<code>origin</code>、<code>destination</code>、<code>distance_km</code>、<code>avg_transit_days</code></td>
+<td>20</td>
+</tr>
+<tr>
+<td><code>shipments(100_000, seed=42)</code></td>
+<td>fact table</td>
+<td><code>shipment_id</code>、<code>carrier_id</code>、<code>lane_id</code>、<code>delay_hours</code>、<code>is_on_time</code>、<code>weather_severity</code></td>
+<td>100,200</td>
+</tr>
+<tr>
+<td><code>support_tickets(2_000, seed=99)</code></td>
+<td>support ticket</td>
+<td><code>ticket_id</code>、<code>shipment_id</code>、<code>category</code>、<code>priority</code>、<code>text</code></td>
+<td>2,000</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3-environmentvs-codeuvcondajupyter">3. Environment：VS Code、uv/conda、Jupyter</h3>
+<p><strong>pinned environment</strong>は、すべてを支える床です。<code>uv</code>（またはconda）は、lockfile付きのisolated interpreterを作ります。これがないと「works on my machine」に隠れたdependency差分が、Week 1ではなくWeek 23で現れます。environment-check notebookは、これを <strong>測れるgate</strong> にします。Python ≥3.10、<code>numpy</code> と <code>zoro</code> のimport、Gitが存在しwork tree内にいることを確認し、<strong>6点満点のreadiness score</strong>を表示します。数字が6でなければ何かが壊れています。Jupyter（またはVS Codeのnotebook interface）は、全週のlabを実行するruntimeです。</p>
+<h3 id="4-gitgithubforkbranchcommitpr">4. GitとGitHub：fork、branch、commit、PR</h3>
+<p>Gitは、<strong>自分のwork</strong>にとってのreproducibility layerです。dataにとってseedが果たす役割と同じです。24週間繰り返すworkflowは、repoを <strong>fork</strong>し、forkを <strong>clone</strong>し、変更ごとに <strong>branch</strong>を作り、意味のあるmessageで <strong>commit</strong>し、pushして <strong>pull request</strong>を開くことです。Week 1のnotebookにあるGit check（<code>git rev-parse --is-inside-work-tree</code>、<code>git branch --show-current</code>）は、金曜日にgenerated datasetをcommitする前の最低限の確認です。</p>
+<h3 id="5-pythonnumpy">5. PythonとNumPyの基礎</h3>
+<p>このprogramのほぼすべてのmodelは、多次元arrayを通ります。実務の90%をカバーする4つの動作は、arrayを作る、<code>shape</code>/<code>dtype</code>を調べる、axisに沿ってreduceする、そして <strong>broadcast</strong>（小さなarrayを対応するaxisで大きなarrayに合わせる）です。</p>
+<p>refresherでは、typesとfunctions、classes（Week 4で<code>nn.Module</code>というclassに出会います）、collections、<strong>comprehensions</strong>を扱います。その上に、生成dataをdiskへ書き、Week 2で再読み込みするためのfiles、JSON、CSVがあります。</p>
+<p>generator notebookには、これらをつなぐ具体的な流れがあります。<strong>list comprehension</strong>で25個のrowからなるdata dictionary（<code>[(table, column, dtype, meaning) for ...]</code>）を作り、pandasでMarkdownに書き出し、<code>save_all()</code>で各tableを<code>to_csv</code>にserializeします。同じloopでmemory上に作り、diskへserializeし、翌週reloadする。これがprogram全体のdata lifecycleです。DataFrame内では<code>delay_hours</code>、<code>weight_kg</code>、<code>value_usd</code>がNumPy arrayとして動き、Week 2の<code>.mean()</code>、<code>.median()</code>、boolean castは、それらのarrayへのNumPy reductionです。</p>
+<h3 id="6-deterministic-seedsynthetic-data-generation">6. deterministic seed付きのsynthetic data generation</h3>
+<p><strong>seed</strong>は、pseudorandom generatorが毎回同じsequenceを出すようにする固定integerです。現代的な書き方は <code>numpy.random.default_rng(seed)</code> で、legacyのglobal <code>np.random.seed</code>に代わるものです。<code>zoro/data.py</code> のgenerator functionはseedを受け取り、<code>shipments(100_000, seed=42)</code>はどのmachineでも同じdataを生成します。</p>
+<p><strong>実例1：seedのcontract。</strong> environment notebookの <code>first_five(seed)</code> は、<code>default_rng(seed).integers(0, 1_000_000, size=5)</code>で5つのintegerを生成します。seed <code>42</code>では <code>[89250, 773956, 654571, 438878, 433015]</code> になり、2回呼んでも同じです。seed <code>7</code>では <code>[944904, 625095, 684179, 897213, 578292]</code> になります。同じseedなら同じdata、異なるseedなら異なるdataです。この単純な事実により、見知らぬ人がWeek 23であなたのforkを再実行し、同じ数字を得られます。</p>
+<table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Reproducibility</th>
+<th>Thread safety</th>
+<th>判定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>np.random.seed(42)</code>（legacy）</td>
+<td>fragile。hidden globalの順序をlibrary callが変えられる</td>
+<td>unsafe</td>
+<td>避ける</td>
+</tr>
+<tr>
+<td><code>numpy.random.default_rng(seed)</code></td>
+<td>solid。local generatorがsequenceを再生する</td>
+<td>safe</td>
+<td>これを使う</td>
+</tr>
+</tbody>
+</table>
+<p><strong>実例2：data volumeの予算。</strong> seed <code>42</code>で<code>save_all()</code>を実行すると、4つのtableができます。carriers 20行、lanes 20行、shipments 100,200行、support tickets 2,000行、合計 <strong>102,240行</strong> です。shipmentが100,000行ではないのは、generatorがdata-quality issueを意図的に仕込むためです。<code>df.sample(frac=0.002)</code>で <strong>200行のduplicate</strong>を追加し、0.3%のsampleで <strong>301個の<code>weight_kg</code>を空</strong>にします。lanesには別の問題があり、20 laneの5%をsampleして <strong>1個の<code>distance_km</code>を空</strong>にします。これがWeek 2の探索場所です。先に見ておくことで、cleaningが驚きではなくhuntになります。</p>
+<h2 id="_5">うまくいかない理由</h2>
+<p><strong>global seed</strong>が入り込んだ瞬間にreproducibilityは壊れます。<code>np.random.seed(42)</code>はhidden globalなので、library callが順番を変えると2回の同じrunが分岐します。notebookのcellを順番どおりに実行しない、途中のcellで再seedする、<code>save_all()</code>のrelative pathがnotebook folderを基準に解決される、こうした場合も壊れます。generator notebookが<code>zoro/</code> directoryまで親をたどるのは、repo rootを見つけるためです。「realism」のために<code>datetime.now()</code>やclock依存のrandomnessを使うのも、findingを再現できなくします。さらにlockfileのないenvironmentは後で壊れます。dependencyが静かにupdateされ、modelの挙動が変わっても、Git historyには差分が残りません。</p>
+<p>4つの問題へのfixは同じです。すべてをseedし、pathをrepo rootに解決し、environmentをpinします。このdisciplineを今週身につけます。さらに深く学ぶときは、discipline fileの「four skills」「three loops」、そしてconfiguration baselineが必要な理由を説明する「systems-engineering spine」を読んでください。</p>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><strong><code>notebooks/01-environment-and-tools.ja.ipynb</code></strong> は6つのcheckを行うself-testです。最初のcellで、walk-up loopを使ってrepo rootを<code>sys.path</code>に追加します。<strong>Check 1</strong>はPython 3.10+、<strong>Check 2</strong>は<code>numpy</code>と<code>zoro</code>（<code>zoro.__version__</code>も表示）を確認します。<strong>Check 3</strong>は7つの<code>zoro.data</code> generatorが存在し、<code>carriers(20, seed=7)</code>が期待したcolumnを返すかを確認します。<strong>Check 4</strong>は<code>git --version</code>、<code>git rev-parse --is-inside-work-tree</code>、<code>git branch --show-current</code>をshellから実行します。NumPy refresher cellでは<code>(3, 4)</code> arrayを作り、column meanを計算し、<code>(4,)</code> offsetをbroadcastし、<code>&gt; 5</code>のelement数を数えます。seed cellは<code>first_five(42)</code>を2回実行しdeterminismを証明します。最後のcellが6つのflagを合計し、<strong><code>READINESS_SCORE</code></strong>を表示します。これが記録する数字です。</p>
+<p><strong><code>notebooks/02-zorologistics-data-generator.ja.ipynb</code></strong> は3つのcore table（<code>carriers(20, seed=7)</code>、<code>lanes(20, seed=11)</code>、<code>shipments(2_000, seed=42)</code>）をpreviewし、<code>weight_kg</code>、<code>value_usd</code>、<code>delay_hours</code>の<code>dtypes</code>と<code>describe()</code>を表示します。その後 <code>data.save_all(out_dir=repo/"data", seed=42, n=100_000)</code> を呼び、<code>data/data-dictionary.md</code>を25個の<code>(table, column, dtype, meaning)</code> tupleから作ります。verification cellはCSVをreloadしてrow countをassertし、3つのplanted issue（duplicate、<code>NaN</code> weight、<code>NaN</code> distance）の数を表示します。最後は <strong><code>TOTAL_ROWS_GENERATED</code></strong>、default seedでは102,240を表示します。「正しい」出力は、readiness scoreが6、4つのassertがpass、totalが一致することです。</p>
+<p>notebookを変更するときは、<code>zoro/data.py</code>ではなく <strong>inputだけ</strong>を変更します。Standard exerciseでは<code>data.save_all(...)</code>の<code>seed</code>と<code>n</code>（およびpreview cell）を変えます。schemaは固定されたまま、valuesが変わります。Portfolio exerciseではdictionary listを拡張するか、<code>df.dtypes</code>からprogrammatically再生成してschema driftを防ぎます。environment notebookのcellはread-onlyのcheckです。変更するのはenvironmentだけで、readiness scoreが反応します。verification cellのassertが失敗したら、別seedで再生成したか、<code>data/</code>に余計なfileが入っています。seed 42で<code>save_all()</code>を再実行して確認してください。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> (a) score 6のgreenなenvironment-check notebook、(b) generated <code>data/</code> directory（100,000件以上のshipment、carriers、lanes、tickets、すべてseed付き）、(c) 全columnを記載した<code>data/data-dictionary.md</code>を含むworking forkです。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人があなたのforkをcloneし、同じseedで<code>python -m zoro.data</code>（またはgenerator notebook）を実行して同じrow countを得られること。また、どのseedがどのtableを作り、planted data-quality issueがどこにあり、各columnがfreightの何を意味するかを1行ずつ説明できること。seedがなければshipできません。</p>
+<p><strong>Stretch variant:</strong> CSVだけの<code>save_all()</code>を、Parquet（<code>ships.to_parquet(...)</code>）も書き出す版にします。また各tableのdtypeからprogrammatically <code>schema.json</code>を作り、data dictionaryを手書きではなく生成します。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>なぜ起きるか</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>readiness scoreが6未満で止まる</td>
+<td><code>zoro</code>が<code>sys.path</code>にない、またはGit未導入・work tree外</td>
+<td>walk-up path cellを実行する。実際のrepoで<code>git init</code>/cloneし、各FAIL行を読む</td>
+</tr>
+<tr>
+<td>legacy <code>np.random.seed</code></td>
+<td>tutorial由来の古い習慣</td>
+<td><code>numpy.random.default_rng(seed)</code>を使う。modernでlocal、thread-safe</td>
+</tr>
+<tr>
+<td><code>data/</code>が間違ったfolderに書かれる</td>
+<td><code>save_all()</code>がcwdを基準にresolveする</td>
+<td>notebookと同じくrepo rootを見つけて<code>out_dir</code>をresolveする</td>
+</tr>
+<tr>
+<td>non-deterministicな「realism」</td>
+<td>realisticに見せるため<code>datetime.now()</code>やunseeded RNGを使う</td>
+<td>generatorには必ずseedを渡す。realismはclockではなくdistributionで作る</td>
+</tr>
+<tr>
+<td><code>data/</code>のbloatやsecretをcommitする</td>
+<td><code>.gitignore</code>を忘れた、<code>.env</code>をcommitした</td>
+<td>generated CSVをcurriculum folderに置かない。keyを決してcommitしない</td>
+</tr>
+<tr>
+<td>「works on my machine」</td>
+<td>interpreter/dependenciesがunpin</td>
+<td>lockfile付きのuv/condaを使い、environment checkにversionを記録する</td>
+</tr>
+<tr>
+<td>datasetをcopyしてgenerationを省略する</td>
+<td>reproducibility lessonを回避している</td>
+<td>seed付きで<code>zoro.data</code>から必ず再生成する。CSVはsourceではなくcache</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Seed</strong>: pseudorandom generatorが毎回同じsequenceを再現する固定integer。</li>
+<li><strong>Determinism</strong>: 同じinput（とseed）なら、runごとに同じoutputになる性質。</li>
+<li><strong>Reproducibility</strong>: 見知らぬ人があなたのworkを再実行して同じ数字を得られること。determinismとpinned environmentの組み合わせ。</li>
+<li><strong><code>default_rng</code></strong>: NumPyのmodernでlocal、thread-safeなrandom generator factory。</li>
+<li><strong>Foreign key</strong>: 別tableのprimary keyを参照するcolumn（例：<code>shipments.carrier_id</code>）。</li>
+<li><strong>Data dictionary</strong>: 各columnをdtypeとbusiness meaningに対応付けた、人が読めるmap。</li>
+<li><strong>Configuration baseline</strong>: 後のworkが積み上がる、正確に記録されたstate（data、version、seed）。</li>
+<li><strong>Fork / clone / branch / PR</strong>: shared repoへcontributeするためのGit workflow。</li>
+<li><strong>Readiness score</strong>: environment notebookの0〜6のself-check。6は「buildの準備完了」を意味する。</li>
+<li><strong>Synthetic data</strong>: real PIIを使わず、実データの構造と問題をまねてprogrammatically生成するdata。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="quiz.html"><code>quiz.ja.md</code></a> を開き、10問すべてに答えます。合格ラインは <strong>8/10</strong> です。各問題には、対応するConceptsのsubsectionまたはnotebook cellが記載されています。</p>
+<h2 id="exercises">Exercises</h2>
+<p>4つのgraded exerciseがあります。<strong>Easy</strong>（environment checkを実行してscoreを記録）、<strong>Standard</strong>（別seedで小さなdatasetを再生成しschemaが安定していることを証明）、<strong>Stretch</strong>（clean shellからstandalone <code>generate_small.py</code>を実行）、<strong>Portfolio</strong>（generator outputとdata dictionaryをprogram最初のinspectable artifactとしてcommit）です。各hintは <a href="exercises.html"><code>exercises.ja.md</code></a> にあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>NumPy random generator（<code>Generator</code>、<code>default_rng</code>）：https://numpy.org/doc/stable/reference/random/generator.html</li>
+<li>NumPy documentation：https://numpy.org/doc/stable/</li>
+<li>pandas documentation：https://pandas.pydata.org/docs/</li>
+<li>Python environment tooling（uv）：https://docs.astral.sh/uv/</li>
+<li>Git documentation：https://git-scm.com/doc</li>
+<li>GitHub flow（fork、branch、commit、PR）：https://docs.github.com/en/get-started/using-git/about-git</li>
+<li>Andrew Ng, <em>The AI Engineering Skills Map</em>, The Batch issue 366：https://www.deeplearning.ai/the-batch/issue-366</li>
+<li>Andrew Ng, <em>Three Key Loops for Building Great Software</em>：https://www.deeplearning.ai/the-batch/three-key-loops-for-building-great-software</li>
+<li>Fereydun Hashemi（Zorost）, <em>The AI Engineering Skills Map, turned into a training plan</em>：https://zorost.com/ai-engineering-skills-map-training-guide</li>
+<li>Zorost Intelligence：https://zorost.com</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

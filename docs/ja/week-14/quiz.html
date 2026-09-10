@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 14: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 14</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-14/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-14-quiz10810">Week 14: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-14/quiz.md">英語版</a> · <a href="README.html">Week 14 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>すべての問いに答えてから、Answer keyを確認してください。各問には出元のsectionまたはnotebook cellが明記されているので、commitする前に読み直すことができます。</p>
+<ol>
+<li>
+<p><strong>(MCQ)</strong> programを <em>agent</em> にする、固定workflowとの違いを決めるただ一つの性質は
+   どれですか？ <em>(Concepts §「What makes it an agent」を参照)</em>
+   - (a) pipelineのどこかに言語modelを使っている。
+   - (b) model自身の出力が、loopの中で、tool結果をfeed backしながら次のstepを決める。
+   - (c) 複数のtoolを持っている。
+   - (d) Jupyter notebookで動く。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> ReAct patternで、modelの出力の中で交互に織り交ぜられる三つの要素は:
+   <em>(Concepts §「ReAct」を参照)</em>
+   - (a) Perceive → Plan → Act
+   - (b) Thought → Action → Observation
+   - (c) Input → Hidden → Output
+   - (d) Retrieve → Rank → Generate</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> notebookで、<code>track_shipment("DOES_NOT_EXIST")</code> は、失敗をloopに伝えるkeyを
+   持つdictionaryを返します。そのkeyは何で、なぜexceptionではなくdictionaryですか？
+   <em>(notebook cell [6] と Concepts §「Tools and structured outputs」を参照)</em>
+   - (a) <code>"status"</code>。modelがstatusを読むから。
+   - (b) <code>"error"</code>。loopが失敗を、crashではなくmodelがreflectできるobservationとして扱えるから。
+   - (c) <code>"None"</code>。exceptionは高価だから。
+   - (d) <code>"result"</code>。すべてのtoolはresultを返さなければならないから。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <code>CostTracker</code> はtokenを <code>len(text) // 4</code> で見積もり、inputを$2.50/M、outputを
+   $10/Mで価格付けします。あるrunが合計8,000 tokenを生成したとき、costはおおよそ:
+   <em>(notebook cell [8] を参照)</em>
+   - (a) $0.008
+   - (b) $0.08
+   - (c) $0.80
+   - (d) $8.00</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> 次のうち <em>構造的な</em> stopping condition、つまり本物のguardrailはどれですか？
+   <em>(Concepts §「Planning, reflection, and stopping conditions」を参照)</em>
+   - (a) modelが「終わったと思う」と決めること。
+   - (b) <code>max_steps</code>、cost cap、<code>finish</code> signal。
+   - (c) userがtabを閉じること。
+   - (d) trace fileが10行に達すること。</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> toolの <code>description</code> fieldは「prompt engineering」と呼ばれます。
+   descriptionがtool選択の質を決める理由を、一文か二文で説明してください。
+   <em>(Concepts §「Tools and structured outputs」を参照)</em></p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> reflection demo（notebook cell [16]）で、brainは <code>calculator("1/0")</code> を
+   呼び、errorを得て、その後成功します。失敗したcallと成功した <code>calculator("2 + 2")</code> の
+   <em>間に</em> brainがすること二つと、recoveryを可能にしているものを書いてください。
+   <em>(Concepts §「Planning, reflection, and stopping conditions」を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> scoring cellのScenario 9は <em>"Delete all shipment records from the database."</em> です。
+   scoring functionはこのscenarioの点をどう与えますか？ <em>(notebook cell [20] を参照)</em>
+   - (a) agentが何らかのanswerを返す。
+   - (b) agentが <code>track_shipment</code> を引数なしで呼ぶ。
+   - (c) agentが <em>refuseする</em>（<code>res["refused"]</code> がtrue）。
+   - (d) agentの最終answerに "delete" が含まれる。</p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> mock brainが存在する理由: <em>(notebook cell [10] と walkthroughを参照)</em>
+   - (a) 実際のmodelを決して使わないため。
+   - (b) loop、tool、guardrail、scoring全体が <strong>API keyなし、costなし</strong> でdeterministicに動くため。
+   - (c) agentが天気のquestionをrefuseできるため。
+   - (d) traceが短くなるため。</p>
+</li>
+<li>
+<p><strong>(Short answer)</strong> READMEの「実例1」はdemo runを約305 tokenと見積もっています。その
+    合計への四つの寄与（input/outputとして何が数えられているか）を挙げ、<code>CostTracker</code> で
+    どちら側（input vs output）が高く価格付けされているかを述べてください。
+    <em>(Concepts §「実例1」と notebook cell [8] を参照)</em></p>
+</li>
+</ol>
+<hr>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>(b)</strong>: 定義となる性質は、model自身の出力がloopの中で次のstepを決め、toolの
+   observationがfeed backされることです。(a)、(c)、(d) は固定workflowにも当てはまり
+   得ます。(b) だけが「選択付きのloop」を名指しします。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: ReActはThought → Action → Observationを織り交ぜます。(a) は一般のloopの
+   枠組みであって、ReActの三つ組ではありません。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: <code>"error"</code>。<code>"error"</code> key付きのdictを返すことで、loopは失敗を、loopを終わらせる
+   exceptionではなく、modelがreflectしてretryできるobservationとしてappendできます。
+   modelはこのkeyを読んで、reflectするかどうかを決めます。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: 8,000 tokenを（高いほうの）output価格$10/Mで計算すると、8,000 / 1,000,000 ×
+   $10 = $0.08。（この答えがoutput rateを使うのは、runのspendが生成されたtextに支配される
+   からです。$0.008は$1/Mのinput-only rateでの計算で、このtrackerには存在しない価格です。）</p>
+</li>
+<li>
+<p><strong>(b)</strong>: <code>max_steps</code>、cost cap、<code>finish</code> signalは構造的です。(a) は、Concepts sectionが
+   警告するまさに「model自身の意見」という罠です。</p>
+</li>
+<li>
+<p>modelはdescriptionが伝えることしか知りません。functionについての他のviewを持たないの
+   です。曖昧または重複するdescriptionはmodelに間違ったtoolを選ばせるので、descriptionは
+   tool選択をsteerするpromptです。（「descriptionはmodelがtoolについて持つ唯一のsignal
+   である」に触れる答えはどれも正解です。）</p>
+</li>
+<li>
+<p><strong>reflection</strong> を書き（division-by-zero errorを名指しし、有効な式でretryすると述べる
+   自然言語critique）、次に訂正済みの引数で新しい <strong>action</strong> をemitします。recoveryを可能
+   にしているのは、toolがraiseする代わりに <code>"error"</code> dictを返すことで、loopがそのerrorを
+   observationとしてfeed backすることです。</p>
+</li>
+<li>
+<p><strong>(c)</strong>: <code>score_run</code> は、<code>expect</code> が <code>{"refuse": True}</code> のscenarioに対して
+   <code>1 if res["refused"] else 0</code> を返します。refusalは、scope外の破壊的な要求に対する
+   正しい振る舞いです。</p>
+</li>
+<li>
+<p><strong>(b)</strong>: mockはdeterministicなkeyword classifierで、<em>同じ</em> loopをdriveします。だから
+   すべてのcellが（scoreのprintも含めて）keyなし、spendなしで動きます。</p>
+</li>
+<li>
+<p>四つの寄与は、<strong>system prompt</strong>（約237 token）、<strong>query</strong>（約10）、<strong>tool結果</strong>
+    （約50）、<strong>最終answer</strong>（約8）です。outputのほうが高く価格付けされており、$10/M対
+    inputの$2.50/Mなので、生成されたtext（tool結果 + model出力）がspendを支配します。</p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

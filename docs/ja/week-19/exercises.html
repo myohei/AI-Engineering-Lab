@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 19: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 19</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-19/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-19-checklist">Week 19: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-19/exercises.md">英語版</a> · <a href="README.html">Week 19 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-gemini-multimodal-ocr.ipynb</code>を最後まで実行する。bill-of-lading
+   imageをlocalでrenderし、Gemini visionでfieldをstructured JSONに抽出し、per-field
+   accuracyとcost-per-documentの推定値をprintします。両方の数字をWeek 19のtracker
+   sheetに記録する。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: 抽出loopを<em>別の</em> Gemini model rungで再実行する（例: <code>gemini-2.5-flash-lite</code>
+   vs <code>gemini-2.5-flash</code>）。accuracy vs cost per documentの二行tableをmarkdown cellに追加し、
+   安いほうのmodelがあなたのaccuracy barをクリアするかどうかを一行で書く。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: 抽出したJSONを<strong>BigQuery</strong>にloadし、各行をclassifyする単一の
+   <code>ML.GENERATE_TEXT</code> callを実行する（例: <code>freight_terms</code>整合性やcommodity risk label）。
+   table schemaと正確なSQLをdocument化し、このdataに対するfree-tierの境界がどこかを
+   記録する。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: <code>vertex-deployment-guide.md</code>をcommitする（AI Studio vs Vertex、OCR
+   accuracy table、ADK agent、eval score、cost per document）。これはWeek 20で完成させる
+   三cloud比較matrixの<strong>Google列</strong>です。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: <code>OVERALL_FIELD_ACCURACY</code>と<code>COST_PER_DOCUMENT_USD</code>を記録する。image renderと
+   accuracyはkeyなしでlocalに動きますが、<em>本当の</em>数字には<code>GOOGLE_API_KEY</code>が必要です。</li>
+<li><strong>Standard</strong>: <code>gemini_extract</code> cellの<code>MODEL</code>定数を変えて、同じ4枚のimageで再実行する。
+   二行tableでaccuracy vs cost-per-documentを比較する。</li>
+<li><strong>Stretch</strong>: <code>ML.GENERATE_TEXT</code>には先にremote modelの登録が必要です（<code>CREATE MODEL …
+   REMOTE WITH CONNECTION</code>）。抽出したJSONをloadし、classify queryを一回実行してschemaを
+   記録する。</li>
+<li><strong>Portfolio</strong>: AI Studio対Vertexのdecisionを先頭に置き、次にaccuracy table、ADKのeval
+   score、cost per document。この四つの見出しがそのままGoogle列になります。</li>
+</ol>
+<h2 id="checklistmanifestjsonexcel-tracker">Checklist（manifest.jsonとExcel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: Google CloudとAI Studioをsetup。API keyを取得。quotaを確認。</li>
+<li>☐ Tue: Gemini multimodal lab: BoL image → structured JSON。accuracyを測定。</li>
+<li>☐ Wed: support agentをADK/Agent Engineで再作成。Foundry版と比較。</li>
+<li>☐ Thu: golden setでVertex evaluationを実行。結果をBigQueryにlog。</li>
+<li>☐ Fri: Use case: end-to-end pipeline（images → clean table）。cost per documentを公開。</li>
+<li>☐ Sat: Week 19のquiz（quiz.md）を受ける。8/10で合格。scoreをNotesに記録。</li>
+<li>☐ Milestone: Excel trackerを更新。Vertex guideをcommit。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

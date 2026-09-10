@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Engineering Lab: 24週間AI Engineering Program</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="overview.html">概要</a>
+    <a href="start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../index.html">English site</a>
+  </nav>
+</div>
+</header>
+<main class="wrap ja">
+<h1 id="ai-engineering-lab-24ai-engineering-program">AI Engineering Lab: 24週間AI Engineering Program</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/README.md">英語版</a> · <a href="overview.html">ルートの日本語ガイド</a></p>
+<p><strong>Find the Signal. Act with Intelligence.</strong> · <a href="https://zorost.com">Zorost Intelligence AI Lab</a>が開発</p>
+</blockquote>
+<p>AI Engineering Labの本編です。Pythonの基礎からproduction lakehouse AIまでを、週単位で進む24週間のpathとして学びます。各週には <strong>section</strong>（phase）、<strong>category</strong>（skill area）、継続するZoroLogistics case studyの <strong>use case</strong>、実行可能な <strong>notebook</strong>、Excel trackerに記録する <strong>checklist</strong> があります。</p>
+<p><img alt="FoundationsからDatabricks capstoneまでの7つのphaseと、各phaseで作るもの" src="../assets/img/lab-journey.webp"></p>
+<blockquote>
+<p><strong>初めての方へ:</strong> まず <a href="start-here.html"><code>START-HERE.ja.md</code></a> を読み、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/GLOSSARY.md"><code>reference/GLOSSARY.md</code></a> を1つのtabで開いておいてください。technical termは現在、英語の用語集で定義されています。Week 1の日本語ガイドでは重要語を日本語でも説明します。</p>
+</blockquote>
+<h2 id="_1">プログラムの進め方</h2>
+<p><img alt="Study、Build、Ship、Reflectの4つのbeatで構成する1週間" src="../assets/img/lab-week.webp"></p>
+<ol>
+<li><strong>1つのcase studyを24週間使います。</strong> 架空の運送会社 <strong>ZoroLogistics</strong> のAI engineering teamとして進めます。Week 1のdata、model、agentをWeek 24まで再利用・改善・production化します。卒業時には24個の無関係なdemoではなく、つながったportfolioができます。</li>
+<li><strong>Weekly cadence（週約10時間）:</strong>
+   - <strong>月〜火 · Study:</strong> その週のREADMEと、リンクされているknowledge-baseを読む。
+   - <strong>水〜木 · Build:</strong> notebookを実行し、変更・拡張する。
+   - <strong>金 · Use case:</strong> use-case exerciseを完成させ、具体的な成果物をshipする。
+   - <strong>金〜日 · Reflect &amp; check off:</strong> Excel trackerを更新し、自分のforkへpushする。</li>
+<li><strong>どこでもevalを行います。</strong> Week 3以降、すべてのAI成果物にはscore（metricまたはeval）とerror-analysis noteを付けます。これがAI engineeringの中心的な習慣です。</li>
+<li><strong>local-first、cloud-laterです。</strong> Week 1〜13はlaptopで進めます（GPUはWeek 8まで不要で、その後も小さなmodelならCPUで動きます）。Week 18〜24は主要cloudのfree/limited tierを使います。</li>
+</ol>
+<h2 id="_2">前提条件</h2>
+<ul>
+<li>いずれかのprogramming languageに慣れていること（Pythonはゼロから説明します）</li>
+<li>Gitの基本（Week 1で復習します）</li>
+<li>laptop（RAM 16 GB推奨。Week 8以降はApple SiliconまたはNVIDIA GPUがあると便利です）</li>
+<li>任意のaccount（各週で作成）：GitHub、Hugging Face、任意のmodel API key、Azure / Google Cloud / AWS / Databricksのfree tier</li>
+</ul>
+<h2 id="24">24週間の一覧</h2>
+<table>
+<thead>
+<tr>
+<th>Week</th>
+<th>Week title</th>
+<th>Section</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Python Foundations &amp; the AI Engineering Landscape</td>
+<td>Foundations</td>
+<td>Python &amp; Environment</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Data Engineering &amp; SQL for AI</td>
+<td>Foundations</td>
+<td>Data &amp; SQL</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Machine Learning Fundamentals</td>
+<td>Foundations</td>
+<td>Classical ML</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Deep Learning with PyTorch</td>
+<td>Foundations</td>
+<td>Deep Learning</td>
+</tr>
+<tr>
+<td>5</td>
+<td>How LLMs Work: Tokens to Transformers</td>
+<td>LLM Core</td>
+<td>LLM Internals</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Prompt Engineering &amp; the Context Window</td>
+<td>LLM Core</td>
+<td>Prompt &amp; Context</td>
+</tr>
+<tr>
+<td>7</td>
+<td>RAG, Vector Search &amp; Knowledge Graphs</td>
+<td>LLM Core</td>
+<td>Retrieval &amp; Graphs</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Open Models &amp; Local Inference: GPUs, Ollama, llama.cpp</td>
+<td>LLM Core</td>
+<td>Local Models &amp; GPUs</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Quantization &amp; Efficient Inference</td>
+<td>Model Engineering</td>
+<td>Quantization &amp; Serving</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Fine-Tuning: LoRA, SFT &amp; DPO</td>
+<td>Model Engineering</td>
+<td>Fine-tuning</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Evals &amp; Error Analysis for AI Systems</td>
+<td>Model Engineering</td>
+<td>Evaluation</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Coding-Agent Harnesses: Claude Code, Cursor, OpenCode, DSH</td>
+<td>Harnesses &amp; Loops</td>
+<td>Harnesses</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Agentic Coding Loops &amp; Spec-Driven Development</td>
+<td>Harnesses &amp; Loops</td>
+<td>Loops &amp; Specs</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Agent Fundamentals: The Loop, Tools &amp; Memory</td>
+<td>Agents</td>
+<td>Agent Core</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Agent Frameworks: LangGraph &amp; the State-Graph Model</td>
+<td>Agents</td>
+<td>Frameworks</td>
+</tr>
+<tr>
+<td>16</td>
+<td>Multi-Agent Systems &amp; MCP</td>
+<td>Agents</td>
+<td>Multi-Agent &amp; Protocols</td>
+</tr>
+<tr>
+<td>17</td>
+<td>OpenClaw, Hermes &amp; Agent Operations</td>
+<td>Agents</td>
+<td>Personal Agents &amp; Ops</td>
+</tr>
+<tr>
+<td>18</td>
+<td>Azure AI Foundry</td>
+<td>Cloud AI Platforms</td>
+<td>Microsoft</td>
+</tr>
+<tr>
+<td>19</td>
+<td>Google Vertex AI &amp; Gemini</td>
+<td>Cloud AI Platforms</td>
+<td>Google</td>
+</tr>
+<tr>
+<td>20</td>
+<td>AWS Bedrock &amp; SageMaker AI</td>
+<td>Cloud AI Platforms</td>
+<td>AWS</td>
+</tr>
+<tr>
+<td>21</td>
+<td>Databricks Day Zero: Unity Catalog &amp; the Lakehouse</td>
+<td>Databricks Zero to Hero</td>
+<td>Platform &amp; Data</td>
+</tr>
+<tr>
+<td>22</td>
+<td>Databricks Data Engineering: PySpark, Streaming &amp; Lakeflow</td>
+<td>Databricks Zero to Hero</td>
+<td>Pipelines</td>
+</tr>
+<tr>
+<td>23</td>
+<td>Databricks ML &amp; GenAI: Training, Serving, Genie</td>
+<td>Databricks Zero to Hero</td>
+<td>ML &amp; GenAI</td>
+</tr>
+<tr>
+<td>24</td>
+<td>Databricks Production: DABs, Governance &amp; the Capstone</td>
+<td>Databricks Zero to Hero</td>
+<td>Production &amp; Capstone</td>
+</tr>
+</tbody>
+</table>
+<p>Week 1〜24の日本語版を用意しています。Week 1: <a href="week-01/README.html"><code>README.ja.md</code></a>・<a href="week-01/exercises.html"><code>exercises.ja.md</code></a>・<a href="week-01/quiz.html"><code>quiz.ja.md</code></a>（Notebookも日本語のMarkdownセル版）。</p>
+<p>Week 2〜24の日本語版（Notebook本体は英語版を使用します）:</p>
+<table>
+<thead>
+<tr>
+<th>Week</th>
+<th>README</th>
+<th>演習</th>
+<th>クイズ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2</td>
+<td><a href="week-02/README.html">AIのためのData EngineeringとSQL</a></td>
+<td><a href="week-02/exercises.html">演習</a></td>
+<td><a href="week-02/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="week-03/README.html">Machine Learningの基礎</a></td>
+<td><a href="week-03/exercises.html">演習</a></td>
+<td><a href="week-03/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="week-04/README.html">PyTorchで学ぶDeep Learning</a></td>
+<td><a href="week-04/exercises.html">演習</a></td>
+<td><a href="week-04/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="week-05/README.html">LLMsの仕組み——TokenからTransformerまで</a></td>
+<td><a href="week-05/exercises.html">演習</a></td>
+<td><a href="week-05/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="week-06/README.html">Prompt EngineeringとContext Window</a></td>
+<td><a href="week-06/exercises.html">演習</a></td>
+<td><a href="week-06/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="week-07/README.html">RAG、Vector SearchとKnowledge Graph</a></td>
+<td><a href="week-07/exercises.html">演習</a></td>
+<td><a href="week-07/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>8</td>
+<td><a href="week-08/README.html">Open ModelsとLocal Inference — GPUs、Ollama、llama.cpp</a></td>
+<td><a href="week-08/exercises.html">演習</a></td>
+<td><a href="week-08/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>9</td>
+<td><a href="week-09/README.html">QuantizationとEfficient Inference</a></td>
+<td><a href="week-09/exercises.html">演習</a></td>
+<td><a href="week-09/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="week-10/README.html">Fine-Tuning — LoRA、SFTとDPO</a></td>
+<td><a href="week-10/exercises.html">演習</a></td>
+<td><a href="week-10/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>11</td>
+<td><a href="week-11/README.html">AI SystemのためのEvalとError Analysis</a></td>
+<td><a href="week-11/exercises.html">演習</a></td>
+<td><a href="week-11/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>12</td>
+<td><a href="week-12/README.html">Coding-Agent Harnesses — Claude Code、Cursor、OpenCode、DSH</a></td>
+<td><a href="week-12/exercises.html">演習</a></td>
+<td><a href="week-12/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>13</td>
+<td><a href="week-13/README.html">Agentic Coding LoopとSpec-Driven Development</a></td>
+<td><a href="week-13/exercises.html">演習</a></td>
+<td><a href="week-13/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>14</td>
+<td><a href="week-14/README.html">Agentの基礎 — Loop、Tools &amp; Memory</a></td>
+<td><a href="week-14/exercises.html">演習</a></td>
+<td><a href="week-14/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>15</td>
+<td><a href="week-15/README.html">Agent Frameworks — LangGraphとState-Graph Model</a></td>
+<td><a href="week-15/exercises.html">演習</a></td>
+<td><a href="week-15/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>16</td>
+<td><a href="week-16/README.html">Multi-Agent SystemとMCP</a></td>
+<td><a href="week-16/exercises.html">演習</a></td>
+<td><a href="week-16/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>17</td>
+<td><a href="week-17/README.html">OpenClaw、HermesとAgent Operations</a></td>
+<td><a href="week-17/exercises.html">演習</a></td>
+<td><a href="week-17/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>18</td>
+<td><a href="week-18/README.html">Azure AI Foundry</a></td>
+<td><a href="week-18/exercises.html">演習</a></td>
+<td><a href="week-18/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>19</td>
+<td><a href="week-19/README.html">Google Vertex AIとGemini</a></td>
+<td><a href="week-19/exercises.html">演習</a></td>
+<td><a href="week-19/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>20</td>
+<td><a href="week-20/README.html">AWS BedrockとSageMaker AI</a></td>
+<td><a href="week-20/exercises.html">演習</a></td>
+<td><a href="week-20/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>21</td>
+<td><a href="week-21/README.html">Databricks Day Zero: Unity Catalogとlakehouse</a></td>
+<td><a href="week-21/exercises.html">演習</a></td>
+<td><a href="week-21/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>22</td>
+<td><a href="week-22/README.html">Databricks Data Engineering: PySpark、StreamingとLakeflow</a></td>
+<td><a href="week-22/exercises.html">演習</a></td>
+<td><a href="week-22/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>23</td>
+<td><a href="week-23/README.html">Databricks ML &amp; GenAI: Training、Serving、Genie</a></td>
+<td><a href="week-23/exercises.html">演習</a></td>
+<td><a href="week-23/quiz.html">クイズ</a></td>
+</tr>
+<tr>
+<td>24</td>
+<td><a href="week-24/README.html">Databricks Production: DABs、GovernanceとCapstone</a></td>
+<td><a href="week-24/exercises.html">演習</a></td>
+<td><a href="week-24/quiz.html">クイズ</a></td>
+</tr>
+</tbody>
+</table>
+<p>各週のフォルダー（<code>curriculum/week-NN/</code>）は、1つのcomplete lessonです。</p>
+<pre><code>week-NN/
+├── README.md        # lesson：problem → deep concepts（table、diagram、例、pitfall、glossary）
+│                    # → notebook walkthrough → use case → sources
+├── notebooks/       # 1〜3個の実行可能なJupyter notebook（Python / SQL / PySpark）
+├── exercises.md     # graded exercise、hint、その週のchecklist
+└── quiz.md          # 10問のself-check（8問正解で合格）
+</code></pre>
+<h2 id="phase">Phase</h2>
+<h3 id="phase-1-foundationsweek-14">Phase 1 · Foundations（Week 1〜4）</h3>
+<p>Python、data engineering、classical ML、deep learningを、AI engineeringの方法で学びます。すべてのmodelにmetric、split、error analysisを付けます。Week 1では、以降ずっと再利用するZoroLogistics synthetic-data generatorを作ります。</p>
+<h3 id="phase-2-llm-coreweek-58">Phase 2 · LLM Core（Week 5〜8）</h3>
+<p>LLMの仕組みを、tokenとembeddingからattention、KV cacheまで学びます。その上にある2つのengineering superpower、<strong>prompt/context-window engineering</strong> と <strong>retrieval（RAG + knowledge graph）</strong> を扱います。Week 8ではlocalへ進み、open model、Ollama / llama.cpp / MLX、CUDAからApple MetalまでのGPU setupを行います。</p>
+<h3 id="phase-3-model-engineeringweek-911">Phase 3 · Model Engineering（Week 9〜11）</h3>
+<p>modelを安く、自分の用途に合わせます。quantization formatとserving engine、LoRA/SFT/DPOによるfine-tuning、そしてすべてを判断するevalとerror analysis（Ngがagentをどれだけ速くshipできるかを左右する最大の要素）を学びます。</p>
+<h3 id="phase-4-harnesses-loopsweek-1213">Phase 4 · Harnesses &amp; Loops（Week 12〜13）</h3>
+<p>coding agentを使いこなします。Claude Code、Cursor、OpenCode、DeepSeek Harnessを設定・操作し、managed context、rules file、subagent、3つのloop（agentic coding → developer feedback → external feedback）を、spec、verifier、blast-radius ruleとともに学びます。</p>
+<h3 id="phase-5-agentsweek-1417">Phase 5 · Agents（Week 14〜17）</h3>
+<p>手書きのReAct loopからLangGraph state graph、multi-agent orchestration、MCPへ進みます。Week 17ではOpenClawをpersonal lab assistantとして動かし、Hermes系のopen modelをagent brainに使い、tracing、eval、costのops layerを加えます。</p>
+<h3 id="phase-6-cloud-ai-platformsweek-1820">Phase 6 · Cloud AI Platforms（Week 18〜20）</h3>
+<p>同じZoroLogistics support agentを3通りでdeployします。Azure AI Foundry（Microsoft）、Vertex AI + AI Studio（Google）、Bedrock + SageMaker（AWS）を比較し、capability、governance、costを見て選び方を学びます。</p>
+<h3 id="phase-7-databricks-zero-to-heroweek-2124">Phase 7 · Databricks Zero to Hero（Week 21〜24）</h3>
+<p>Zorost Databricks modernization playbookを一通り実行します。Unity Catalog、Delta Lake medallion、DBSQL、PySpark、streaming、Lakeflow Pipelines &amp; Jobs、MLflow、feature engineering、Databricks Model Training、Model Serving + Unity AI Gateway、AI Search（Vector Search）、AI functions、Genie、Agent Bricksを扱い、その後DABs、CI/CD、governance、FinOpsへ進みます。最後は <strong>ZoroLogistics Lakehouse Intelligence</strong> capstoneです。</p>
+<h2 id="_3">進捗管理</h2>
+<p><code>tracking/ai-engineering-lab-24-week-tracker.xlsx</code> をdownloadし、Excel、Google Sheets、またはLibreOfficeで開きます。次の内容が入っています。</p>
+<ul>
+<li><strong>Dashboard</strong> sheet：名前、開始日、週ごとのcompletion bar、24週間のprogress chart</li>
+<li><strong>週ごとのsheet</strong>：status dropdown（☐ Not started · ▶ In progress · ✅ Done · ⏭ Skipped）、週ごとのcompletion percentage、Notes column付きchecklist</li>
+</ul>
+<p>このworkbookは <code>manifest.json</code> から生成されます。詳しくは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/tracking/README.md"><code>tracking/README.md</code></a> を参照してください。</p>
+<h2 id="_4">修了時にできること</h2>
+<p>24週（Week 24 capstoneを含む）を終えると、次の成果物が残ります。</p>
+<ul>
+<li>43個の実行済みnotebook（Python、SQL、PySpark）</li>
+<li>portfolio：fine-tuned model、RAG agent、multi-agent system、MCP server、3つのcloud deployment、governed Databricks lakehouse</li>
+<li>自分で構築したeval harness。これがAI engineerとdemo builderを分ける成果物です。</li>
+</ul>
+<p>forkとtracker dashboardをmentor、team、または<a href="https://zorost.com">Zorost Intelligence</a>と共有できます。</p>
+<hr>
+<p>© 2026 Zorost Intelligence LLC · https://zorost.com</p>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+
+</body>
+</html>

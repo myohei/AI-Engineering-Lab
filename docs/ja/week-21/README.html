@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 21: Databricks Day Zero: Unity Catalogとlakehouse</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 21</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-21/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-21-databricks-day-zero-unity-cataloglakehouse">Week 21: Databricks Day Zero: Unity Catalogとlakehouse</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-21/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 21 of 24 · Section: Databricks Zero to Hero · Category: Platform &amp; Data
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-21/notebooks/01-unity-catalog-and-delta-lab.ipynb">01-unity-catalog-and-delta-lab.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-21/notebooks/02-medallion-sql.ipynb">02-medallion-sql.ipynb</a>
+🎯 <strong>Use case:</strong> ZoroLogisticsのlakehouseを立ち上げ、bronze → silver → goldをすべてSQLで構築する。</p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsは20のlane、20のcarrierでfreightを運んでおり、毎晩 <code>shipments.csv</code>、<code>carriers.csv</code>、<code>lanes.csv</code> というCSVsのfolderが、data engineerがそのうち目を通すどこかに届きます。今日、問題はまさにその「そのうち」です。fileがすべてcatalogの外にあるため、どのtableが<em>本物の</em> on-time rateなのか、誰が顧客のvalueを読むことを許されているのか、先週木曜日の「fix」がdashboardがすでに役員に見せた数字を静かに変えてしまったのか、誰も言えません。</p>
+<p>governed lakehouseがなければ、三つの失敗が確定します。<strong>第一に、lineageがないこと:</strong> on-time KPIが間違って見えるとき、その数字からbronze fileと、それを生成したtransformまで遡るpathがありません。<strong>第二に、trustがないこと:</strong> raw CSVはauditなしに上書きも再exportも手編集もできるので、「on-time rate」を引用する二人のanalystが食い違い、どちらも自分が正しいと証明できません。<strong>第三に、safetyがないこと:</strong> cleaningが誰かの頭の中にしかなく、bronze→silverの境界を<em>強制</em>するものがないため、<code>NaN</code> weightも、duplicateの <code>shipment_id</code> も、malformedなtimestampも、そのままdashboardに届きます。</p>
+<p>今週はこれを <strong>Unity Catalog lakehouse</strong> で置き換えます。すべてのCSVが三段階のaddressを持つgovernedでversionedな <strong>Delta table</strong> になり、cleaningがdeclarativeな <strong>SQLのmedallion pipeline</strong> になり、全体がtime-travel可能、lineage追跡、grant制御されます。before/afterは具体的です。beforeでは「悪いupdateを直す」はscriptを再実行して祈ることでした。afterでは <code>RESTORE TABLE … TO VERSION AS OF 12</code> の一発です。これが、fileの束と、見知らぬ人がinspectして再実行できるplatformの違いです。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、Unity Catalogにgoverned lakehouseを立ち上げられる。catalog（<code>zrl_</code>）、schema（<code>zorologistics</code>）、volumeを、idempotentな <code>CREATE … IF NOT EXISTS</code> で作る。</li>
+<li>☐ 金曜日までに、week-01のCSVsをvolumeからDelta tableにloadし、time travel（<code>DESCRIBE HISTORY</code>、<code>SELECT … VERSION AS OF</code>、<code>@v1</code>）、<code>VACUUM</code>、<code>OPTIMIZE ZORDER</code>、liquid clustering（<code>CLUSTER BY</code>）を試せる。</li>
+<li>☐ 金曜日までに、medallion architectureをpure SQLで構築できる。bronze（source fidelity）→ silver（dedupe、cast、impute）→ gold（carrier/lane/month別の <code>gold_on_time_kpis</code>）。各cleaning decisionを擁護できる。</li>
+<li>☐ 金曜日までに、goldの上にdashboard-readyなAI/BI queryを書き、それをbronzeまで遡ってつなぐ自動lineageを読める。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td>Account、workspaceの構造、control planeとcompute plane、personas（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/00-day-zero-setup.md"><code>00-day-zero-setup.md</code></a>）</td>
+<td>free trialのworkspaceを作る。sidebarを見て回る。CLIをinstallしてauthする</td>
+<td><code>current_user()</code> をprintする最初のnotebook <code>%sql</code> cell</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>Unity Catalogのobject model、managedとexternal、privilege model（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/01-unity-catalog.md"><code>01-unity-catalog.md</code></a>）</td>
+<td><code>01-unity-catalog-and-delta-lab.ipynb</code> cell 1〜4: <code>zrl_</code>/<code>zorologistics</code>/volumeを作り、CSVsをuploadし、<code>shipments_bronze</code> をloadする</td>
+<td>読める <code>SHOW GRANTS</code> 付きのgoverned catalog/schema/volume</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>Delta Lake: ACID、time travel、VACUUM/OPTIMIZE、liquid clustering（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/03-delta-lake.md"><code>03-delta-lake.md</code></a>）</td>
+<td>Notebook 1 cell 5〜11: <code>DESCRIBE HISTORY</code>、<code>VERSION AS OF</code>、<code>VACUUM DRY RUN</code>、<code>OPTIMIZE ZORDER</code>、<code>CLUSTER BY</code></td>
+<td>二つのversionとclustering変更を持つtime-travel demo table</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>Medallion architecture + DBSQL（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/03-delta-lake.md"><code>03-delta-lake.md</code></a> §9、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/04-dbsql.md"><code>04-dbsql.md</code></a>）</td>
+<td><code>02-medallion-sql.ipynb</code>: bronze → silver（dedupe/cast/impute）→ gold</td>
+<td>quality checkがpassする <code>silver_shipments</code> + <code>gold_on_time_kpis</code></td>
+<td>約3時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>Use caseの日</td>
+<td>gold queryをAI/BI dashboardとしてpublishする。Catalog Explorerでlineageを読む</td>
+<td>Week 21 gate（下記）+ lineage graphのscreenshot</td>
+<td>約2時間</td>
+</tr>
+</tbody>
+</table>
+<h2 id="montue">概念（まず読むのはMon/Tue）</h2>
+<p>今週のfact baseは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/research/06-databricks-deep-dive.md"><code>reference/knowledge-base/research/06-databricks-deep-dive.md</code></a>（§0、§4）と <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/13-databricks-overview.md"><code>reference/knowledge-base/13-databricks-overview.md</code></a> です。deep-diveは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/00-day-zero-setup.md"><code>00-day-zero-setup.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/01-unity-catalog.md"><code>01-unity-catalog.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/02-compute.md"><code>02-compute.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/03-delta-lake.md"><code>03-delta-lake.md</code></a>、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/04-dbsql.md"><code>04-dbsql.md</code></a> です。このREADMEが地図であり、それらのfileが地形です。</p>
+<h3 id="platformplane">platformは二つのplaneでできている</h3>
+<p>Databricksが行うことはすべて、<strong>control plane</strong>（Databricks管理: UI、identity、job scheduling、notebook metadata）と <strong>compute plane</strong>（SparkとSQLが実際に動く場所）に分かれます。すべての「どのcompute」decisionを左右する違いはこれです。<strong>classic computeは<em>あなたの</em> cloud accountで動き</strong>（あなたのVPC、あなたのsecurity rule）、<strong>serverless computeは同じregionのDatabricks管理planeで動きます</strong>。lakehouseを買ってdataに向けるのではなく、Databricksを自分のcloudの<em>中で</em>動かし、object storageの上にgoverned lakehouseを重ねるのです。</p>
+<h3 id="unity-catalogfoldergovernance">Unity Catalogはfolderではなくgovernance</h3>
+<p>Unity Catalog（UC）は <strong>dataとAI</strong> の統一的なgovernance layerであり、table、view、volume、function、<em>そして</em> ML modelをgovernする一つのmetastoreです。すべてのobjectは <strong>三段階のaddress</strong> <code>catalog.schema.object</code> に存在し、objectはtable、view、<strong>volume</strong>（非table形式のfile。<code>/Volumes/&lt;catalog&gt;/&lt;schema&gt;/&lt;volume&gt;/…</code> としてaddressされる）、function、modelのいずれかになります。legacyのDBFS-root patternはdeprecatedです。volume pathを学びましょう。</p>
+<p>tableには三種類あり、正しいものを選ぶことはgovernanceのdecisionです:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Managed</th>
+<th>External</th>
+<th>Foreign</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Data lifecycle</td>
+<td>UCが管理</td>
+<td>あなたが管理</td>
+<td>外部systemが管理</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td>UC所有</td>
+<td>あなたが <code>LOCATION</code> を指定</td>
+<td>外部system</td>
+</tr>
+<tr>
+<td><code>DROP TABLE</code> でdataは削除される？</td>
+<td><strong>Yes</strong></td>
+<td>されない（metadataのみ）</td>
+<td>されない</td>
+</tr>
+<tr>
+<td>Best for</td>
+<td>Production（default）</td>
+<td>既存storage / 他のreader</td>
+<td>Federation、migration</td>
+</tr>
+</tbody>
+</table>
+<p>Databricksがsystem of recordであるものはすべてdefaultで <strong>managed</strong> にする。他のtoolが読むstorageを指すには <strong>external</strong> を、copyせずにdataを<em>in place</em>でqueryするには <strong>foreign</strong>（Lakehouse Federation）を使う。</p>
+<h3 id="privilege-modeladditive-only">privilege modelはadditive-only</h3>
+<p>UCのgrantは <strong>additive only、<code>DENY</code> は存在しません</strong>。privilegeは階層を <strong>下に継承</strong> します。principalには <strong>traversal</strong>（<code>USE CATALOG</code>、<code>USE SCHEMA</code>）<em>と</em> <strong>action</strong>（<code>SELECT</code>、<code>MODIFY</code>、<code>READ VOLUME</code>、<code>CREATE TABLE</code>、<code>EXECUTE</code>）が必要です。個人ではなく <strong>group</strong> にgrantし、すべてのobjectに <strong>一つのgroup owner</strong> を付けます。<code>MANAGE</code> はgrant管理を委譲します（控えめに使う）。<code>BROWSE</code> はmetadataのみです。</p>
+<p><strong>実例: ZoroLogisticsの三つのrole。</strong> group <code>zrl_data_engineers</code>、<code>zrl_analysts</code>、<code>zrl_ml_engineers</code> が存在するとします（account console/SCIMで作成）。まずtraversal、それから各roleが必要とする最も狭いactionです:</p>
+<pre><code class="language-sql">-- Traversal: everyone must reach the catalog.
+GRANT USE CATALOG ON CATALOG zrl_ TO `zrl_data_engineers`;
+GRANT USE CATALOG ON CATALOG zrl_ TO `zrl_analysts`;
+GRANT USE CATALOG ON CATALOG zrl_ TO `zrl_ml_engineers`;
+
+-- Data engineers: read+write bronze/silver, write gold.
+GRANT USE SCHEMA, CREATE TABLE, CREATE VOLUME ON SCHEMA zrl_.bronze TO `zrl_data_engineers`;
+GRANT USE SCHEMA, CREATE TABLE ON SCHEMA zrl_.silver TO `zrl_data_engineers`;
+GRANT USE SCHEMA, CREATE TABLE ON SCHEMA zrl_.gold   TO `zrl_data_engineers`;
+
+-- Analysts: read-only on silver &amp; gold.
+GRANT USE SCHEMA, SELECT ON SCHEMA zrl_.silver TO `zrl_analysts`;
+GRANT USE SCHEMA, SELECT ON SCHEMA zrl_.gold   TO `zrl_analysts`;
+
+-- Volume access for the files before they are tables.
+GRANT READ VOLUME, WRITE VOLUME ON VOLUME zrl_.bronze.landing TO `zrl_data_engineers`;
+</code></pre>
+<p><code>SHOW GRANTS ON TABLE zrl_.gold.on_time_kpis;</code> で検証します。least privilegeとは、grantは後からいつでも追加できるが、広げすぎたgrantを"un-DENY"することは決してできない、ということです。（完全なmodelとOpenSharing/Delta Sharingの例: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/01-unity-catalog.md"><code>01-unity-catalog.md</code></a>。）</p>
+<h3 id="delta-laketime-travel">Delta Lakeがもたらすtime travel</h3>
+<p>Deltaは <strong>defaultのstorage layer</strong> であり、明示しない限りすべてのtableがDeltaです。Parquetを <strong>transaction log</strong>（<code>_delta_log/</code>）で拡張したもので、これが <strong>ACID transaction</strong>（各statementがatomic。optimistic concurrency control）、<strong>schema enforcement/evolution</strong>、そして <strong>time travel</strong> をもたらします。すべてのwriteは新しいversionをappendし、<code>DESCRIBE HISTORY</code> がそれを列挙し、<code>SELECT … VERSION AS OF n</code>、<code>SELECT … TIMESTAMP AS OF '…'</code>、<code>@v1</code> が過去のstateを読み、<code>RESTORE TABLE</code> がrollbackします。</p>
+<p><strong>実例: 悪いupdateのaudit。</strong> 失敗した <code>UPDATE</code> がweightをゼロにしたので、現在のversionは間違っているがversion 12は正しかった、とします:</p>
+<pre><code class="language-sql">-- 1. Which version was last good?
+SELECT version, timestamp, operation
+FROM (DESCRIBE HISTORY zrl_.silver.shipments) ORDER BY version DESC;
+
+-- 2. Roll the table back to version 12.
+RESTORE TABLE zrl_.silver.shipments TO VERSION AS OF 12;
+
+-- 3. Confirm the fix.
+SELECT shipment_id, weight_kg FROM zrl_.silver.shipments WHERE weight_kg &gt; 0;
+</code></pre>
+<p>notebookでは同じ考えを隔離されたdemo tableで目に見えるようにします。version 1は1,000行、version 2は2,000行を持ち、<code>SELECT count(*) FROM time_travel_demo VERSION AS OF 1</code> は1,000を返し、現在のtableは2,000を返します。これを区切るretentionの規則: logは <code>logRetentionDuration</code>（default <strong>30日</strong>）の間historyを保持し、data fileは <code>deletedFileRetentionDuration</code>（default <strong>7日</strong>）の間保持します。</p>
+<p><strong><code>VACUUM</code> は7日より古いdata fileを削除します</strong>（まず <code>DRY RUN</code> でpreviewする。これはper-writeの習慣ではなく <em>scheduled maintenance</em> のjobです）。VACUUMの後、その窓を超えたtime travelは不可能になります。costとrecoveryのdecisionです。<strong><code>OPTIMIZE</code></strong> は小さいfileをcompact化し、<strong><code>ZORDER BY (carrier_id)</code></strong> はrowを同じ場所に置くのでfilter queryがdataをskipできます。Z-orderもHive partitioningも、今では <strong>liquid clustering</strong>（<code>CLUSTER BY (carrier_id, lane_id)</code>）に取って代わられました。これは<em>rewriteなしで</em>keyを変更でき、<code>CLUSTER BY AUTO</code>（DBR 15.4 LTS+でGA）ならDatabricksに適応を任せられます。詳細は <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/03-delta-lake.md"><code>03-delta-lake.md</code></a>。</p>
+<h3 id="medalliondata-qualitycontract">medallionはdata-qualityのcontract</h3>
+<p>medallion architectureはnamingの流行ではなく、<strong>progressive trust model</strong> です:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Purpose</th>
+<th>Rules</th>
+<th>ZoroLogisticsのtable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Bronze (raw)</strong></td>
+<td>unvalidatedでsource-fidelityなdataを取り込む</td>
+<td>Append-only、cleaningなし、<code>STRING</code>/<code>VARIANT</code> で保存</td>
+<td><code>shipments_bronze</code>、<code>carriers</code>、<code>lanes</code></td>
+</tr>
+<tr>
+<td><strong>Silver (validated)</strong></td>
+<td>clean、dedupe、cast、impute、join</td>
+<td>Schemaを強制。<code>shipment_id</code> でdedupe。key columnにnullなし</td>
+<td><code>silver_shipments</code>、<code>lanes_clean</code></td>
+</tr>
+<tr>
+<td><strong>Gold (enriched)</strong></td>
+<td>business shapeにaggregateする</td>
+<td>business rule + KPI column</td>
+<td><code>gold_on_time_kpis</code></td>
+</tr>
+</tbody>
+</table>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    CSV[Week-01 CSVs\n/Volumes/zrl_/zorologistics/raw/] --&gt; BZ[bronze\nshipments_bronze, carriers, lanes]
+    BZ --&gt; SV[&quot;silver\nsilver_shipments: dedupe, cast, impute&quot;]
+    SV --&gt; GD[gold\ngold_on_time_kpis by carrier/lane/month]
+    GD --&gt; BI[AI/BI dashboard\non-time rate]
+    GD --&gt; LG[Catalog Explorer\nlineage]
+</div>
+<p><strong>実例: silver cleanをSQLで。</strong> Week-2のgeneratorはduplicate（0.2%）と <code>NaN</code> weight（0.3%）を仕込み、これはCSV→Deltaの後に <code>NULL</code> になります。silver queryはdedupeし、castし、imputeし、labelを再生成します:</p>
+<pre><code class="language-sql">CREATE OR REPLACE TABLE silver_shipments AS
+WITH dedup AS (
+  SELECT *, ROW_NUMBER() OVER (PARTITION BY shipment_id ORDER BY planned_departure) AS rn
+  FROM shipments_bronze
+)
+SELECT shipment_id, carrier_id, lane_id, commodity,
+  COALESCE(CAST(weight_kg AS DOUBLE), 850.0) AS weight_kg,      -- impute with mean
+  COALESCE(CAST(value_usd  AS DOUBLE), 0.0)  AS value_usd,
+  to_timestamp(planned_departure, 'yyyy-MM-dd HH:mm:ss[.SSSSSS]') AS planned_departure,
+  to_timestamp(actual_arrival,    'yyyy-MM-dd HH:mm:ss[.SSSSSS]') AS actual_arrival,
+  COALESCE(CAST(delay_hours AS DOUBLE), 0.0) AS delay_hours,
+  CASE WHEN CAST(delay_hours AS DOUBLE) &lt;= 2.0 THEN true ELSE false END AS is_on_time,
+  status, weather_severity
+FROM dedup WHERE rn = 1
+</code></pre>
+<p>要点はこれです。悪いrowはbronze→silverの境界で捕まえられ、<strong>dashboardには決して届きません</strong>。pandas（Week 2）で学んだ三層のdisciplineが、ここではdeclarativeでgoverned、time-travel可能なSQLになります。</p>
+<h3 id="dbsqltable">DBSQLは同じtableを読む</h3>
+<p>Databricks SQLはlakehouseの上のwarehouseです。Sparkが書いた <code>gold_on_time_kpis</code> tableは、SQL analystがqueryするのと同じtableなので、BIとMLが一つのcopyを共有します。そのsurfaceは <strong>SQL editor</strong>、保存された <strong>query</strong>（"Run as owner/viewer" credential mode付き）、<strong>query history</strong>、<strong>alert</strong>、<strong>AI/BI dashboard</strong>（旧Lakeview。legacyの"DBSQL dashboards"はarchive済み、"Clone to AI/BI dashboard"で移行）です。詳細は <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/platforms/databricks/04-dbsql.md"><code>04-dbsql.md</code></a>。</p>
+<h3 id="_4">うまくいかない理由</h3>
+<ul>
+<li><strong>VACUUMが早すぎる = data消失。</strong> defaultの7日retentionでVACUUMしてから10日前の変更をauditする必要に気づくと、それらのdata fileはもうありません。失敗は静かで、tableは無事でも <em>history</em> は無事ではありません。Fix: まず <code>VACUUM … DRY RUN</code> を実行する。retentionは正当なrollback窓の最長値以上に保つ。complianceが長いraw historyを必要とするならbronzeは決してvacuumしない。</li>
+<li><strong>間違った値のimputeがgoldを汚す。</strong> <code>COALESCE(weight_kg, 0)</code> はすべてのweight平均を引き下げ、nullがないので「valid」に見えます。mean（<code>850.0</code>）は擁護できますが、ゼロはできません。silverのquality check（<code>null_weights =
+  0</code>）はnullを検出するもので、<em>間違った</em>値は検出しません。人間のdecisionはまだあなたのものです。</li>
+<li><strong>「動かすために」<code>MANAGE</code> をgrantする。</strong> UCはadditive-onlyなので、広すぎたgrantは、積極的に <code>REVOKE</code> しなければならない永続的なleak surfaceです。最初からleast privilegeであることが唯一の安い方向です。</li>
+<li><strong>間違ったkeyでのdedupe。</strong> <code>ROW_NUMBER() OVER (PARTITION BY carrier_id …)</code> は別々のshipmentをつぶしてしまいます。自然key（<code>shipment_id</code>）でdedupeする。それ以外のpartitionはすべて間違いです。</li>
+</ul>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><strong><code>01-unity-catalog-and-delta-lab.ipynb</code></strong>: 「day zeroからgoverned tableまで」のlabです。Cell 1は <code>spark.version</code>、<code>current_user()</code>、default catalog/schemaをprintし、dataに触れる前に <em>誰が</em> <em>どこに</em> いるかを正確に把握させます。Cells 2〜4はnamespaceをidempotentに作ります。<code>catalog = "zrl_"</code>（末尾のunderscoreに注意）、schema <code>zorologistics</code>、volume <code>raw</code> と <code>checkpoints</code>、そして <code>dbutils.fs.ls</code> でvolumeを確認し、uploadした三つのCSVsがあることを確かめます。Cell 5は最初の <code>%sql</code> loadです: <code>CREATE OR REPLACE TABLE shipments_bronze AS SELECT * FROM read_files(…
+format =&gt; 'csv', header =&gt; true, inferSchema =&gt; true)</code>。cells 6〜7は <code>count(*)</code> と <code>LIMIT 5</code> のpeekでsanity checkします。Cell 8は <code>carriers</code>/<code>lanes</code> をPySparkの <code>spark.read</code> 経由でloadします。Cells 9〜12はtime-travel demoです: <code>DESCRIBE HISTORY</code>、続いて1,000行の <code>time_travel_demo</code> table、もう1,000行の <code>INSERT</code>、そして <code>VERSION AS OF 1</code> が1,000を返しcurrentが2,000を返すことを証明する <code>UNION ALL</code> です。Cells 13〜16は <code>VACUUM … DRY RUN</code>、<code>OPTIMIZE … ZORDER BY (carrier_id)</code>、<code>ALTER TABLE … CLUSTER BY (carrier_id, lane_id)</code>、そしてclustering columnを確認する <code>DESCRIBE DETAIL</code> を実行します。<strong>最後のcellは二つの数字をprintします</strong>: <code>bronze rows</code> と <code>time-travel versions</code>。正しい出力: あなたのCSVに一致するbronze row count（full generatorなら100,000、あるいは <code>zoro/data.py</code> が出力したもの）と、<code>time-travel versions</code> = 2（demo tableのCREATE + INSERT）。</p>
+<p><strong><code>02-medallion-sql.ipynb</code></strong>: pure SQLのmedallionです。Cells 1〜2は <code>USE CATALOG zrl_; USE SCHEMA zorologistics;</code> でcatalog/schemaを設定し、三つの <code>read_files</code> statementで <code>shipments_bronze</code>、<code>carriers</code>、<code>lanes</code> をrebuildします。Cell 4は上のsilver query、cell 5は <strong>quality gate</strong> で、<code>rows</code>、<code>null_weights</code>（0でなければならない）、<code>distinct_shipments</code>（duplicateが一つも残っていない証拠に <code>rows</code> と等しくなければならない）をprintします。Cell 6は <code>lanes_clean.distance_km</code> を <code>900.0</code> でimputeします。Cell 8はsilverをclean済みdimensionにjoinし、carrier×lane×monthのgrainでon-time rate、平均delay、value/weight合計をaggregateした <code>gold_on_time_kpis</code> をbuildします。cell 9は <code>on_time_rate ASC</code> でworst laneを並べます。Cell 11は <strong>dashboard-ready query</strong> です: <code>avg(on_time_rate) OVER (ORDER BY month ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)</code> による3ヶ月rolling窓付きの月別on-time rate。<strong>最後のcellは</strong> <code>overall on-time rate</code> と <code>gold rows</code> をprintします。「正しい」とは、high-0.8sのrate（generatorのcarrierは0.60〜0.99のreliability）と、dataのdistinctなcarrier×lane×month組合せ数に等しいgold row countです。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> <code>shipments_bronze</code>、<code>silver_shipments</code>、<code>gold_on_time_kpis</code> を持つgovernedな <code>zrl_.zorologistics</code> lakehouseに加え、月別on-time rateを示すrunnableなAI/BI dashboard query。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人があなたのcatalogを開き、bronze → silver → goldのlineageを読み、あなたのsilver/gold SQLをend-to-endで再実行し、数字を確認できること。全体のon-time rate、各層のrow count、time travelが動くことを証明する <code>DESCRIBE HISTORY</code> 出力を見せられ、各cleaning decision（なぜ <code>shipment_id</code> でdedupeするのか、なぜ <code>weight_kg</code>/<code>distance_km</code> を、どんな値でimputeするのか）を一文ずつ擁護できること。</p>
+<p><strong>Stretch variant:</strong> <code>ROW_NUMBER() OVER (PARTITION BY month ORDER BY on_time_rate)</code> を使って <strong>月別on-time rate worst 5 lane</strong> をrankする二つ目のgold artifactを追加し、どのlane/carrierの組合せを最初に直すべきか、なぜかを一文で述べる。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>なぜ起きるか</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CSV→Delta後 <code>NaN</code> が <code>NULL</code> になる</td>
+<td>pandasの <code>NaN</code> は空文字列としてserializeされ、<code>read_files</code> は <code>NULL</code> を推論する</td>
+<td><code>COALESCE(CAST(col AS DOUBLE), &lt;mean&gt;)</code>。理由なく <code>0</code> にはしない</td>
+</tr>
+<tr>
+<td>間違ったcolumnでのdedupe</td>
+<td>自然keyでないkeyでpartitionしている</td>
+<td><code>ROW_NUMBER() OVER (PARTITION BY shipment_id …)</code> と <code>WHERE rn = 1</code></td>
+</tr>
+<tr>
+<td>Timestamp castが失敗する</td>
+<td>秒未満の値にはfraction省略可のformatが必要</td>
+<td><code>to_timestamp(col, 'yyyy-MM-dd HH:mm:ss[.SSSSSS]')</code></td>
+</tr>
+<tr>
+<td><code>VACUUM</code> 後に「historyはどこへ？」</td>
+<td>retention窓がrollback要件より短い</td>
+<td>まず <code>DRY RUN</code>。最長rollback窓以上を保持する</td>
+</tr>
+<tr>
+<td>広すぎるgrant</td>
+<td>「動かすために <code>MANAGE</code> をgrant」</td>
+<td>traversal + 最小のaction。group owner。<code>SHOW GRANTS</code> で検証</td>
+</tr>
+<tr>
+<td><code>USE CATALOG</code>/<code>USE SCHEMA</code> 忘れ</td>
+<td>traversal privilegeはaction privilegeと別</td>
+<td>両方grantする。checklistは「Aliceは<em>到達</em>でき、<em>実行</em>できるか？」</td>
+</tr>
+<tr>
+<td>古いtutorialのDBFS path</td>
+<td>DBFS-root/mount patternはdeprecated</td>
+<td><code>/Volumes/&lt;catalog&gt;/&lt;schema&gt;/&lt;volume&gt;/…</code> を使う</td>
+</tr>
+<tr>
+<td>keyを打ち直す予定のtableのhard-partition</td>
+<td>Z-order/Hive partitioningはlayoutを固定する</td>
+<td>新しいtableにはliquid clustering（<code>CLUSTER BY</code> / <code>CLUSTER BY AUTO</code>）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Metastore</strong>: account levelのmetadata registry。region内で多くのworkspaceにattachできる。</li>
+<li><strong>Catalog / Schema</strong>: <code>catalog.schema.object</code> namespaceの上位二層。schemaはdatabase。</li>
+<li><strong>Volume</strong>: <code>/Volumes/&lt;catalog&gt;/&lt;schema&gt;/&lt;volume&gt;/…</code> でaddressされる、governedな非table fileのcontainer。</li>
+<li><strong>Managed table</strong>: <code>DROP TABLE</code> でdataが削除される、UC所有のDelta table。</li>
+<li><strong>External table</strong>: あなたが指定したstorageを指すtable。<code>DROP</code> はmetadataのみ削除する。</li>
+<li><strong>Traversal privilege</strong>: <code>USE CATALOG</code> / <code>USE SCHEMA</code>: containerに<em>到達</em>する権利。</li>
+<li><strong>Transaction log</strong>: DeltaにACID、time travel、versioningを与える <code>_delta_log/</code> のentry。</li>
+<li><strong>Time travel</strong>: <code>VERSION AS OF</code> / <code>TIMESTAMP AS OF</code> / <code>@v1</code> / <code>RESTORE TABLE</code> で過去のtable stateを読むこと。</li>
+<li><strong>VACUUM</strong>: retention窓（default 7日）より古いdata fileの恒久削除。</li>
+<li><strong>Liquid clustering</strong>: rewriteなしでkeyを変更できる <code>CLUSTER BY</code> による自動整理。partitioning + Z-orderの後継。</li>
+<li><strong>Medallion</strong>: bronze → silver → goldという漸進的data-quality pattern。</li>
+<li><strong>AI/BI dashboard</strong>: 現行のdashboard product（旧Lakeview）。legacy DBSQL dashboardsはarchive済み。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-21/quiz.md"><code>quiz.md</code></a> を受けてください。10問、<strong>8/10で合格</strong>。Multiple choiceとshort answerが混ざっており、上のConcepts sectionとnotebook cellに紐付いています。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exercise（easy / standard / stretch / portfolio）がhint付きで <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-21/exercises.md"><code>exercises.md</code></a> にあります。portfolio itemはgold queryをAI/BI dashboardとしてpublishし、lineage graphをcaptureすることで、<strong>ZoroLogistics lakehouse</strong> milestoneを進めます。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>Unity Catalog: https://docs.databricks.com/data-governance/unity-catalog/</li>
+<li>Access control (privileges): https://docs.databricks.com/data-governance/unity-catalog/access-control</li>
+<li>Database objects: https://docs.databricks.com/database-objects/</li>
+<li>Volumes: https://docs.databricks.com/volumes/</li>
+<li>Delta time travel &amp; history: https://docs.databricks.com/tables/history</li>
+<li>VACUUM: https://docs.databricks.com/tables/operations/vacuum</li>
+<li>OPTIMIZE: https://docs.databricks.com/tables/operations/optimize</li>
+<li>Liquid clustering: https://docs.databricks.com/tables/clustering</li>
+<li>Medallion architecture: https://docs.databricks.com/lakehouse/medallion</li>
+<li>Databricks SQL: https://docs.databricks.com/sql/</li>
+<li>AI/BI dashboards: https://docs.databricks.com/dashboards/</li>
+<li>Compute / serverless: https://docs.databricks.com/compute/serverless/</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

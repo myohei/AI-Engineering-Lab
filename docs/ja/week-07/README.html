@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 07: RAG、Vector SearchとKnowledge Graph</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css">
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 07</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-07/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-07-ragvector-searchknowledge-graph">Week 07: RAG、Vector SearchとKnowledge Graph</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-07/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 07 of 24 · Section: LLM Core · Category: Retrieval &amp; Graphs
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-07/notebooks/01-rag-policy-bot.ipynb">01-rag-policy-bot.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-07/notebooks/02-knowledge-graph-lab.ipynb">02-knowledge-graph-lab.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsのsupport deskは毎日同じpolicy質問に答えています。<em>「200 Whのlithium batteryを配送できるか？」「shipmentが7日遅れたらrefundはいくらか？」</em>。そしてfoundation model単体ではこれらに答えられません。ZoroLogisticsのpolicy libraryでtrainingされていないため、拒否するか、推測するか、<em>他人の</em> policyの古い記憶から答えるかのどれかです。誘惑的なfixはpolicy folder全体をpromptに貼ることですが、これはwindowを壊し、さらに悪いことに、<em>どのruleが</em> 答えを生んだのか証明する手段のない答えを返します。dangerous goodsに関する間違った答えが規制上の結果を伴う以上、これは使い物になりません。</p>
+<p>今週は二つのgrounding道具をbuildします。<strong>Retrieval-augmented generation（RAG）</strong> は <em>関連する</em> passageをfetchし、そこからcitation付きで答えます。そして <strong>knowledge graph</strong> はvectorが捉えられない関係を捉えます。「Houstonを避けてLong Beachへの最安routeは何か？」はsimilarity searchではなくgraph traversalです。Before/afterは具体的です。beforeではsupport agentはticketごとに五つのpolicy PDFsを読みます。afterではbotが十の未見の質問に、主張ごとに <code>doc_id</code> + section citationを付けて答え、<strong>recall@5</strong> をanswer qualityと <em>別の</em> 数値としてreportできます。これが「botが動く」と「どこで・なぜ失敗するかを見せられる」の違いです。</p>
+<h2 id="_2">目標</h2>
+<p>金曜日までに、次のことができるようになります。</p>
+<ul>
+<li>☐ 七段階のRAG pipeline（ingest → chunk → embed → index → retrieve → rerank → generate）を説明し、quality問題の大半が住むstageを指摘できる。</li>
+<li>☐ <code>data.policy_docs()</code> をsection-awareなsplitterでchunkし、10問のgolden setで <strong>recall@k</strong> を、answer qualityと <em>別々に</em> reportできる。</li>
+<li>☐ hybrid retriever（dense + keyword、reciprocal rank fusionで融合）をbuildしてcross-scoreでrerankし、vector-onlyに対するrecall deltaを示せる。</li>
+<li>☐ carrier → lane → port graphをbuildし、「cheapest route」と「degree centrality」のqueryに <code>networkx</code> で、そしてNeo4jが使えるならCypherでも答えられる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run / build</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/05-rag-graph-engineering.md"><code>reference/knowledge-base/05-rag-graph-engineering.md</code></a> §1〜2でRAGが存在する理由とpipeline</td>
+<td><code>01-rag-policy-bot.ipynb</code> のcell 0〜4（chunking）を流し読みする</td>
+<td>Notes: RAG = grounding、freshness、permissions</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>Chunkingとvector store（§3〜4）</td>
+<td>notebook 1をChroma index + vector-only recallまで実行する</td>
+<td>Vector-only recall@5の数値</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>Hybrid searchとrerank（§5〜6）</td>
+<td>hybrid + rerankのcellを実行する</td>
+<td>Recall delta（vector vs. hybrid）</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>Graph: nodes/edges/Cypher。graphがvectorに勝つとき（§9）</td>
+<td><code>02-knowledge-graph-lab.ipynb</code> をend-to-endで実行する</td>
+<td>Degree-centrality ranking + cheapest route</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>Retrieval evalとgroundedness（§7）、GraphRAG（§9.3）</td>
+<td>use caseを組み立てる。citation付きで10問に答える</td>
+<td>金曜日のdeliverable + miss log</td>
+<td>約3時間</td>
+</tr>
+</tbody>
+</table>
+<p><em>（Sat: Week 7のquizを受け、<code>exercises.md</code> のchecklistを確認する。）</em></p>
+<h2 id="_4">概念</h2>
+<p>まず <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/05-rag-graph-engineering.md"><code>reference/knowledge-base/05-rag-graph-engineering.md</code></a> を読んでください。RAGはproduction順に三つの理由で存在します。<strong>grounding</strong>（答えがcitation可能なtextに固定されること）、<strong>freshness</strong>（retrainではなくre-index）、そして <strong>permissions</strong>（promptの中ではなくretrievalの前にindexをfilterすること）。これは <em>pipeline</em> であり、そのqualityは <strong>model問題である前にdata問題</strong> です。正しいdocumentがindexに入っていて、最新で、正しくchunkされているかどうかが、model以上に答えを決めます。</p>
+<h3 id="pipeline">七段階のpipeline</h3>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    A[Ingest&lt;br/&gt;PDFs/HTML/policies] --&gt; B[Chunk&lt;br/&gt;split into units]
+    B --&gt; C[Embed&lt;br/&gt;dense vectors]
+    C --&gt; D[Index&lt;br/&gt;vector store + metadata]
+    D --&gt; E[Retrieve&lt;br/&gt;vector + keyword]
+    E --&gt; F[Rerank&lt;br/&gt;cross-encoder]
+    F --&gt; G[Generate&lt;br/&gt;answer + citations]
+</div>
+<p>各stageはsystemが壊れうる場所ですが、最も重要なのは二つのdesign ruleです。<strong>retrievalとgenerationを別々に測る</strong> こと（下の§evals）、そしてすべてのchunkに <strong>source metadata</strong>（<code>doc_id</code>、section）を持たせること。そうすればcitationはparaphraseではなくpointerになります。Query側のtechnique、query rewriting、multi-query expansion、<strong>HyDE</strong>（<em>hypotheticalな</em> 答えをembedしてそれでsearchする）は、corpusに手を触れずにrecallを回復します。ただしそれぞれにmodel call一回分のcostがかかります。</p>
+<h3 id="chunking-retrieval">Chunking: retrievalの単位</h3>
+<p>chunkはretrievalが返すものなので、そのsizeは測って決めるper-corpusの選択です。</p>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>分割方法</th>
+<th>Tradeoff</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fixed-size</td>
+<td>N tokens/charsごと</td>
+<td>単純。文の途中で切れる</td>
+</tr>
+<tr>
+<td>Sentence / paragraph</td>
+<td>文境界で</td>
+<td>きれい。複数文にまたがるfactは依然splitされうる</td>
+</tr>
+<tr>
+<td>Recursive / structural</td>
+<td>見出し単位、さらに細分割</td>
+<td>構造を尊重。構造化されたsourceが必要</td>
+</tr>
+<tr>
+<td>Semantic</td>
+<td>similarityが下がる点で分割</td>
+<td>関連するtextをまとめて保持。構築が遅い</td>
+</tr>
+<tr>
+<td>Overlapping window</td>
+<td>固定size + overlap</td>
+<td>端のcontextを回復。tokenが重複する</td>
+</tr>
+</tbody>
+</table>
+<p>notebookは <strong>section-aware</strong> なchunkingを使います。<code>##</code> 見出しで分割するため、各chunkは <code>doc_id</code> とsection名を持つ、一貫した一つのpolicy sectionになります。大きすぎると答えのparagraphが隣接chunkに希釈され、小さすぎるとchunkはその意味を作っていたcontextを失います。いくつかの（size、overlap）設定でrecallを測って選び、<strong>embedding modelはindexのschemaの一部</strong> であることを覚えてください。modelを変えたらcorpus全体をre-embedしなければなりません。</p>
+<h3 id="vector-database">Vector database</h3>
+<p>Vector storeはqueryに最も近いvectorを探します。通常はapproximate nearest-neighbor（ANN）searchを使います。選択はmanageability対scaleのtradeoffです。</p>
+<table>
+<thead>
+<tr>
+<th>Store</th>
+<th>Type</th>
+<th>強み</th>
+<th>注意点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Chroma</td>
+<td>Embedded library</td>
+<td>zero-opsなprototyping。Python-native</td>
+<td>非分散。production前に成長して手に負えなくなる</td>
+</tr>
+<tr>
+<td>FAISS</td>
+<td>In-memory library</td>
+<td>最速のbrute/ANN。一つのcomponent</td>
+<td>persistence/filteringは自分で作る</td>
+</tr>
+<tr>
+<td>pgvector</td>
+<td>Postgres extension</td>
+<td>vectorがrelational dataの隣に置ける。SQL joins</td>
+<td>ANN tuningは手動</td>
+</tr>
+<tr>
+<td>Weaviate</td>
+<td>Dedicated server</td>
+<td>一級のhybrid + filtering</td>
+<td>もう一つserviceを運用する</td>
+</tr>
+<tr>
+<td>Managed（Pinecone/Qdrant/Milvus、cloud-native）</td>
+<td>Managed/cloud</td>
+<td>Scale、QPS、managed indexing</td>
+<td>Costとlock-in。dataがVPC外に出る可能性</td>
+</tr>
+</tbody>
+</table>
+<p>product以上に重要なpattern：<strong>vector、chunk text、source metadataを同じrecordに保存する</strong> こと。こうすればretrievalはcitation可能でfilter可能な単位を返し、裸のvector idを返すことはありません。</p>
+<h3 id="hybrid-searchreranking">Hybrid searchとreranking</h3>
+<p>Dense vectorは <em>意味</em> を捉えますが <em>正確なterm</em>（policy id、part number）を見落とします。keyword search（BM25）はその鏡像です。<strong>Hybrid searchは両方を実行してfuse</strong> します。<strong>Reciprocal Rank Fusion（RRF）</strong> は、各list内の位置でcandidateをrankし、reciprocal rankを合計します。score normalizationは不要です。<strong>Reranking</strong> はその後、queryとpassageを <em>一緒に</em> 読む、より強いcross-encoderで上位candidateを再採点します。これは単一で最もleverageの高いretrieval upgradeであり、generationに比べれば安価です。<em>広くretrieveし（50〜100）、狭くrerankする（3〜8）</em>。</p>
+<h3 id="retrieval-eval-generation">Retrieval eval: generationと別々に測る</h3>
+<p>最もよくあるRAGのmistakeは、最終answerだけを測ることです。block-3のgateは明示的です。<strong>retrievalをgenerationと別々に測る。</strong> (query → relevant-document) pairのgolden set上で使います。</p>
+<table>
+<thead>
+<tr>
+<th>Retrieval metric</th>
+<th>定義</th>
+<th>答えるquestion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Recall@k</td>
+<td>relevant chunkがtop-kに入っているqueryの割合</td>
+<td>正しいtextをfetchしたか？</td>
+</tr>
+<tr>
+<td>MRR</td>
+<td>最初の正しいchunkの1/rankの平均</td>
+<td>正しいchunkは上位にあるか？</td>
+</tr>
+<tr>
+<td>nDCG</td>
+<td>位置割引付きのgraded relevance</td>
+<td>最良のchunkが最良の順に並んでいるか？</td>
+</tr>
+<tr>
+<td>Precision@k</td>
+<td>返されたchunkのうちrelevantなものの割合</td>
+<td>無駄なtokenをjunkに使っていないか？</td>
+</tr>
+</tbody>
+</table>
+<p>generation layerはその後、RAGの「triad」で別々に採点されます。<strong>context relevance</strong>、<strong>groundedness</strong>（すべてのclaimがcitation済みpassageに支えられているか？）、<strong>answer relevance</strong>。この分離がdiagnosisを可能にします。recall@kが低いのはindexing/chunkingの問題。recallが高いのにgroundednessが低いのはprompt/generationの問題で、直す場所が違います。</p>
+<h3 id="knowledge-graph-graphvector">Knowledge graph: graphがvectorに勝つとき</h3>
+<p>Vectorは <em>similarity</em> を捉え、graphは <em>relationship</em> を捉えます。<strong>property graph</strong> はentityを <strong>node</strong> として、関係をproperty付きの <strong>edge</strong> として、両方にlabelを付けて保存します：<code>(:Carrier {name:"Atlas Freight"})-[:SERVES {cost:4200, days:12}]-&gt;(:Lane)-[:ARRIVES_AT]-&gt;(:Port)</code>。Graphは <strong>multi-hop</strong> のquestion（「RotterdamとShanghaiの両方にserveするcarrierは？」）、<strong>explicitなrelationship</strong>、<strong>制約付きshortest path</strong>（「port Xを避けた最安route」）、regulatorが求める <strong>正確なsymbolicな答え</strong> で勝ちます。<strong>Cypher</strong>（Neo4j）はこれらを宣言的に表現します：<code>MATCH (c:Carrier)-[:SERVES]-&gt;(la:Lane)-[:ARRIVES_AT]-&gt;(p:Port {code:"LGB"}) RETURN c.name, la.cost ORDER BY la.cost</code>。<strong>GraphRAG</strong> は <em>corpusから</em> graphをbuildし、単一chunkでは答えられない <em>globalな</em> 要約questionに答えます。costはより重いingestion pipelineです。覚えるべきhybrid：<strong>入り口はvector、walkはgraph。</strong></p>
+<p>Vector indexはsnapshotであり、snapshotは古くなります。だからdata pathをownするとは、indexを一度buildすること以上に三つのことを意味します。<strong>freshness</strong>（indexがいつbuildされたかを知り、変更時にre-ingestする）、<strong>permissions</strong>（promptではなくretrieval時にfilterする。filter済みindexはretrieveしていないものを返せない）、そして <strong>lineage</strong>（どのdocument/chunk/versionが答えを生んだかを記録し、claimがsourceにtraceできるようにする）。Query側のtechnique、query rewriting、multi-query expansion、HyDEは、corpusに手を触れずにrecallを回復します。ただしそれぞれにmodel call一回分のpriceがかかります。recallがbinding constraintなら価値があり、index自体が問題なら無駄です。</p>
+<h3 id="1-retrieval-recall">実例1: retrieval recallの算術</h3>
+<p>notebookのgolden setは10のhand-writtenなquestionで、それぞれrelevantな <code>doc_id</code> にmapされています（例：<em>「shipmentがどれだけ遅れれば10%のfreight refundを受けられるか？」</em> → <code>POL-002</code>、<em>「200 Whのlithium batteryを配送できるか？」</em> → <code>POL-003</code>）。<code>recall_at_k</code> は、relevantな <code>doc_id</code> がtop-k chunkのどこかに現れたら、そのquestionをhitとして数えます。</p>
+<pre><code>vector-only recall@5   = 7 hits / 10 questions = 0.70
+hybrid + rerank recall@5 = 9 hits / 10 questions = 0.90
+</code></pre>
+<p>算術は極めて単純で、<em>hits ÷ 10</em>。それこそがpointです。recall@kは <em>「そもそも正しいdocumentをfetchしたか」</em> を評価するだけで、answer qualityについては何も言いません。vector-onlyがmissした二問（例えば <em>"customs hold storage fees"</em> のような、chunkの表現がquestionと異なるexact-term query）は、hybrid searchのkeyword armで回復され、rerankerが正しいchunkをtopに動かします。<strong>0.70 → 0.90 delta</strong> をretrievalの数値としてreportし、groundednessは <em>answers</em> 上の別の数値として測ってください。</p>
+<h3 id="2-rrf-fusion">実例2: RRF fusionの算術</h3>
+<p>RRFはscore normalizationなしで二つのranked listをfuseします。あるchunkがvector searchで <strong>#1</strong>、keyword searchで <strong>#3</strong> にrankされたとします（notebookは定数 <code>k=60</code> を使います）。</p>
+<pre><code>RRF(rank_vec=1, rank_kw=3) = 1/(60+1) + 1/(60+3)
+                            = 0.01639 + 0.01587
+                            = 0.03226
+</code></pre>
+<p>合計reciprocal rankが最も高いcandidateが勝ちます。両listで <strong>#1</strong> のchunkは <code>1/61 + 1/61 = 0.03279</code> を獲得し、#1/#3のchunkを上回ります。まさに望む挙動です。二つのretrieval signal間の合意が、単一の強いsignalをrankで上回ります。<code>hybrid_search</code> cellはその後、top-10のRRF candidateをcosine cross-scoreでrerankし、<code>rrf</code> と <code>cross_score</code> を付けたtop-kを返します。</p>
+<h3 id="_5">うまくいかない理由</h3>
+<ul>
+<li><strong>Garbage in。</strong> 欠けている、古い、mis-parseされたdocumentは、modelがどれだけ良くてもrecallの上限を決めます。まずingestionを直す。</li>
+<li><strong>Chunk境界での分割。</strong> 答えの文が半分に切られ、どちらの半分もretrieveされません。習慣ではなく測定でchunk sizeを直す。</li>
+<li><strong>Embedding-model drift。</strong> 別のmodelでre-indexするとsimilarityが静かに壊れます。modelはindex schemaの一部です。</li>
+<li><strong>Prompt内のpermissions。</strong> 「見る権利のないものを見せるな」というinstructionは願望です。searchの <em>前に</em> indexをfilterする。</li>
+<li><strong>単一のend-to-end score。</strong> 低いrecallと低いgroundednessが混同され、間違ったlayerを直すことになります。両方をreportする。</li>
+<li><strong>GraphRAGの過剰使用。</strong> lookup型のquestionにはvector RAGの方が安くて十分です。graphはmulti-hop/global queryでcostに見合います。</li>
+</ul>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><strong><code>01-rag-policy-bot.ipynb</code></strong>（⚠️ embedderにinternetが必要。generationにはkeyまたはOllamaが必要。retrievalはofflineで動く）。Cell 2は <code>data.policy_docs()</code> をloadします。四つのpolicy document（<code>POL-001</code> shipping、<code>POL-002</code> refunds、<code>POL-003</code> dangerous goods、<code>POL-004</code> customs）、各約330〜530 chars。Cell 4は <code>section_aware_chunks</code> を定義し（<code>##</code> で分割、heading + <code>doc_id</code> を保持）、最初の六つのchunkをprintします。Cell 6は <code>all-MiniLM-L6-v2</code> でembedし（hash fallback）、Chroma（<code>zoro_policy</code>）にindexします。fallbackはbrute-forceなNumPy indexです。Cell 8は10問のgolden set、<code>vector_search</code>、<code>recall_at_k</code> を定義し、<strong>vector-only recall@5</strong> をprintします。Cell 10は <code>keyword_score</code> とRRF + cosine rerank付きの <code>hybrid_search</code> を追加し、<strong>hybrid + rerank recall@5</strong> と <em>"customs hold fees"</em> のtop-3 exampleをprintします。Cell 12はhosted keyまたはlocal Ollama経由でのcitation付きgenerationです。最後のcellは <code>WEEK7_NB1_RECALL_AT_5</code>（hybrid+rerank recall、target <strong>≥ 0.90</strong>）をprintします。</p>
+<p><strong><code>02-knowledge-graph-lab.ipynb</code></strong>（<code>networkx</code>。Neo4jはoptional）。Cell 2は <code>data.carriers(20, seed=7)</code> と <code>data.lanes(20, seed=11)</code> をloadします。Cell 4は <code>carrier</code>/<code>lane</code>/<code>port</code> nodeと <code>SERVES</code>/<code>ARRIVES_AT</code> edgeを持つ <code>DiGraph</code> をbuildします。<code>cost = base_rate × distance</code> で、NaN distanceは埋められてgraphはconnectedのままです。種類別に分けたnode数とedge数をprintします。Cell 6は <code>degree_centrality</code> でcarrierをrankします。networkのhub、つまり最も多くのlaneにserveするcarrierです。Cell 8は <code>cheapest_to_port</code> を定義し、最も頻出するportへの最安carrier→lane→port routeをprintします。Cell 10は最少hopの <code>shortest_path</code> とconstrained query（origin "Houston"を <em>除外した</em> 最安route）を示します。これはvector searchでは近似しかできません。Cell 12はCypherのtwinである <code>CREATE</code> setupと <code>MATCH … ORDER BY s.cost</code> のroute queryをprintし、<code>NEO4J_URI</code>/<code>NEO4J_PASSWORD</code> が設定されていればliveで実行します。最後のcellは <code>WEEK7_NB2_GRAPH_EDGES</code> と <code>WEEK7_NB2_CHEAPEST_ROUTE_USD</code>、graph size（edges）と最安route cost（ドル）をprintします。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> RAG policy botが <strong>citation付きで10の未見の質問に答え</strong>（<code>doc_id</code> + section）、すべてのretrieval missに一行のroot-cause推測（chunking? embedding? query phrasing?）を付けたlogを残す。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人が成果物をinspectでき、あなたが何をしたかを見せられること。vector-only vs. hybrid+rerankのrecall@5の数値と、10問それぞれについてcitationされたpassageとそれが生んだanswerが見えること。</p>
+<p><strong>Stretch variant:</strong> graphに <code>via</code> constraintを追加します。<em>「選んだportを通るtop portへの最安route」</em> で、合計cost付きの完全なpathを返します。続けて各 <code>Port</code> nodeにembeddingを追加し、自然言語のquestionがsimilarityでgraphに入り、構造でwalkできるようにします。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>症状</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>最終answerだけを測る</td>
+<td>retrieval失敗とgeneration失敗を区別できない</td>
+<td>recall@kとgroundednessを別々にreportする</td>
+</tr>
+<tr>
+<td>習慣でchunkingする</td>
+<td>答えが境界をまたいで分割される</td>
+<td>chunk size/overlapをsweepし、recallを測る</td>
+</tr>
+<tr>
+<td>Embedding modelを混ぜる</td>
+<td>Similarityが静かに壊れる</td>
+<td>model+versionを記録。変更時にre-embedする</td>
+</tr>
+<tr>
+<td>Prompt内のpermissions</td>
+<td>userが権限のないpassageを見る</td>
+<td>searchの前にindexをfilterする</td>
+</tr>
+<tr>
+<td>Source metadataがない</td>
+<td>Citationがpointerではなくparaphraseになる</td>
+<td>各chunkに <code>doc_id</code> + sectionを保存する</td>
+</tr>
+<tr>
+<td>Exact-term queryでvector-only</td>
+<td>IDs/codeをmissする</td>
+<td>keyword armを追加する（hybrid + RRF）</td>
+</tr>
+<tr>
+<td>狭すぎ・早すぎのrerank</td>
+<td>最良chunkがgeneration前に落ちる</td>
+<td>広くretrieve（50〜100）、狭くrerank（3〜8）</td>
+</tr>
+<tr>
+<td>LookupにGraphRAG</td>
+<td>単純なquestionに重いpipeline</td>
+<td>local/lookupにはvector RAG。multi-hopにはgraph</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>RAG</strong>: retrieval-augmented generation。model memoryの代わりにfetchしたpassageに答えをgroundingする。</li>
+<li><strong>Chunk</strong>: source metadataを持つ、retrieval可能なtextの単位。</li>
+<li><strong>Embedding index</strong>: similarity searchのためのchunk vectorのstore。</li>
+<li><strong>ANN</strong>: approximate nearest-neighbor search。vector storeにおけるspeed/qualityのtradeoff。</li>
+<li><strong>Recall@k</strong>: relevant documentがtop-kにretrieveされたqueryの割合。</li>
+<li><strong>MRR / nDCG</strong>: rank-awareなretrieval metric（早い正解 = 高評価。graded relevance）。</li>
+<li><strong>Hybrid search</strong>: dense + keyword retrievalを一つのrankingにfuseしたもの。</li>
+<li><strong>RRF</strong>: reciprocal rank fusion。result list横断で1/(k+rank)を合計。score normalizationは不要。</li>
+<li><strong>Reranker</strong>: query + passageを一緒に再採点するcross-encoder。</li>
+<li><strong>Groundedness</strong>: answer内のすべてのclaimがcitation済みpassageに支えられているかどうか。</li>
+<li><strong>Knowledge graph</strong>: propertyを持つnode（entity）とedge（relationship）。traversalでqueryする。</li>
+<li><strong>Cypher</strong>: Neo4jの宣言的なgraph query言語（<code>MATCH</code>/<code>WHERE</code>/<code>RETURN</code>）。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p>概念とnotebook codeをカバーする十問が <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-07/quiz.md"><code>quiz.md</code></a> にあります。合格ラインは <strong>8/10</strong> です。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exercise（easy / standard / stretch / portfolio）、<code>k</code> sweep、二つの新しいgolden question、<code>via</code> constrained route、そして <code>policy_bot.py</code> CLI。各hintは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-07/exercises.md"><code>exercises.md</code></a> にあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>Chroma: https://docs.trychroma.com/</li>
+<li>FAISS（Meta）: https://github.com/facebookresearch/faiss</li>
+<li>NetworkX documentation: https://networkx.org/documentation/stable/</li>
+<li>Neo4j, <em>Cypher Manual</em>: https://neo4j.com/docs/cypher-manual/current/</li>
+<li>Cohere, <em>Rerank</em>: https://docs.cohere.com/docs/rerank-overview</li>
+<li>Microsoft, <em>GraphRAG</em>: https://microsoft.github.io/graphrag/</li>
+<li>LlamaIndex, <em>RAG &amp; evaluation guides</em>: https://docs.llamaindex.ai/</li>
+<li>LangChain, <em>RAG &amp; retrieval docs</em>: https://python.langchain.com/</li>
+<li>sentence-transformers / SBERT: https://www.sbert.net/</li>
+<li>Zorost Signals, <em>The AI Engineering Skills Map, turned into a training plan</em>: https://zorost.com/ai-engineering-skills-map-training-guide</li>
+<li>Zorost Signals, <em>Context engineering: treat the window as a budget you spend</em>: https://zorost.com/context-engineering-budget</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"></script>
+<script>document.querySelectorAll("pre code").forEach(function (b) { hljs.highlightElement(b); });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

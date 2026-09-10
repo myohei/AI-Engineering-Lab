@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 19: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 19</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-19/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-19-quiz10810">Week 19: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-19/quiz.md">英語版</a> · <a href="README.html">Week 19 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<ol>
+<li>
+<p><strong>MCQ</strong>: Google AI StudioとVertex AIは、ほぼ同じGemini modelを公開しています。<em>機密data</em>にとって最も重要な違いは何ですか？ <em>(Concepts §AI Studio vs Vertexを参照)</em>
+   - A) Vertexのmodelのほうが速い
+   - B) AI Studioのfree tierは、defaultであなたのdataをGoogle製品の改善に使う可能性がある
+   - C) Vertexにはquotaがない
+   - D) AI Studioにはcloud projectが必要</p>
+</li>
+<li>
+<p><strong>MCQ</strong>: <code>google-genai</code> SDKで、同じclientをAI StudioからVertexに切り替えるのは何ですか？ <em>(notebook 02 cell 8を参照)</em>
+   - A) model名を変えること
+   - B) <code>vertexai=True</code>に加えて<code>project</code>/<code>location</code>を設定すること
+   - C) 別のimportを使うこと
+   - D) <code>response_mime_type</code>を設定すること</p>
+</li>
+<li>
+<p><strong>MCQ</strong>: 大volume・単純な抽出に最も<em>安い</em> Gemini rungはどれですか？ <em>(Concepts §Gemini ladderを参照)</em>
+   - A) <code>gemini-2.5-pro</code>
+   - B) <code>gemini-2.5-flash</code>
+   - C) <code>gemini-2.5-flash-lite</code>
+   - D) "Thinking" variant</p>
+</li>
+<li>
+<p><strong>Short answer</strong>: notebook 01で、pipelineはGeminiを呼ぶ前に、なぜ各BoLの<strong>text</strong>をそのままpromptに貼るのではなく、Pillowで<strong>PNG</strong>にrenderするのですか？ <em>(notebook 01 cell 3を参照)</em></p>
+</li>
+<li>
+<p><strong>MCQ</strong>: Vertexでbatch途中に出る<code>429</code> errorは、ほぼ常に… <em>(Concepts §How it breaksを参照)</em>
+   - A) 構文のbug
+   - B) quota天井。regionごと/modelごとのquotaを引き上げるか、callを分散する
+   - C) 間違ったAPI key
+   - D) 存在しないmodel</p>
+</li>
+<li>
+<p><strong>MCQ</strong>: Googleの三つのagent層のうち、support agentをrebuildするのに使う<strong>code-firstでopen-source</strong>なframeworkはどれですか？ <em>(Concepts §Agent stackを参照)</em>
+   - A) Agent Builder
+   - B) Agent Engine
+   - C) ADK
+   - D) Colab Enterprise</p>
+</li>
+<li>
+<p><strong>Short answer</strong>: OCR promptがJSONとして返す十個のBoL fieldのうち、少なくとも<strong>五つ</strong>を挙げてください。 <em>(notebook 01 cell 6を参照)</em></p>
+</li>
+<li>
+<p><strong>MCQ</strong>: BigQuery MLの<code>ML.GENERATE_TEXT</code>を使うと… <em>(Concepts §BigQuery MLを参照)</em>
+   - A) SQLでtransformerを一からtrainできる
+   - B) SQLから出ずに、BigQueryの<em>中から</em>Geminiを生成/分類に呼び出せる
+   - C) Vertex IAMを置き換えられる
+   - D) imageをrenderできる</p>
+</li>
+<li>
+<p><strong>Short answer</strong>: notebookのplaceholder price（$0.000315/image、$0.30/1M input、$2.50/1M output）で、image一枚、input 150 token、output 120 tokenのBoL文書<strong>一枚</strong>のcostを計算してください。計算過程を示すこと。 <em>(notebook 01 cell 11を参照)</em></p>
+</li>
+<li>
+<p><strong>MCQ</strong>: 「per-fieldの数字のないpipelineは、JSON blobのscreenshotにすぎない」の意味は… <em>(Concepts §How it breaksを参照)</em></p>
+<ul>
+<li>A) JSON出力は決して正しくない</li>
+<li>B) きれいなblobを眺めるだけでなく、ground truthに対してfieldごとにaccuracyを測らなければならない</li>
+<li>C) screenshotがdeliverable</li>
+<li>D) 合計accuracyだけが重要で、per-fieldは任意</li>
+</ul>
+</li>
+</ol>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li><strong>B</strong>: AI Studioのfree tierは、defaultでdataをGoogle製品の改善に使う可能性があります。governedなdataが行く場所はVertexです。分離する習慣がdeliverableです。</li>
+<li><strong>B</strong>: <code>genai.Client(vertexai=True, project=..., location=...)</code>が、認証と課金をADC付きのVertexに切り替えます。</li>
+<li><strong>C</strong>: <code>flash-lite</code>が、大volume・単純なtaskに最も安いrungです。accuracy barをクリアする最も安いmodelを選びましょう。</li>
+<li><strong>Geminiにpromptのtextを読ませるのではなく<em>vision</em>をexerciseさせるため</strong>です。imageにrenderすることで、pipelineがend-to-end（image → JSON）のままになり、GoogleのedgeであるOCR能力をtestできます。</li>
+<li><strong>B</strong>: <code>429</code>はcode bugではなくquota問題です。batchの前にregionごと/modelごとのquotaを確認し、引き上げてください。</li>
+<li><strong>C</strong>: ADKがcode-firstのopen-source frameworkです。Agent Builderはlow-code、Agent Engineはmanaged runtimeです。</li>
+<li>次のうち五つ: <code>shipper</code>、<code>consignee</code>、<code>port_of_loading</code>、<code>port_of_discharge</code>、<code>commodity</code>、<code>quantity</code>、<code>gross_weight_kg</code>、<code>declared_value_usd</code>、<code>freight_terms</code>、<code>date_of_issue</code>。</li>
+<li><strong>B</strong>: <code>ML.GENERATE_TEXT</code>は、BigQuery SQLの中からremoteのGemini modelを呼び出します。「warehouseから出ないAI」です。</li>
+<li>Image $0.000315 + input 150 × $0.30/1M = $0.000045 + output 120 × $2.50/1M = $0.00030 → <strong>合計 ≈ $0.00066</strong>。</li>
+<li><strong>B</strong>: 正しそうに見えるJSON blobでもconsigneeが間違っていることがあります。ground truthに対するper-field accuracyだけが正直なmetricです。</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

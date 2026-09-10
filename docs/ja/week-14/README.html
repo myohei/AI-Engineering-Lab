@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 14: Agentの基礎 — Loop、Tools &amp; Memory</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 14</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-14/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-14-agent-looptools-memory">Week 14: Agentの基礎 — Loop、Tools &amp; Memory</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-14/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 14 of 24 · Section: Agents · Category: Agent Core
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-14/notebooks/01-react-agent-from-scratch.ipynb">01-react-agent-from-scratch.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsは日に何千ものfreight shipmentを出しており、customerのquestionはすべて、proseを着たdata questionです。「<em>S0000123はどこ？</em>」「<em>どれだけ遅れていて、refundはもらえる？</em>」「<em>lane L007の800 kilometerは何mile？</em>」。固定の手書きpipelineはこれに答えられません。questionが <em>どの</em> toolを必要とするかを決められないからです。shipment IDにはtracker、単位のquestionにはconverter、policyのquestionにはdocument store、そしてscope外の要求（「全recordを削除」）には何も要りません。実行時にqueryを正しいtoolにrouteできるのは、<em>それまでに観測したことに基づいて次のactionを選ぶ</em> 言語modelだけです。</p>
+<p>その選択 — 次のstepを決めるmodelの出力 — こそ、<strong>agent</strong> の定義のすべてです。今週まで、programのすべてのmodel callは単一の答えを生成していました。これからは、modelが <em>actionのplan</em> を生成し、実際のtoolに対してそれを実行し、結果を読み戻し、答えられるようになるまで繰り返します。これを誤ると、failureは静かで高価です。決して止まらないloop、lookupせずにshipment statusをhallucinateするmodel、malformedな引数を黙って受け入れるtool、上限を誰も設けなかったために尽きるbudget。正しくやると、Week 24までのすべてのframeworkがその上にbuildされる、あのひとつのmental modelを自分のものにできます。beforeでは「agent」はslideの中の言葉でした。afterでは、約60行 で記憶からrebuildできます。それこそが、今週あえて <strong>frameworkなし</strong> でやらせることです。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、<strong>perceive → plan → act → observe</strong> のloopをplain Pythonで手書きでき、次のstepを固定scheduleではなくmodelの <em>出力</em> が決める理由 — agentをpipelineから分ける唯一の性質 — を説明できる。</li>
+<li>☐ 金曜日までに、toolを <strong>JSON Schema</strong> で宣言し、四つ（<code>track_shipment</code>、<code>convert_units</code>、<code>calculator</code>、<code>get_policy</code>）を配線して、modelが呼び出し、tool errorから自己修正できるようにできる。</li>
+<li>☐ 金曜日までに、loopに <strong>planning</strong> と <strong>reflection</strong> のstepを追加し、完全なtrace（すべてのthought、action、observation）をJSONL fileに保存できる。debuggerは最終answerではなくtraceだからです。</li>
+<li>☐ 金曜日までに、<strong>guardrail</strong> — max-step cap、token/cost budget、scope外要求のrefusal — を強制し、未見の10 scenarioにわたってagentをscoringできる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run / build</th>
+<th>Ship</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/10-agents-multiagent.md"><code>reference/knowledge-base/10-agents-multiagent.md</code></a> のloop、ReAct、tool-callingのsectionを読む（約1時間）</td>
+<td>loopを紙にsketchする。何が入り、何が決め、何が戻るか</td>
+<td>notesに書く「agent vs. workflow」の一段落定義</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>tool calling + structured output。tool-schemaのsectionを読む（約1時間）</td>
+<td>cell [2]〜[6] を実行: <code>zoro</code> をimport、四つのtoolを定義、registryをprint</td>
+<td>それぞれ <code>"error"</code> key付きの <code>dict</code> を返す、四つの動くtool</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>planning、reflection、stopping condition（約45分）</td>
+<td>cell [7]〜[12] を実行: <code>CostTracker</code>、二つのbrain、<code>react_loop</code></td>
+<td>行ごとに読めるtraceを保存した、一回のdemo run</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>guardrail、permission、cost cap。failure分類（約45分）</td>
+<td>cell [15]〜[18] を実行: reflection demo + 三つのguardrail assertion</td>
+<td>greenな「ALL GUARDRAILS FIRED」printout</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>n/a</td>
+<td>cell [19]〜[21] を実行: 10 scenarioをscoreする</td>
+<td>最終 <code>FINAL_SCORE</code> の数字 + 完全なJSONL trace log</td>
+</tr>
+<tr>
+<td><strong>Sat</strong></td>
+<td>n/a</td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-14/quiz.md"><code>quiz.md</code></a> を受ける（8/10で合格）</td>
+<td>scoreをtracker Notesに記録</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/10-agents-multiagent.md"><code>reference/knowledge-base/10-agents-multiagent.md</code></a> を、今週とWeek 15〜16の概念的な背骨として読んでください。以下はその要約版、実際に打つことになる部分です。</p>
+<h3 id="agentagent">Agentをagentにするもの</h3>
+<p><strong>agent</strong> とは、単一の答えを吐き出すためではなく、言語modelを使って <em>goalに向かってactionを選び、実行する</em> programです。仕組みは一つのloopです。現在のstate（user message、tool結果、history）を <strong>perceive</strong> する → 次に何をするかを <strong>reason/plan</strong> する → <strong>act</strong> する（toolを呼ぶ） → 結果を <strong>observe</strong> する → <strong>stopping condition</strong> が発火するまで繰り返し、それから最終answerを返します。Anthropicの <em>Building Effective Agents</em> は、重要な線引きをしています。model自身の出力が次のstepを決めるなら、それはagentです。stepがdeveloperによって事前に固定されているなら、それは <em>workflow</em> です。この区別をしっかり持ってください。「agentとは何か」論争のすべてが一文になったものであり、test、debug、budgetの仕方を変えるからです。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    U[User query] --&gt; P[&quot;Perceive: assemble state&quot;]
+    P --&gt; R[&quot;Reason / Plan: what next?&quot;]
+    R --&gt; D{Decide}
+    D --&gt;|call tool| A[&quot;Act: validate + execute tool&quot;]
+    D --&gt;|done| ANS[Answer]
+    D --&gt;|out of scope| REF[Refuse]
+    A --&gt; O[&quot;Observe: append result to context&quot;]
+    O --&gt;|loop| P
+    O --&gt;|reflect on error| R
+    P --&gt;|stop condition hit| ANS
+</div>
+<h3 id="react-reasoning-acting">ReAct: reasoning + acting</h3>
+<p>古典的なloopは <strong>ReAct</strong>、<em>reasoning + acting</em> で、Yao et al.（2022）によるものです。「考える」と「やる」を分離する代わりに、modelは自分の出力の中で <strong>Thought → Action → Observation</strong> を交互に織り交ぜます。このinterleaveは各turnを実際のtool結果に接地するので、hallucinationを測定可能に減らします。今呼んだばかりのtrackerが <code>{"status": "In Transit"}</code> を返したのに、modelはshipmentが「無事到着した」と主張することはできません。今週のnotebookでは、modelは毎turn一つのJSON object — <code>plan</code>、<code>action</code>、<code>reflect</code>、<code>answer</code>、<code>refuse</code> — をemitし、loopがそれぞれの種類を次のcontext messageに変えます。</p>
+<h3 id="toolsstructured-output">Toolsとstructured output</h3>
+<p><strong>Tool calling</strong> は「Action」を実行に変えるruntimeです。toolを <strong>name</strong>、引数の <strong>JSON Schema</strong>、<strong>description</strong> で宣言します。modelはstructuredなcallをemitし、runtimeが検証、実行し、結果をfeed backします。いまのうちに内面化すべき、productionの二つのnuanceがあります。toolの <em>descriptionはprompt engineeringである</em>（modelはあなたが伝えたことしか知らない）こと、そして <em>validationは、modelがそこから自己修正できるerrorとともにfail fastすべきである</em> ことです。このnotebookのすべてのtoolは、raiseする代わりに失敗時に <code>{"error": "…"}</code> を返します。exceptionはloopを殺しますが、<code>"error"</code> keyはmodelにreflectionの材料を与えるからです。<strong>Structured output</strong> は、同じ考えの一段上です。modelをvalidでschema-conformantなJSONに制約し、その決定を人間が読み直すのではなく、codeにparseさせます。</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>何をするか</th>
+<th>Schema引数</th>
+<th>registryにある理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>track_shipment</code></td>
+<td>IDでstatus、carrier、route、delay、on-time flagをlookup</td>
+<td><code>shipment_id: str</code></td>
+<td>中核のdata-lookup。<code>zoro.data.shipments()</code> を読む</td>
+</tr>
+<tr>
+<td><code>convert_units</code></td>
+<td>kg↔lb、km↔mi、hours↔days</td>
+<td><code>value: number, from_unit, to_unit</code></td>
+<td>freight lane上の単位計算</td>
+</tr>
+<tr>
+<td><code>calculator</code></td>
+<td>whitelistされた算術式を評価</td>
+<td><code>expression: str</code></td>
+<td>freight-costの算術（<code>1.35 * 10 * 800</code>）</td>
+</tr>
+<tr>
+<td><code>get_policy</code></td>
+<td>IDでpolicy文書（POL-001…POL-004）を返す</td>
+<td><code>doc_id: str</code></td>
+<td>policy回答を実際のpolicy textに接地</td>
+</tr>
+</tbody>
+</table>
+<h3 id="planningreflectionstopping-condition">Planning、reflection、そしてstopping condition</h3>
+<p><strong>planning</strong> とは、modelがactの前に短いtask listを最初に書くことです。安価で、複数stepの信頼性を改善します。このnotebookの <code>plan</code> kindは最小版です。toolを呼ぶ前に、意図するtoolを一言で述べる。それだけです。<strong>reflection</strong>（Reflexion、Shinn et al. 2023による）は、agentに <em>自己修正</em> をさせるupgradeです。失敗したstepの後、modelは何が悪かったかについての自然言語critiqueを書き、そのcritiqueをcontextに入れたままretryします。重みupdateなしの「verbal reinforcement learning」です。notebookは <code>1/0</code> のcalculator errorを強制し、brainがreflectしてから <code>2 + 2</code> でretryする様子を見せます。</p>
+<p><strong>stopping condition</strong> は、loopの最悪のfailure — 決して終わらないこと — に対する安全層です。modelの <em>意見</em>（「終わった？」）に依存するtermination ruleは、stopping conditionではありません。構造的にしてください。<code>finish</code> signal、<strong>max-step cap</strong>、<strong>token/cost budget</strong>、あるいはno-progress detectorです。</p>
+<h3 id="memory-scratchpad-vs-long-term">Memory: scratchpad vs. long-term</h3>
+<p>今週のmemoryは <strong>scratchpad</strong>（in-context）です。現在のwindowの中のmessage listとtool結果。速く正確ですが、boundedで、sessionが終わると失われます。windowの <em>外</em> に永続化され、関連するときに <em>retrieve</em> されるlong-term memoryは、Week 15〜17（checkpoint、そしてOpenClawのfiles）まで登場しません。持ち歩くべきmental model: <strong>memoryはpersistするもの。contextはloadするもの。</strong></p>
+<h3 id="guardrailtrace">Guardrailとtrace</h3>
+<p>安全層: toolの <strong>allowlist</strong>、scope外要求のための <strong>refusal path</strong>、そして <strong>cost cap</strong>。<code>CostTracker</code> はtokenを <code>len(text) // 4</code> で見積もり、inputを$2.50/M、outputを$10/Mで価格付けし、$0.05のcapに対してcheckします。あくまで例示的な数字であり、本当のlessonはその <em>形</em>（meterしてからgateする）です。<strong>trace</strong> は、すべてのthought、action、observationをJSONL fileに書いたもので、これがdebuggerです。runのscoreが悪いときは、traceを読み、どのtool callか引数が悪かったかを見つけ、「model」ではなく <em>それ</em> を直します。</p>
+<h3 id="_5">うまくいかない理由</h3>
+<p>今週が防ぐfailure modeは、今週が引き起こしうるものでもあります。max-step capがなければ、reflectするagentは <strong>loop non-converge</strong> します。二つのfixが永遠に交互するか、果てしない「まだ考えています」。fail-fastなtool validationがなければ、modelは <strong>invalid arguments</strong> をemitし、自己修正のsignalなしに生の400を受け取ります。tool結果のgroundingがなければ、agentは <strong>hallucinated success</strong> を犯します。trackerが一度も確認していないshipmentを「配達済み」と報告するのです。cost capがなければ、遅いdependency一つが、spendを倍増させる <strong>cascading retry</strong> を引き起こします。これらはそれぞれ、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/10-agents-multiagent.md"><code>reference/knowledge-base/10-agents-multiagent.md</code></a> §10 のfailure分類における名前付きclassであり、今週のguardrailの一つ、あるいは <code>"error"</code>-key conventionが捕まえるために作られたものそのものです。今週のdisciplineは、すべてのfailureを <em>observable</em> にすることです。refusalが発火、step capが発火、cost capが発火し、traceがどれかを示します。</p>
+<h3 id="1-runtoken-budget">実例1: 一回のrunのtoken budget</h3>
+<p>demo run、<code>"Where is shipment S0000123 right now?"</code> を取り上げます。loopはsystem promptをbuildし（≈950 char → 4 char/tokenで約237 input token）、queryを加え（~38 char → 約10 token）、mock brainが <code>plan</code> を、次に <code>action</code> をemitし、<code>track_shipment</code> の結果は~200 char（約50 token）、最後の <code>answer</code> は~30 char（約8 token）です。合計 ≈ <strong>305 token</strong>、cost ≈ <code>305 / 1e6 × $10</code> ≈ <strong>$0.0031</strong>。$0.05のcapより十分に下です。今度は、capがなく、答える前に三回reflectするmodelで同じrunを想像してください。三回の余分なthought+observation往復が、runをcapの先へ、さらに重要なことに、historyがqueryを溺れさせるsignal-to-noiseの地点の先へ押しやります。capは$0.05の話ではありません。「この余分なstepは、消費したcontextの価値があったか？」というquestionを強制することです。</p>
+<h3 id="2-reflectioncrashrecovery">実例2: reflectionがcrashをrecoveryに変える</h3>
+<p>reflection demoを実行します。brainは <code>calculator("1/0")</code> を呼びます。<code>eval</code> がraiseし、toolは <code>{"error": "could not evaluate: division by zero"}</code> を返し、loopが <code>"error"</code> keyをfatalなexceptionではなくobservationとして扱うため、brainは <code>{"kind": "reflect", "reflection": "…division by zero… retry with a valid expression"}</code> をemitし、それから <code>calculator("2 + 2")</code> を呼び、<code>"2 + 2 = 4"</code> で終わります。四回のloop step、一回のrecovery、人間の介入ゼロ。これが、single-shot pipelineに対するreflectionの主張のすべてです。agentは <em>失敗を情報として使った</em> のです。</p>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><code>notebooks/01-react-agent-from-scratch.ipynb</code> は、「loopとは何か」からscore付きagentまでを21 cellで連れて行く、単一のnotebookです。cell [0]〜[1] は要件（<code>pip install
+numpy pandas openai</code>、後者はoptional）とloopのnarrationをsetします。cell [2] と [4]〜[6] はdeterministicな世界をbuildします。<code>zoro.data</code> のlookup tableをseedし、四つのtoolと <code>TOOLS</code> registryを定義し、一つずつsmoke-testします。<code>track_shipment("DOES_NOT_EXIST")</code> の <code>"error"</code> 結果が、reflection demoのraw materialです。cell [8] は <code>CostTracker</code> をbuildします。cell [10]〜[12] は、交換可能な二つのbrain（実際のOpenAI/OpenRouter clientと、deterministicな <code>mock_brain</code> keyword classifier）と <code>react_loop</code> 自身をbuildし、毎turnをtemp directoryの <code>zorologistics_w14_traces.jsonl</code> に書き込みます。</p>
+<p>修正対象のrunnable arc: cell [14] は一つのscenarioを実行しそのtraceをprintします。cell [16] は <code>1/0</code> を強制してreflectionをdemoします。cell [18] は三つのguardrailすべてが発火することをassertします（refusal、<code>max_steps</code>、<code>cost_cap</code>）。そして cell [19]〜[21] が <strong>10 scenario</strong> — 六つのtool利用case、二つのpolicy lookup、二つのrefusal — を定義し、scoreします。scenarioの <em>pass</em> は、正しいtoolが正しい引数で呼ばれ、errorが返らず、最終answerが生成されたとき（refusal caseでは、agentがrefuseしたとき）です。cell [21] が気にすべき数字をprintします: fractionとしての <code>FINAL_SCORE</code>（<code>1.0</code> は10/10を意味します）。mock brainではscoreはdeterministicで高くなります。mockが存在するのは、loop、tools、guardrails、scoring全体が <strong>API keyなし、costなし</strong> で動くようにするためです。実際のkey（<code>OPENAI_API_KEY</code> または <code>OPENROUTER_API_KEY</code>）に差し替えると、<em>同じ</em> loopが実際のmodelをdriveします。loopは中にどのbrainが座っているかを気にしない — というのがpointです。<code>react_loop</code> はすべてのscenarioをtemp directoryの <code>zorologistics_w14_traces.jsonl</code> にappendします。runごとに一つのJSON objectで、<code>run_id</code>、query、完全な <code>trace</code> list、<code>final</code> answer付き。だから一つのscenarioを取り出して、その決定を手でreplayできます。正しい出力は、mock brainでの <code>1.0</code>（10/10）の <code>FINAL_SCORE</code> です。mockはdeterministicなkeyword classifierなので、それより低い場合は、scenarioの <code>expect</code> blockかtoolのschemaがclassifierの産出と一致していないことであり、traceがまさにそれを示します。</p>
+<h2 id="friday-use-case">Friday: Use case</h2>
+<p><strong>Deliverable:</strong> <code>notebooks/01-react-agent-from-scratch.ipynb</code> をend-to-endに実行し、以下を生成します。(a) すべてのscenario runのJSONL trace、(b) 三つのguardrail test結果、(c) 10 scenarioにわたる最終score。</p>
+<p><strong>Acceptance gate（Zorost式）:</strong> 見知らぬ人があなたのtrace fileを開き、行ごとに <em>agentが何をしたか</em> — どのtoolを、どの引数で呼び、toolが何を返し、loopがどこで止まったか — を読めること。さらに、各adversarial inputでどのguardrailが発火したか（refusal、step cap、cost cap）を正確に指し示せ、なぜ最終scoreがその値なのかを説明できること。traceなし、shipなし。</p>
+<p><strong>Stretch variant:</strong> 実際のmodel（OpenAIまたはOpenRouter）を配線し、10 scenarioを再実行して、実際のscoreをmockと比較します。traceを読んで、実際のmodelが違う振る舞いをするscenarioを <em>一つ</em> 見つけ（違うtool、違う引数format、あるいはmockがしなかったrefusal）、<em>なぜか</em> を説明するmarkdown cellを書きます。そのdiffこそ、「tool descriptionはprompt engineering」というあなたのmental modelがstress-testされる場所です。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>見た目</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Loopが決して終わらない</strong></td>
+<td>agentが「考え続ける」、または二つのfixを永遠に交互する</td>
+<td>構造的なstop: <code>max_steps</code>、cost cap、<code>finish</code> signal。決してmodelの意見にしない</td>
+</tr>
+<tr>
+<td><strong>Toolがerrorを返す代わりにraiseする</strong></td>
+<td>一つの悪い引数がrun全体をcrashさせる</td>
+<td>toolは <code>{"error": "…"}</code> を返す。loopはそれをmodelがreflectできるobservationとして扱う</td>
+</tr>
+<tr>
+<td><strong>曖昧なtool description</strong></td>
+<td>queryに間違ったtoolを呼ぶ</td>
+<td>各 <code>description</code> をpromptらしく書く。何をするか、いつ使うか、引数formatを名指しする</td>
+</tr>
+<tr>
+<td><strong>fail-fast validationがない</strong></td>
+<td>400 errorが、案内なしでmodelに届く</td>
+<td>errorの中で悪いfieldと許容値を名指しする。modelが自己修正できるように</td>
+</tr>
+<tr>
+<td><strong>tool結果がcontextを膨らませる</strong></td>
+<td>historyが積み上がり、run終盤のanswerが劣化する</td>
+<td>大きな結果はwindowに戻す前にtrimまたは要約する</td>
+</tr>
+<tr>
+<td><strong>「柔らかい」guardrail</strong></td>
+<td>refusalがsuggestionなので、scope外要求が実行される</td>
+<td>cell [18] のように、refusalをassertion付きのhard branchにする</td>
+</tr>
+<tr>
+<td><strong>traceなしにanswerを信頼する</strong></td>
+<td>scenarioがなぜfailしたか言えない</td>
+<td>runごとにJSONL traceを保存する。modelやpromptに触れる前に読む</td>
+</tr>
+<tr>
+<td><strong>mock brainをskipする</strong></td>
+<td>runごとに課金されるのでiterateできない</td>
+<td>deterministicなmockに対してloopを開発する。実際のkeyは最後に足す</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Agent</strong>: 言語modelを使ってgoalに向かうactionを選び、実行するprogram。model自身の出力が次のstepを決める。</li>
+<li><strong>Workflow</strong>: developerが固定したmodel stepの列（<em>agent</em> と対比）。</li>
+<li><strong>ReAct</strong>: modelの出力の中でThought → Action → Observationを交互に織り交ぜる「reasoning + acting」pattern。</li>
+<li><strong>Tool calling</strong>: modelのstructuredな「action」を、検証済み引数付きの実際の関数callに変えるruntime機構。</li>
+<li><strong>JSON Schema</strong>: toolとその引数を名指しするdeclarativeな契約。modelは呼び方を決めるために読む。</li>
+<li><strong>Structured output</strong>: modelを、proseではなくvalidでschema-conformantなdataに制約すること。</li>
+<li><strong>Planning</strong>: modelに、actの前に短いtask listを述べさせること。</li>
+<li><strong>Reflection（Reflexion）</strong>: 失敗の後にmodelが書き、それとともにretryする自然言語の自己critique。重みupdateなしで自己修正を可能にする。</li>
+<li><strong>Stopping condition</strong>: loopを終わらせる構造的なrule（max step、cost cap、<code>finish</code> signal）。</li>
+<li><strong>Guardrail</strong>: 安全control。tool allowlist、refusal path、cost/step budget、sandbox。</li>
+<li><strong>Scratchpad（短期memory）</strong>: in-contextのmessage listとtool結果。windowでboundedされ、session終了で失われる。</li>
+<li><strong>Trace</strong>: run内のすべてのthought、action、observationの構造化されたappend-only log。agentのdebugger。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-14/quiz.md"><code>quiz.md</code></a> を受けましょう。上のconcept <em>と</em> notebookのcell（loop、tool schema、guardrail、scoring）をcoverする10問です。<strong>8/10で合格</strong> です。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exerciseがあります。<strong>Easy</strong>（mock brainを実行してscoreを記録）、<strong>Standard</strong>（五つ目のtool <code>list_carriers</code> を追加）、<strong>Stretch</strong>（実際のmodelを配線してmockとdiffする）、<strong>Portfolio</strong>（program最初のinspectable agent artifactとして、agent + traceをcommit）。全文と <strong>Hints</strong> sectionは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-14/exercises.md"><code>exercises.md</code></a> を参照してください。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>LangGraph documentation (conceptual target for Week 15): https://docs.langchain.com/oss/python/langgraph</li>
+<li>Anthropic, <em>Building Effective Agents</em>: https://www.anthropic.com/engineering/building-effective-agents</li>
+<li>Anthropic, <em>Common Workflow Patterns for AI Agents</em>: https://claude.com/blog/common-workflow-patterns-for-ai-agents-and-when-to-use-them</li>
+<li>Google Research, <em>ReAct: Synergizing Reasoning and Acting in Language Models</em>: https://research.google/blog/react-synergizing-reasoning-and-acting-in-language-models/</li>
+<li>Reflexion (Shinn et al., arXiv:2303.11366): https://arxiv.org/abs/2303.11366</li>
+<li>OpenAI, <em>Function calling guide</em>: https://platform.openai.com/docs/guides/function-calling</li>
+<li>OpenRouter API documentation: https://openrouter.ai/docs</li>
+<li>smolagents (minimal agents, "code as actions" contrast): https://github.com/huggingface/smolagents</li>
+<li>Pydantic AI (type-safe structured outputs): https://ai.pydantic.dev</li>
+<li>Zorost Intelligence, <em>Agent failure taxonomy</em>: https://zorost.com/agent-failure-taxonomy</li>
+<li>Zorost Intelligence: https://zorost.com</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

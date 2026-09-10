@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 10: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 10</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-10/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-10-checklist">Week 10: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-10/exercises.md">英語版</a> · <a href="README.html">Week 10 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-sft-dataset-and-lora-training.ipynb</code> をend-to-endで実行します。dataset size（~300例）と、最後にprintされる最終training lossを、Excel trackerのWeek 10 sheetに記録します。GPUがない場合は、dataset構築cell（CPUのみ）を最後まで実行し、dataset statsを記録します。training cellはskipしたことを注記します。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: SFT datasetを <em>別の</em> seedと ~50の自分で手書きした追加example（生成されたもののcopyではなく、ZoroLogistics向けの本物のinstruction/response pairを書く）で再buildします。LoRA adapterを再trainし、before/after evalで、adapterがextraction evalでbase modelに依然として勝つことを、正確なdeltaとともに示します。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: plain LoRAを <strong>DoRA</strong> にswapします（PEFTの <code>LoraConfig</code> で <code>use_dora=True</code> を設定。あるいはbitsandbytesで4-bit QLoRA baseに切り替え）。他をすべて固定します。before/after eval表をplain-LoRA runと比較し、その追加mechanismが <em>あなたのtaskに</em> 見合ったかを一文で書きます。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: <strong>LoRA fine-tuned triage + extraction model</strong> milestone（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/projects/README.md"><code>curriculum/projects/README.md</code></a> で追跡）をcommitします。adapter config（<code>r</code>、<code>alpha</code>、target module）、loss curve画像、before/after eval表、catastrophic-forgetting checkの数値、そして正当化付きのdeploy/no-deploy decision。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: Dataset cell（2〜10）はCPUのみです。training cellにはGPUが必要です。GPUなしのhardwareでは、dataset statsを記録し、trainerがskipされたことを注記します。最終の <code>SFT_EXAMPLES</code> はprintされます。</li>
+<li><strong>Standard</strong>: 生成されたもののcopyではなく、ZoroLogistics向けの <em>本物の</em> instruction/response pairを書きます（新しいlane、customsのedge case、damage claim）。deltaが比較可能になるよう、 <em>同じ</em> held-out setでevalを再実行します。</li>
+<li><strong>Stretch</strong>: <code>use_dora=True</code> は <code>LoraConfig</code> の一行変更です。唯一の変数がmechanismになるよう、<code>r</code>、alpha、target、epoch、dataを同一に保ちます。loss curveではなくbefore/after表を比較します。</li>
+<li><strong>Portfolio</strong>: gateが求めるのは、表の両方のcolumn（新task <em>と</em> generic）と、明示的なdeploy/no-deployの一文です。数値付きの「don't deploy」は合格する結果です。forgetting checkのないdecisionは違います。</li>
+</ol>
+<h2 id="checklistmanifestjson-excel-tracker">Checklist（manifest.json + Excel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: fine-tuning理論とselection orderを学ぶ（knowledge-base 06）。</li>
+<li>☐ Tue: Week 6のcorpusからSFT dataset（instruction + response）をbuildする。</li>
+<li>☐ Wed: TRL/UnslothでLoRAをtrainする（Colab free tierまたはlocal GPU）。loss curveをlogする。</li>
+<li>☐ Thu: preference pairを作る。小さなDPO stepを実行する。evalでbefore/afterを比較する。</li>
+<li>☐ Fri: Use case。before/after eval表をpublishし、deploy vs iterateを決める。</li>
+<li>☐ Sat: Week 10 quiz（quiz.md）を受け、8/10で合格する。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新する。adapterとeval結果をcommitする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

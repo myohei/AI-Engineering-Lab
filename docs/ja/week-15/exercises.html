@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 15: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 15</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-15/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-15-checklist">Week 15: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-15/exercises.md">英語版</a> · <a href="README.html">Week 15 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-langgraph-support-agent.ipynb</code> をmock brainでend-to-endに
+   実行します。graph diagram（ASCII/Mermaid）とnodeごとのlatency/token tableを
+   Excel trackerのWeek 15 sheetにcopyします。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: refund-approvalの閾値を <code>$500</code> から自分の値に変更し、escalate pathで
+   JSONL fileにescalation recordを書き込む新しいnode（<code>log_escalation</code>）を一つ追加し、
+   新しいnodeが現れるようにgraph可視化を再printします。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: 実際のAPI keyで実行し、run途中で意図的にgraphをcrashさせ（例: <code>tool</code>
+   nodeでraise）、それから <code>Command(resume=...)</code> でcheckpointからresumeし、最終answerが
+   clean（未crash）runと一致することを確認します。resumeしたcheckpoint IDを記録して
+   ください。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: graph agentを (a) 可視化、(b) checkpoint
+   config、(c) refund-approval trace とともにcommitします。graphの形、閾値、interruptがどのnodeを守るかを
+   述べる <code>README</code> blockを加えます（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/projects/README.md"><code>curriculum/projects/README.md</code></a> で追跡）。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: mock brainで上から下へ実行します。Mermaid diagramとnodeごとの
+   latency/token tableを、printされたとおりに正確にcopyしてください。tableの <code>calls</code>
+   columnが、実際に発火したnodeを教えます。</li>
+<li><strong>Standard</strong>: <code>500.0</code> の比較はdiagram文字列の中ではなく <code>compute_refund</code>/<code>classify_intent</code>
+   の中にあります。閾値を一箇所で変え、それから <code>log_escalation</code> を、JSONL fileに
+   一行appendするnodeとして追加し、<code>escalate</code> path 上の <code>escalate</code> nodeの <em>手前</em> に
+   配線します。</li>
+<li><strong>Stretch</strong>: crashを強制するには <code>tool_node</code> の中でraiseし、<em>同じ</em> <code>thread_id</code> で
+   resumeします。resumeされた <code>final_answer</code> をclean runのものと比較してください。
+   checkpoint idは <code>graph.get_state(cfg)</code> から記録します。</li>
+<li><strong>Portfolio</strong>: reviewerは <code>README</code> blockを冷ややかな目で読みます。graphの形
+   （node + edge）、checkpoint config（<code>MemorySaver</code>）、閾値、そして <em>interruptがどの
+   nodeを守るか</em> を述べてください。「HITLを追加した」では足りません。</li>
+</ol>
+<h2 id="checklistmanifestjsonexcel-tracker">Checklist（manifest.jsonとExcel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: graph-based agent設計を学ぶ（reference/knowledge-base/10-agents-multiagent.md + LangGraph docs）。</li>
+<li>☐ Tue: Week 14 agentをLangGraphにportする。graphを可視化する。</li>
+<li>☐ Wed: checkpointとresumeを追加する。run途中でcrashさせて復旧する。</li>
+<li>☐ Thu: $500超のrefundのためのhuman-in-the-loop interruptを追加する。</li>
+<li>☐ Fri: Use case: approval付きのend-to-end run。nodeごとのlatencyとtokenを記録する。</li>
+<li>☐ Sat: Week 15 quiz（quiz.md）を受け、8/10で合格する。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新する。graph agentをcommitする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 15: Agent Frameworks — LangGraphとState-Graph Model</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 15</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-15/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-15-agent-frameworks-langgraphstate-graph-model">Week 15: Agent Frameworks — LangGraphとState-Graph Model</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-15/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 15 of 24 · Section: Agents · Category: Frameworks
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-15/notebooks/01-langgraph-support-agent.ipynb">01-langgraph-support-agent.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>Week 14の手書きloopは、stateを <em>暗黙に</em> 運んでいました。message listと、いくつかの変数と、どの行が何をしていたかというあなたの記憶の中に。demoにはそれで十分です。productionのsupport agentには、三つの固有の形で静かにfailします。第一に、<strong>durability</strong> がありません。agentがtracking queryを処理し、processがtool callの後、answerの前にcrashすると、run全体が失われ、restartは会話の最初からのやり直しを意味します。第二に、<strong>audit可能なcontrol flow</strong> がありません。routing logic（「refundはこちら、trackingはあちら」）はfunctionに埋もれた <code>if</code> 文として存在し、reviewerからは見えず、金が動く地点で <em>pause</em> することも不可能です。第三に、きれいな <strong>resume</strong> がありません。$900のrefundが人間のsign-offを要するとき、手書きloopには、そこで止まって人間にcontrolを渡し、まったく同じstateから続行するための組み込みの場所がありません。</p>
+<p>frameworkは <em>machinery</em> です。boilerplate、学ぶべきAPI、運用すべきdependencyを追加します。だから、それが買ってくれるものが必要なときだけ採用します。LangGraphのstate-graph modelが買うのは、まさにその三つです。名前付きの <strong>node</strong> を通り <strong>edge</strong> に沿って流れる、<strong>explicitでtypedなstate</strong>。durabilityのための <strong>checkpointing</strong> と、human-in-the-loopのための <strong>interrupt</strong>。今週はWeek 14のsupport agentをLangGraphでre-implementし、どのreasoningの行がstate fieldになり、どれがedgeになったかを <em>見える化</em> します。そして、checkpoint/resumeと$500 refund-approval gateが、framework自身よりも短いcodeでは手書きできないものだからこそ、frameworkをkeepするのです。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、agentを <strong>state graph</strong> としてmodel化できる。<code>TypedDict</code> のstate、stepとしてのnode、遷移としてのedge（conditional edgeを含む）。そして、explicitなstateが手書きのmessage listに勝つ理由を説明できる。</li>
+<li>☐ 金曜日までに、<code>intent → tool → generate → escalate</code> のnodeと <code>refund_approval</code> gate、conditional routing、Mermaid/ASCII可視化を備えたLangGraph <code>StateGraph</code> をcompileできる。</li>
+<li>☐ 金曜日までに、<code>MemorySaver</code> でrunを永続化し、run途中でcrashし、<strong>checkpointからresume</strong> できる。そして、checkpointが実際に何を保存するかを説明できる。</li>
+<li>☐ 金曜日までに、<code>interrupt_before</code> による <strong>human-in-the-loop</strong> を追加して$500超のrefundがapprovalのためにpauseするようにし、end-to-end runにわたってnodeごとのlatencyとtokenを測定できる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run / build</th>
+<th>Ship</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/10-agents-multiagent.md"><code>reference/knowledge-base/10-agents-multiagent.md</code></a> §11 のstate-graphとframework選定のsectionを読む（約1時間）</td>
+<td>Week 14のloopを読み直し、どの変数が <em>stateだったか</em> をlist化する</td>
+<td>「Week 14の変数 → Week 15のstate field」の対応list</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>LangGraphのnode/edge/conditional routing（約1時間）</td>
+<td>cell [2]〜[6] を実行: <code>AgentState</code>、tools、<code>classify_intent</code>、<code>compute_refund</code>、五つのnode functionを定義</td>
+<td><code>AgentState</code> TypedDict + 動く <code>classify_intent</code></td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>checkpoint、resume、time-travel（約45分）</td>
+<td>cell [7]〜[10] を実行: graphをassemble、<code>MemorySaver</code> でcompile、一つのthreadで二つのticketを実行</td>
+<td>runをまたいで <code>history</code> が積もるgraph</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>human-in-the-loop interrupt（約45分）</td>
+<td>cell [12] を実行: <code>S0000036</code> のrefundが <code>refund_approval</code> の前でpauseし、resumeする</td>
+<td>「PAUSED before refund_approval」printout + resumeされたanswer</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>n/a</td>
+<td>cell [13]〜[15] を実行: 20-ticketのnodeごとのlatency/token table + routing accuracy</td>
+<td>nodeごとのtableと <code>ROUTING_ACCURACY</code> の数字</td>
+</tr>
+<tr>
+<td><strong>Sat</strong></td>
+<td>n/a</td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-15/quiz.md"><code>quiz.md</code></a> を受ける（8/10で合格）</td>
+<td>scoreをtracker Notesに記録</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p>今週は「loopを所有している」から「judgmentを持ってframeworkを選べる」へのbridgeです。framework比較の全文は <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/10-agents-multiagent.md"><code>reference/knowledge-base/10-agents-multiagent.md</code></a> §11 を読んでください。以下は、実際に打つことになるstate-graph mental modelです。</p>
+<h3 id="state-graph-mental-model">State-graph mental model</h3>
+<p>転換は、<em>stateの隠れた糸を引くloop</em> から <strong>explicitなstate graph</strong> への転換です。LangGraphでは、あなたのagentは <code>StateGraph</code> です。<strong>node</strong>（function、stepごとに一つ）を通り <strong>edge</strong>（遷移）に沿って流れる、単一の <strong>state</strong> object（<code>TypedDict</code>）。Week 14のloopがmessage listと少数の変数の中にstateを暗黙に運んでいたところで、graphはそのstateを <em>名前が付きtypedな契約</em> にします。そして、その命名こそが、frameworkの本当の力 — checkpointing、resume、interrupt — をunlockします。各nodeはpure-ishなfunction <code>(state) -&gt; partial state</code> で、自分が変更したfieldだけを返し、frameworkが結果をshared stateにmerge backします。</p>
+<p>今週のstate、<code>AgentState</code> は、Week 14のagentをexplicitにしたものです。</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>書き手</th>
+<th>名前が付いている理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ticket_text</code></td>
+<td><code>str</code></td>
+<td>caller（初期state）</td>
+<td>生のcustomer message</td>
+</tr>
+<tr>
+<td><code>shipment_id</code></td>
+<td><code>str</code></td>
+<td><code>intent_node</code></td>
+<td>抽出された <code>S\d{7}</code> id</td>
+</tr>
+<tr>
+<td><code>intent</code></td>
+<td><code>str</code></td>
+<td><code>intent_node</code></td>
+<td><code>tracking</code> / <code>docs</code> / <code>refund</code> / <code>escalate</code></td>
+</tr>
+<tr>
+<td><code>refund_amount</code></td>
+<td><code>float</code></td>
+<td><code>intent_node</code></td>
+<td>計算されたrefund（valueの10%または50%）</td>
+</tr>
+<tr>
+<td><code>needs_approval</code></td>
+<td><code>bool</code></td>
+<td><code>intent_node</code></td>
+<td><code>refund_amount &gt; 500</code> のとき <code>True</code></td>
+</tr>
+<tr>
+<td><code>tool_result</code></td>
+<td><code>str</code></td>
+<td><code>tool_node</code></td>
+<td>toolのanswerのJSON text</td>
+</tr>
+<tr>
+<td><code>final_answer</code></td>
+<td><code>str</code></td>
+<td><code>generate</code> / <code>escalate</code> / <code>refund_approval</code></td>
+<td>userが見るもの</td>
+</tr>
+<tr>
+<td><code>escalated</code></td>
+<td><code>bool</code></td>
+<td><code>escalate_node</code></td>
+<td>人間が引き取る必要があったか</td>
+</tr>
+<tr>
+<td><code>history</code></td>
+<td><code>list</code></td>
+<td>すべてのnode</td>
+<td>checkpointerが永続化するaudit trail</td>
+</tr>
+</tbody>
+</table>
+<h3 id="conditional-edgerouter">Conditional edgeとrouter</h3>
+<p><strong>conditional edge</strong> は、graphが分岐する方法です。router nodeが <em>key</em> を返し、graphがそのkeyを次のどのnodeにmapするかをlookupします。Week 14のroutingはloopの中の <code>if</code> でした。ここでは <code>route_after_intent(state)</code> が <code>"tool"</code>、<code>"refund_approval"</code>、<code>"escalate"</code> を返し、その対応を <code>add_conditional_edges</code> で宣言します。分岐はこれでdeclarativeになり可視化されます。diagramとしてprintでき、reviewerはrouting policyを、それを実装するcodeを読まずに読めます。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+graph TD
+    START[START] --&gt; intent
+    intent --&gt;|tracking / docs| tool
+    intent --&gt;|refund over $500| refund_approval
+    intent --&gt;|escalate| escalate
+    tool --&gt; generate
+    refund_approval --&gt; generate
+    generate --&gt; END
+    escalate --&gt; END
+</div>
+<h3 id="checkpointresumetime-travel">Checkpoint、resume、time-travel</h3>
+<p><strong>checkpointing</strong>（<code>MemorySaver</code>）は各nodeの後のstateを永続化するので、runは止まったちょうどその場所から <em>resume</em> できます。checkpointは、現在のstate全体（上の九つのfieldすべて）に加えて、thread idとgraph内の位置を保存します。どの過去stepでもrunを再構築できるだけの情報です。三つの帰結: (1) <strong>durability</strong>。tool nodeの後のcrashは何も失いません。resumeして続行します。(2) <strong>会話memory</strong>。<em>同じ</em> <code>thread_id</code> 上の二つのinvocationがstateを共有するので、<code>history</code> はcallをまたいで積もります（notebookはthread <code>t-1</code> で二つ目のticketを実行し、history lengthが伸びるのを見せます）。(3) <strong>time-travel</strong>。より早いcheckpointまでrewindして、別のinputでreplayできます。gimmickではなく、これはdebuggingです。<code>MemorySaver</code> はin-memoryです（labには十分）。productionは、PostgresやSQLiteなどのdurableなcheckpointerに差し替えます。</p>
+<h3 id="human-in-the-loop">Human-in-the-loop</h3>
+<p><strong>interrupt</strong>（<code>interrupt_before</code>）は、名前付きnodeの <em>前で</em> graphをpauseし、controlをcallerにyieldします。callerはstateをinspectし、approveしてresumeするか、stateを編集してretryします。これが、Week 14の「不可逆性における人間checkpoint」をfirst-classにした機構です。refund flowでは、<code>interrupt_before=["refund_approval"]</code> は、$500超のrefundが扉の前で <em>止まる</em> ことを意味します。graphがinterruptをraiseし、callerが <code>needs_approval</code> を読み、<code>Command(resume={"approved": True})</code> だけがrunを継続させて、実際にrefundを発行させます。金が動く地点こそ、人間がsign-offする地点です。</p>
+<h3 id="streamingmemory">Streamingとmemory</h3>
+<p>このnotebookはtableをprintしますが、二つのideaはここで固定してください。<strong>streaming</strong> は、agentを生きていると感じさせるものです。LangGraphはstate updateをtokenごとにstreamできます。それは、state-graph modelがstateを隠れた変数ではなくfirst-class objectとしてexposeしているからこそ可能です。<strong>sessionをまたぐmemory</strong> は、checkpointing + thread idです。threadでkey付けされた同じstate objectこそが、history全体を再送せずに、一つのcustomer会話をrunをまたいで永続させるものです。</p>
+<h3 id="framework-judgment">Framework judgment</h3>
+<p>Anthropicのguidanceによる正直なtradeoffは、frameworkは <em>machinery</em> だということです。boilerplate、API surface、dependency。LangGraphを採用するのは、<strong>durableでaudit可能、cyclicなcontrol flow</strong> が要るとき — checkpoint、resume、streaming、flow途中の人間approval — です。一つのtoolを持つone-shot agentにはWeek 14のcodeで十分で、frameworkはoverheadになります。skillとは <em>judgment</em> のことです。だからfieldを知っておいてください。</p>
+<table>
+<thead>
+<tr>
+<th>Framework</th>
+<th>最適な用途</th>
+<th>Checkpoint / HITL</th>
+<th>MCP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>LangGraph</strong></td>
+<td>durableでstateful、cyclicなcontrol flow。productionでの永続化</td>
+<td>first-class（checkpointer、interrupt）</td>
+<td>Client</td>
+</tr>
+<tr>
+<td><strong>OpenAI Agents SDK</strong></td>
+<td>OpenAI model上のlightweightなagent。handoff、guardrail</td>
+<td>Session + handoff。永続化は軽め</td>
+<td>Client</td>
+</tr>
+<tr>
+<td><strong>smolagents</strong></td>
+<td>minimalでhackable。「code as actions」</td>
+<td>minimal（自前でroll）</td>
+<td>Client</td>
+</tr>
+<tr>
+<td><strong>Pydantic AI</strong></td>
+<td>型安全でvalidateされたstructured I/O</td>
+<td>graphではなくcomposition</td>
+<td>Client + server</td>
+</tr>
+<tr>
+<td><strong>CrewAI</strong></td>
+<td>role-basedな「crews」。高速なprototyping</td>
+<td>process mode（sequential/hierarchical）</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_5">うまくいかない理由</h3>
+<p>state-graph modelはWeek 14のhidden-state failureを取り除き、独自のものを持ち込みます。nodeが、別のnodeがまだ必要とするfieldを上書きする <em>partial</em> stateを返すと、<strong>silent state clobber</strong> になります。graphは「動く」のに、answerは古い値の上にbuildされます。<code>interrupt_before</code> を忘れると、refundは人間なしで <code>refund_approval</code> をまっすぐ通過します。gateが防ぐために存在する、まさに不可逆actionのfailureです。checkpointerが <code>MemorySaver</code> なら、checkpoint <em>間</em> のprocess crashはその区間の仕事を失います。「durable」は、checkpoint頻度と同じ程度にしかdurableではありません。そして、非決定的なmodelでのreplay（同じinput、違うtemperature）は別の分岐を生みえます。<strong>time-travel replayがdeterministicなのは、nodeがdeterministicなときだけ</strong> です。それぞれは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/10-agents-multiagent.md"><code>reference/knowledge-base/10-agents-multiagent.md</code></a> §10 の名前付きfailure classであり、それぞれはassertionでtestできます。それこそが、notebookのguardrail printのためにあるものです。</p>
+<h3 id="1-500-refund-gate">実例1: $500 refund gate</h3>
+<p>notebookの <code>compute_refund(shipment_id)</code> は <code>POL-002</code> policyを実装します。<strong>48時間</strong> を超えて遅れたshipmentは申告valueの <strong>10%</strong> を、<strong>7日</strong> を超えて遅れた場合は <strong>50%</strong> をrefundします。shipment <code>S0000036</code> を取り上げます。&gt;48hの遅れで申告valueが高いため、10% refundは <strong>$500を超えます</strong>。たとえばvalue ≈ $6,000 → refund ≈ <strong>$600</strong> → <code>needs_approval = True</code>。graphは <code>intent → refund_approval</code> にrouteしますが、<code>interrupt_before=["refund_approval"]</code> がsetされているため、<code>graph.invoke(...)</code> は <em>pause</em> し、callerはresumeの前に <code>pending state … needs_approval: True</code> を読みます。$12のrefund（$120のshipmentへの10% refund）なら、代わりに <code>intent → tool → generate</code> にrouteし、人間のgateは <strong>ありません</strong>。閾値こそが、安全設計のすべてです。</p>
+<h3 id="2-nodelatencytoken">実例2: nodeごとのlatencyとtoken</h3>
+<p><code>zoro.data.support_tickets()</code> からの20の実際のticketをnode functionに通し、nodeごとに集計します。得られるtableはagentのcost解剖です。どのnodeが時間とtokenを食うのか。</p>
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>Calls</th>
+<th>役割</th>
+<th>そのcostが語ること</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>intent</code></td>
+<td>20</td>
+<td>classify + extract + refund計算</td>
+<td>純粋なPython。tokenはほぼゼロ。最も安いnode</td>
+</tr>
+<tr>
+<td><code>tool</code></td>
+<td>~18</td>
+<td>tracking/policy/refund lookup</td>
+<td><em>output</em> tokenを支配（JSON結果）</td>
+</tr>
+<tr>
+<td><code>generate</code></td>
+<td>~18</td>
+<td>answerの合成</td>
+<td><em>input</em> tokenを支配（prompt + tool結果）</td>
+</tr>
+<tr>
+<td><code>refund_approval</code></td>
+<td>refundのみ</td>
+<td>人間のgate</td>
+<td>latencyは計算ではなく人間の時間</td>
+</tr>
+<tr>
+<td><code>escalate</code></td>
+<td>曖昧なticket</td>
+<td>引き継ぎ</td>
+<td>まれであるべき。spikeはrouting不良の印</td>
+</tr>
+</tbody>
+</table>
+<p>notebookは実際の数字（nodeごとの <code>avg_latency(ms)</code> と <code>total_tokens</code>）と、同じ20 ticketにわたる最終 <code>ROUTING_ACCURACY</code> — ground-truth queueへ正しくrouteされた割合 — をprintします。この二つの出力が合わさって、Week 15のevidenceです。時間と金が <em>どこへ</em> 行き、routerが <em>どれだけの頻度で</em> 正しいか。</p>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><code>notebooks/01-langgraph-support-agent.ipynb</code> は、Week 14のsupport agentを15 cellでgraphとしてrebuildします。cell [0]〜[2] は要件（<code>pip install langgraph openai</code>）とimport blockをsetします。import blockは、LangGraphがないときに同じnodeを同じ順で歩く <strong>manual runner</strong> にfallbackするので、nodeごとのtableとscoreは常にprintされます。cell [3]〜[4] は二つのtool（<code>track_shipment</code>、<code>get_policy</code>）、<code>compute_refund</code> policy function、<code>classify_intent</code>（実際のLLM callに差し替えるkeyword classifier）を定義します。cell [5]〜[6] は五つのnode functionと <code>NODE_STATS</code> recorderを定義します。cell [8] は <code>StateGraph</code> をassembleし、<code>MemorySaver(checkpointer=...)</code> と <code>interrupt_before=["refund_approval"]</code> でcompileし、手書きのMermaid diagramと <code>graph.get_graph().draw_mermaid()</code> の両方をprintします。</p>
+<p><em>修正すべき</em> 二つのcellは [10] と [12] です。cell [10] はthread <code>t-1</code> でtracking ticketを実行し、その後 <em>同じ</em> threadで二つ目のticketを実行し、checkpointされた <code>history</code> とその伸びていくlengthをprintします。それが、durableなstateとしての会話memoryです。cell [12] はrefund scenario（<code>S0000036</code>）を見つけ、<code>refund_amount &gt; 500</code> を確認し、graphをinvokeして <strong>refund_approvalの前でPAUSED</strong> することを見せ、それから <code>Command(resume={"approved": True})</code> でresumeします。最後に cell [13]〜[15] が <code>NODE_STATS</code> をresetし、20 ticketをmanual runnerで実行し、nodeごとのlatency/token tableと <code>TOTAL latency</code> と <code>TOTAL tokens</code> をprintし、<code>classify_intent</code> とticketのground-truth categoryを比べて <code>ROUTING_ACCURACY</code> を計算します。「正しい」出力は、Mermaid graph、二つのrunをまたいで伸びるhistory、paused-then-resumedなrefund、筋の通った非負の数字を持つnodeごとのtable、そしてseed付きsampleで <code>1.0</code> に近い <code>ROUTING_ACCURACY</code> です。classifierはdeterministicで、toolsは純粋なfunctionなので、すべての数字はrunごとに再現可能です。唯一非決定的なcellは、<code>generate_node</code> の中のoptionalな実際のmodel <code>_llm</code> hookで、mock pathはそれをbypassします。<code>ROUTING_ACCURACY</code> が <code>1.0</code> を下回るなら、<code>CAT_TO_INTENT</code> を <code>classify_intent</code> のkeyword分岐と照らし合わせて再確認してください。routing errorが実際に棲んでいるのはgraphではなく、そのmappingです。</p>
+<h2 id="friday-use-case">Friday: Use case</h2>
+<p><strong>Deliverable:</strong> <code>notebooks/01-langgraph-support-agent.ipynb</code> をend-to-endに実行し、以下を生成します。(a) ASCII/Mermaid graph diagram、(b) checkpoint + resumeのdemo、(c) pauseしてからresumeする$500超のrefund、(d) nodeごとのlatency/token tableとrouting-accuracyの数字。</p>
+<p><strong>Acceptance gate（Zorost式）:</strong> 見知らぬ人があなたのgraph diagramを読み、一つのticketをnodeをたどってtraceできること。flow途中でcrashしてcheckpointからresumeしたrun（新規startではなく）を <em>見せ</em> 、$500超のrefundがあなたがapproveするまでblockされたことを <em>見せ</em> 、checkpointが何を保存したか（state全体 + thread id + 位置）、そしてinterruptがどのnodeを守ったか（<code>refund_approval</code>）を説明できること。checkpointなし、shipなし。</p>
+<p><strong>Stretch variant:</strong> approval閾値を自分の値（例: $200）に下げ、escalate pathでJSONL recordをappendする <code>log_escalation</code> nodeを追加し、graphを再可視化し、20-ticket tableを再実行します。そのうえで、本物のcrashにします。API keyで実行し、<code>tool_node</code> の途中でraiseし、checkpointからresumeし、resumeされた最終answerがclean runと一致することを確認します。resumeしたcheckpoint idを記録してください。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>見た目</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>State clobber</strong></td>
+<td>nodeが、別のnodeがまだ必要とするfieldを上書きする</td>
+<td>変更したfieldだけを返す。<code>history</code> はappend-onlyに保つ</td>
+</tr>
+<tr>
+<td><strong><code>interrupt_before</code> を忘れる</strong></td>
+<td>refundが、人間なしでapprovalを通過する</td>
+<td><code>interrupt_before=["refund_approval"]</code> をsetし、runがpauseすることをassertする</td>
+</tr>
+<tr>
+<td><strong>in-memory checkpointはdurableでない</strong></td>
+<td>checkpoint間のcrashでも仕事を失う</td>
+<td><code>MemorySaver</code> はlab用と理解する。productionではDB checkpointerを使う</td>
+</tr>
+<tr>
+<td><strong>非決的なreplay</strong></td>
+<td>同じinputでtime-travelが別の分岐を生む</td>
+<td>temperatureを <code>0.0</code> にpinし、nodeをpureに保ってreplayをdeterministicにする</td>
+</tr>
+<tr>
+<td><strong>router keyがmappingにない</strong></td>
+<td>返されたkeyが未対応で、conditional edgeがerrorになる</td>
+<td><code>route_after_intent</code> は <code>add_conditional_edges</code> のmapに存在するkeyだけを返す</td>
+</tr>
+<tr>
+<td><strong>最終answerだけを測る</strong></td>
+<td>どのnodeが遅い/間違っているか言えない</td>
+<td>nodeごとのlatency/tokenを記録し（<code>NODE_STATS</code>）、tableを読む</td>
+</tr>
+<tr>
+<td><strong>one-shot taskにframework</strong></td>
+<td>単一tool呼び出しにLangGraph boilerplate</td>
+<td>Week 14のplain loopを使う。checkpoint/HITLが必要なときだけframeworkを採用</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>State graph</strong>: typedなstate objectが、名前付きのnodeをedgeに沿って流れるagentのmodel。</li>
+<li><strong>Node</strong>: 一つのstepを表すfunction <code>(state) -&gt; partial state</code>（classify、tool、generate…）。</li>
+<li><strong>Edge</strong>: node間の遷移。<strong>conditional edge</strong> は、routerが返したkeyから次のnodeを選ぶ。</li>
+<li><strong>State（TypedDict）</strong>: すべてのnodeが共有する、名前付きでtypedな契約。checkpointされるもの。</li>
+<li><strong>Checkpoint</strong>: state + thread id + 位置の永続化snapshot。resumeとtime-travelを可能にする。</li>
+<li><strong><code>MemorySaver</code></strong>: LangGraphのin-memory checkpointer（productionではDB checkpointerに差し替え）。</li>
+<li><strong>Thread id</strong>: invocation群を一つのdurableな会話/memoryにgroupingするkey。</li>
+<li><strong>Human-in-the-loop（HITL）</strong>: 不可逆stepが人間approvalのためにpauseする設計。</li>
+<li><strong><code>interrupt_before</code></strong>: 名前付きnodeの前でgraphをpauseするcompile option。</li>
+<li><strong><code>Command(resume=…)</code></strong>: callerがpauseしたrunをresumeする方法（新しいdata付きも可）。</li>
+<li><strong>Streaming</strong>: graphの実行に合わせて、state/token updateを逐次emitすること。</li>
+<li><strong>Routing accuracy</strong>: routerが正しいqueueへ送ったticketの割合。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-15/quiz.md"><code>quiz.md</code></a> を受けましょう。state-graph model、checkpoint、refund gate、notebookのnodeごとのtableをcoverする10問です。<strong>8/10で合格</strong> です。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exerciseがあります。<strong>Easy</strong>（mock brainで実行し、nodeごとのtable + diagramを記録）、<strong>Standard</strong>（$500閾値を変更して <code>log_escalation</code> nodeを追加）、<strong>Stretch</strong>（実際のcheckpointからcrashしてresume）、<strong>Portfolio</strong>（graph + 可視化 + approval traceをcommit）。全文と <strong>Hints</strong> は <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-15/exercises.md"><code>exercises.md</code></a> を参照してください。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>LangGraph overview &amp; concepts: https://docs.langchain.com/oss/python/langgraph</li>
+<li>LangGraph checkpointers / persistence: https://docs.langchain.com/oss/python/langgraph/checkpointers</li>
+<li>LangGraph human-in-the-loop / interrupts: https://docs.langchain.com/oss/python/langgraph/human-in-the-loop</li>
+<li>LangGraph <code>StateGraph</code> API reference: https://reference.langchain.com/python/langgraph/</li>
+<li>Anthropic, <em>Building Effective Agents</em>: https://www.anthropic.com/engineering/building-effective-agents</li>
+<li>Anthropic, <em>Effective Harnesses for Long-Running Agents</em>: https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents</li>
+<li>OpenAI Agents SDK (handoffs/tracing contrast): https://github.com/openai/openai-agents-python</li>
+<li>smolagents (minimal-agent contrast): https://github.com/huggingface/smolagents</li>
+<li>Zorost Intelligence: https://zorost.com</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

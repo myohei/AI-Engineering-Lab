@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 17: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 17</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-17/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-17-checklist">Week 17: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-17/exercises.md">英語版</a> · <a href="README.html">Week 17 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-agent-ops-observability.ipynb</code>をend-to-endで実行する（API keyは
+   不要）。最後にcoverage metric（0から1までの数字）をprintします。その値を
+   Excel trackerのWeek 17 sheetに記録する。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: ZoroLogistics向けの二つのOpenClaw skill、<code>track-shipment</code>と
+   <code>refund-policy</code>を書く。YAML frontmatter（name、description、明確な<em>when to use</em>
+   trigger）付きの<code>SKILL.md</code> fileとして作る。workspaceにloadし、<code>openclaw skills list</code>
+   （またはdashboard）で両方が認識されていることを確認する。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: Hermes-class modelをpullし（<code>ollama run hermes4</code>）、OpenClawをそれに
+   向ける（<code>baseUrl: "http://localhost:11434"</code>、<strong><code>/v1</code>なし</strong>）。前のmodelで使った
+   同じ三つのpromptを実行する。Hermes modelがどのpromptをうまく扱い、どれをしくじったか、
+   そしてtool useにfunction-calling tuningがなぜ重要かを書き留める。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: 二つのskill、生成されたops runbook、coverage metricをcommitする。
+   runbook（threshold、dashboard、incident手順）は、reviewerがcoldで読むstanding ops
+   artifactである（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/projects/README.md"><code>curriculum/projects/README.md</code></a>で管理）。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: notebookを最初から最後まで実行する（keyは不要）。最後のcellが<code>COVERAGE</code>を
+   0から1までの数字としてprintする。その値をそのまま記録する。</li>
+<li><strong>Standard</strong>: 各<code>SKILL.md</code>には<code>name</code> + <code>description</code>のfrontmatterと、正確な手順を
+   書いたMarkdown bodyが必要。agentが照合するのは<code>description</code>なので、具体的にする
+   （「shipmentのstatusやETAをユーザーが尋ねたとき」など）。<code>openclaw skills list</code>で
+   確認する。</li>
+<li><strong>Stretch</strong>: OpenClawをOllamaに向けるときは<code>baseUrl: "http://localhost:11434"</code>で
+   <strong><code>/v1</code>なし</strong>。前と同じ三つのpromptを実行し、Hermes modelがどれをうまく扱い、どれを
+   しくじったか、それがfunction-calling tuningとどう対応するかを記録する。</li>
+<li><strong>Portfolio</strong>: 二つの<code>SKILL.md</code> file、生成されたrunbook、coverageの数字を一緒に
+   commitする。reviewerはrunbookをcoldで読むので、thresholdとincident手順は形容詞で
+   なく具体的な数字で書く。</li>
+</ol>
+<h2 id="checklistmanifestjsonexcel-tracker">Checklist（manifest.jsonとExcel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: OpenClawとHermesを学ぶ（reference/agents/openclaw.md + reference/agents/hermes.md + knowledge-base/10）。</li>
+<li>☐ Tue: OpenClawをlocalにinstall・configure。channel（WebChatまたはTelegram）を接続。</li>
+<li>☐ Wed: OpenClaw skillを2つ書く。Week 16のMCP serverを接続。context loopをtest。</li>
+<li>☐ Thu: Ollama経由でHermes-class modelに差し替え。assistantの品質を比較。</li>
+<li>☐ Fri: Use case: assistantにtracingとcost trackingを追加。ops runbookを公開。</li>
+<li>☐ Sat: Week 17のquiz（quiz.md）を受ける。8/10で合格。scoreをNotesに記録。</li>
+<li>☐ Milestone: Excel trackerを更新。skillsとrunbookをcommit。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

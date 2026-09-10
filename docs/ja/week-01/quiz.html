@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 01: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 01</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-01/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-01-quiz10810">Week 01: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-01/quiz.md">英語版</a> · <a href="README.html">Week 1 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>10問すべてに答えてから、Answer keyで確認してください。<em>(Concepts §Xを参照)</em> はREADMEのsubsection、<em>(notebook cell Yを参照)</em> は <code>01-environment-and-tools.ipynb</code> または <code>02-zorologistics-data-generator.ipynb</code> のcellを示します。</p>
+<ol>
+<li>
+<p><strong>Multiple choice。</strong> Andrew NgのAI Engineering Skills Mapの4つのskillを正しく並べているのはどれですか？ <em>(Concepts §1を参照)</em>
+   a. Prompt engineering、fine-tuning、RAG、deployment
+   b. AI applicationのbuilding/deployment、software engineering fundamentals、coding agentの利用、buildの方向付け
+   c. Data engineering、ML、deep learning、MLOps
+   d. Frontend、backend、data、DevOps</p>
+</li>
+<li>
+<p><strong>Multiple choice。</strong> <code>shipments(100_000, seed=42)</code> が100,000行ではなく100,200行を返すのはなぜですか？ <em>(Concepts §6、notebook「Verify persistence」cellを参照)</em>
+   a. NumPyのrounding error
+   b. Week 2で見つけるため、generatorが約0.2%のduplicate rowを意図的に追加する
+   c. seedはcarriersにだけ適用され、shipmentsには適用されない
+   d. <code>save_all()</code>が常に200行のheaderを追加する</p>
+</li>
+<li>
+<p><strong>Short answer。</strong> seed cellで、最初の <code>first_five(42)</code> は <code>[89250, 773956, 654571, 438878, 433015]</code> を返します。同じseedで2回目に呼ぶと何が返り、なぜですか？ <em>(notebook「seed habit」cellを参照)</em></p>
+</li>
+<li>
+<p><strong>Multiple choice。</strong> seed付きrandomnessに推奨されるmodernなNumPyの書き方はどれですか？また、legacyのglobal formより好まれる理由は何ですか？ <em>(Concepts §6を参照)</em>
+   a. <code>np.random.seed(42)</code>。simpleでthread-safeだから
+   b. <code>numpy.random.default_rng(seed)</code>。localでthread-safe、hidden global stateがないから
+   c. <code>random.random(42)</code>。built-inで速いから
+   d. <code>np.random.RandomState</code>。deprecatedだが必須だから</p>
+</li>
+<li>
+<p><strong>Short answer。</strong> environment notebookの最後のcellは <code>READINESS = CHECK_PYTHON + CHECK_LIBS + CHECK_ZORO + CHECK_GIT + CHECK_NUMPY + CHECK_SEED</code> を計算します。score 6は何を意味し、5だったら何をすべきですか？ <em>(notebook final cellを参照)</em></p>
+</li>
+<li>
+<p><strong>Multiple choice。</strong> <code>zoro/data.py</code>で、<code>lanes</code> tableへの <em>foreign key</em> はどのcolumnですか？ <em>(Concepts §2、data dictionaryを参照)</em>
+   a. <code>shipments.shipment_id</code>
+   b. <code>shipments.lane_id</code>
+   c. <code>lanes.lane_id</code>
+   d. <code>carriers.carrier_name</code></p>
+</li>
+<li>
+<p><strong>Multiple choice。</strong> generator notebookは<code>save_all(...)</code>を呼ぶ前に、<code>zoro/</code>を含むfolderまで親をたどってoutput directoryを解決します。これによってどのfailureを防ぎますか？ <em>(notebook「Generate and persist」cellを参照)</em>
+   a. <code>data/</code>がrepo rootではなく <em>notebook folder</em> に書かれること
+   b. carriersとlanesの間でseed collisionが起きること
+   c. duplicate <code>shipment_id</code>が生成されること
+   d. <code>data-dictionary.md</code>でGit merge conflictが起きること</p>
+</li>
+<li>
+<p><strong>Short answer。</strong> Week 1のoutputに仕込まれた3つのdata-quality flawを挙げ、seed 42でのそれぞれのおおよその件数を書いてください。 <em>(Concepts §6、verification cellを参照)</em></p>
+</li>
+<li>
+<p><strong>Multiple choice。</strong> <code>02-zorologistics-data-generator.ipynb</code>のdata dictionaryはtupleのlistから<code>data/data-dictionary.md</code>を書き出します。各tupleが持つ4つのfieldは何ですか？ <em>(notebook「data dictionary」cellを参照)</em>
+   a. table、column、dtype、meaning
+   b. table、seed、dtype、count
+   c. column、value、sample、note
+   d. name、type、nulls、source</p>
+</li>
+<li>
+<p><strong>Short answer。</strong> なぜ同じseedは単なる便利機能ではなく、program全体の <em>contract</em>（「same seed, same company」）なのですか？ <em>(Concepts §6とFridayのZorost gateを参照)</em></p>
+</li>
+</ol>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>b。</strong> Ngの4領域は、AI applicationのbuilding/deployment、software engineering fundamentals、coding agentの利用、buildの方向付けです。prompt engineeringとRAGは最初の領域に含まれるbuilding blockであり、4領域そのものではありません。</p>
+</li>
+<li>
+<p><strong>b。</strong> <code>data.py</code>は <code>pd.concat([df, df.sample(frac=0.002)])</code> を実行し、約0.2%（100,000行なら200行）のduplicate rowを仕込みます。Week 2で実際にcleanするためです。</p>
+</li>
+<li>
+<p><strong>同じlist</strong> <code>[89250, 773956, 654571, 438878, 433015]</code> です。固定seedにより<code>default_rng</code>が同じsequenceを再生します。異なるseed（例：<code>7</code>）なら異なる数字になります。</p>
+</li>
+<li>
+<p><strong>b。</strong> <code>numpy.random.default_rng(seed)</code>はlocal generator objectを返すため、別のlibrary callが順序を変えるhidden global stateがありません。<code>np.random.seed</code>はglobal stateを変更し、reproducibilityを静かに壊す可能性があります。</p>
+</li>
+<li>
+<p><strong>6は6つすべてのcheck（Python version、import、<code>zoro.data</code>の完全性、Git、NumPy、determinism）がpassし、environmentが準備できたことを意味します。5なら各FAIL行を読み、壊れているcheckを直して6になるまで再実行します。</strong> failing environmentのまま先へ進まないでください。</p>
+</li>
+<li>
+<p><strong>b。</strong> <code>shipments.lane_id</code>は<code>lanes.lane_id</code>を参照します。<code>shipment_id</code>はshipments table自身のprimary keyです。</p>
+</li>
+<li>
+<p><strong>a。</strong> rootを解決しないと、<code>save_all()</code>がkernelのcwdを基準に動き、CSVがnotebook folderに書かれることがあります。これでは後続週が期待するrepo rootの<code>data/</code> pathが壊れます。</p>
+</li>
+<li>
+<p><strong>duplicate shipment row（0.2% sampleで約200行）、<code>NaN</code>の<code>weight_kg</code>（0.3% sampleで約301個）、<code>NaN</code>のlane <code>distance_km</code>（20 laneの5%で約1個）</strong>です。Week 2で見つけるために、すべて意図的に仕込まれています。</p>
+</li>
+<li>
+<p><strong>a。</strong> 各tupleは <code>(table, column, dtype, meaning)</code> です。notebookはこれをDataFrameにしてからMarkdown tableに書き出します。</p>
+</li>
+<li>
+<p><strong>seedがあれば、見知らぬ人でもあなたのforkを再実行してbyte-identicalなdataを得られます。そのため、Week 23で測ったmetricをWeek 1のbaselineと比較できます。determinismがあるから、anecdoteではなくreproducible artifactになります。</strong></p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

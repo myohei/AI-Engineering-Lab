@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 12: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 12</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-12/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-12-checklist">Week 12: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-12/exercises.md">英語版</a> · <a href="README.html">Week 12 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-harness-setup-and-comparison.ipynb</code> を最後のcellまで実行し、
+   harness-readiness score（0〜3）をExcel trackerのWeek 12 sheetに記録します。2未満なら、
+   そのharnessの <code>reference/skills/</code> guideに従ってもう一つinstallして再実行します。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: notebookの <code>SPEC.md</code> templateを <code>specs/eta-cli-SPEC.md</code> にcopyし、
+   すべてのbracket（一つのrefused tradeoffを含む）を埋めてから、最初のharnessに
+   このspecからCLIをbuildさせます。六項目のtest planを実行し、pass/failの行を
+   trackerに貼り付けます。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: <em>同じ</em> <code>SPEC.md</code> を二つ目のharnessで実行し、notebookのcomparison
+   worksheetのすべてのcell（plan、tokens、cost、quality）を埋めます。一ページの比較を
+   書きます。どのharnessがより良いplanを、どのcostで作ったか、teamならどちらを
+   選ぶか、そしてなぜか。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: 動く <code>eta-cli</code>（test green）、埋まった <code>SPEC.md</code>、1ページのharness
+   比較をforkにcommitします。どのharnessがbuildしたか、何token/何dollarかかったか、
+   拒否した一つのtradeoffは何かを書いた <code>README</code> noteを加えます。これはprogram最初の
+   「specからtoolのshipまでagentをsteerした」artifactです。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: scoreは <code>claude</code>/<code>opencode</code>/<code>dsh</code> に対する <code>shutil.which</code> です。ないtoolは
+   gracefulにskipされるので、数字を上げるために無理にinstallせず、今週実際に使う
+   ものをinstallしてください。</li>
+<li><strong>Standard</strong>: refused-tradeoffの行から書き始めます。CLIが決して <em>してはならない</em>
+   こと（ETAを捏造する）を述べ、それを捕まえるtest planのpoint（unknown id →
+   exit <code>2</code>）を書きます。</li>
+<li><strong>Stretch</strong>: harness Bには <em>同一の</em> <code>SPEC.md</code> を使います。変えるのはharnessだけ
+   です。worksheetの六つのcolumnをすべて埋めてください。空欄のある比較はvibeです。</li>
+<li><strong>Portfolio</strong>: <code>README</code> noteには三つのfactが要ります。どのharnessか、
+   何token/何dollarか、そして拒否した一つのtradeoff。この三つが「agentをsteerした」
+   storyのすべてです。</li>
+</ol>
+<h2 id="checklistmanifestjsonexcel-tracker">Checklist（manifest.jsonとExcel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: 2つのharness（Claude Code + OpenCodeまたはDSH）をinstall・authenticateする。skill guideを読む。</li>
+<li>☐ Tue: ETA CLIのSPEC.mdを書く。user、constraints、一つのrefused tradeoff、test plan。</li>
+<li>☐ Wed: agentにCLIをbuildさせる。testを実行する。greenになるまでiterateする。</li>
+<li>☐ Thu: 同じtaskを二つ目のharnessで繰り返す。plan、cost、code qualityを比較する。</li>
+<li>☐ Fri: Use case: CLIをshipする。team向けの1ページのharness比較を書く。</li>
+<li>☐ Sat: Week 12 quiz（quiz.md）を受け、8/10で合格する。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新する。CLIと比較をcommitする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

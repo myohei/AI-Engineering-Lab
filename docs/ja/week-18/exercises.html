@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 18: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 18</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-18/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-18-checklist">Week 18: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-18/exercises.md">英語版</a> · <a href="README.html">Week 18 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-foundry-serverless-endpoints.ipynb</code>を最後まで実行する。
+   serverless endpointをdeploy/callし、Week 6のbill-of-lading抽出promptを実行し、
+   per-field accuracyと推定costをprintします。printされたcostをWeek 18のtracker
+   sheetに記録する。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: 同じ抽出promptを<em>二つ目</em>のdeploymentに対して実行する（例: Azure OpenAI
+   のGPT deployment vs Phi-4 serverless endpoint）。per-field accuracyと推定costを比較する
+   二行tableをmarkdown cellに追加し、大量volumeのBoL抽出にどちらのmodelを選ぶか、その理由を
+   一行で述べる。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: support-agent endpointを<strong>AI Gateway</strong>（Azure API Management）の後ろに置く。
+   token-rate-limit policyとcontent-safety policyをconfigureし、callのburstを撃ち込んで、
+   rate limitが実際にthrottleしたevidenceを掴む。gatewayの後ろでevaluation batchを再実行し、
+   scoreがregressしていないことを確認する。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: forkに<code>foundry-deployment-guide.md</code>をcommitする（setup手順、endpoint
+   call、agent定義、eval trace、cost estimate、gateway config）。これはWeek 20で完成させる
+   三cloud比較matrixの<strong>Microsoft列</strong>であり、「ここでXをどうやるか」のnoteを残しておけば
+   matrixは勝手に書けます。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: printされるcostは最後の<code>TOTAL_ESTIMATED_COST_USD</code>。dry-runでもpipeline全体は
+   歩きますが、<em>本当の</em>数字にはcredentialが必要です。dry-runの<code>0.000</code>を測定値として
+   記録しないこと。</li>
+<li><strong>Standard</strong>: <code>call_openai_sdk</code>を別の<code>deployment=</code>引数で再利用する。同じ4文書とseedを
+   維持すれば、二つの行は別々のtestではなく公平な比較になります。</li>
+<li><strong>Stretch</strong>: rate limitが姿を現すのは<em>burst</em>の下だけです。tight loopで多数のrequestを
+   撃ち、429/429相当のresponseを数えてthrottleのevidenceにする。</li>
+<li><strong>Portfolio</strong>: guideは「ここでXをどうやるか」のlist（endpoint、agent、eval、gateway、
+   cost）として構成する。Week 20のmatrixの列は、その見出しから勝手に書けます。</li>
+</ol>
+<h2 id="checklistmanifestjsonexcel-tracker">Checklist（manifest.jsonとExcel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: Azure subscriptionとAI Foundryのhub/projectをsetup（free tier）。</li>
+<li>☐ Tue: serverless model endpointをdeploy。Python SDKとOpenAI SDKから呼ぶ。</li>
+<li>☐ Wed: tools付きのsupport agentをFoundryで作成。playgroundでtest。</li>
+<li>☐ Thu: online evaluation batchを実行。traceを読む。最悪の失敗をfix。</li>
+<li>☐ Fri: Use case: agentをAI Gatewayの後ろに置く（rate limit + content safety）。costを公開。</li>
+<li>☐ Sat: Week 18のquiz（quiz.md）を受ける。8/10で合格。scoreをNotesに記録。</li>
+<li>☐ Milestone: Excel trackerを更新。Foundry deployment guideをcommit。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

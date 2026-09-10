@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 09: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 09</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-09/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-09-checklist">Week 09: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-09/exercises.md">英語版</a> · <a href="README.html">Week 09 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-quantization-lab.ipynb</code> をend-to-endで実行します。perplexity ladderとtriage-accuracy表（と最後のquality-vs-VRAM summary数値）がprintされます。FP16 / 8-bit / 4-bitのperplexityとtriage accuracyを、Excel trackerのWeek 9 sheetに記録します。CPU-only hardwareではfallback pathを実行し、<em>estimateである</em> ことを明示して、推定ladderを記録します。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: quantization notebookのmarkdown cellで、7B、8B、13B modelのVRAM表を手計算で再現します。bytes-per-param rule（FP16 ≈ 2、INT8 ≈ 1、INT4 ≈ 0.5）を適用し、<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/06-model-engineering.md"><code>reference/knowledge-base/06-model-engineering.md</code></a> の表をsource of truthとして、各sizeに収まるGPUを挙げます。数字はcopyではなくruleに従っていなければなりません。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: <code>notebooks/02-vllm-serving-and-benchmarks.ipynb</code> を第三のengineに拡張します。SGLang（またはTGI）をinstallし、<em>同じ</em> model（<code>Qwen/Qwen2.5-1.5B-Instruct</code>）をserveし、同じbatch sizeでlatency/throughput benchmarkを再実行します。新しいengineを比較表のcolumnに追加し、(a) 高QPS serving と (b) すべてのrequestが長いsystem promptを共有するworkload のどちらのengineを選ぶかを一文で書きます。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: <code>week-09-quality-vs-cost-report.md</code> を書き、<strong>quantized triage service</strong> milestone（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/projects/README.md"><code>curriculum/projects/README.md</code></a> で追跡）の最初のartifactとしてcommitします。含めるもの: 測定したperplexity ladder、30-ticket golden setでのprecisionごとのtriage accuracy、vLLM-vs-Ollama benchmark表、そして数値が裏付ける一文のproduction推奨。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: notebookをそのまま実行します。最後のcellが <code>QUALITY_RETENTION_PCT</code> をprintします。deviceがFP16のみをliveでreportする場合は、cell 25の <em>estimate</em> 行を記録し、cellの言うとおりにestimateと明示します。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: 手計算表は、7B / 8B / 13B に対する <code>params × (bits/8)</code>、FP16（×2）、INT8（×1）、INT4（×0.5）です。copyした値からではなくruleから始めてください。pointは、数字がbytes-per-param定数から <em>導かれる</em> ということです。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: model（<code>Qwen/Qwen2.5-1.5B-Instruct</code>）とbatch sizeを固定し、serverだけを入れ替えます。SGLangの同等物は <code>python -m sglang.launch_server</code> です。shared-system-prompt workloadで天秤にかけるのがそのprefix cacheです。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: gateが求めるのは、<em>quality</em> 側の数値（perplexity ladder + triage accuracy）と <em>cost</em> 側の数値（serving表）を、一つの文に一緒に読み込むことです。片側だけの推奨は半分のdeliverableです。</p>
+</li>
+</ol>
+<h2 id="checklistmanifestjson-excel-tracker">Checklist（manifest.json + Excel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: 数値formatとquantization methodを学ぶ（knowledge-base 06）。</li>
+<li>☐ Tue: 7〜8B modelをbitsandbytesでquantizeする。triage evalでqualityを測る。</li>
+<li>☐ Wed: llama.cppでGGUF sweep。Q4/Q5/Q8。perplexityとspeedを記録する。</li>
+<li>☐ Thu: vLLM（OpenAI互換API）でserveする。latencyとthroughputをbenchmarkする。</li>
+<li>☐ Fri: Use case。quality-vs-cost reportをpublishし、production quantizationを選ぶ。</li>
+<li>☐ Sat: Week 9 quiz（quiz.md）を受け、8/10で合格する。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新する。reportをcommitする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

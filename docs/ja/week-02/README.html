@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 02: AIのためのData EngineeringとSQL</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 02</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-02/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-02-aidata-engineeringsql">Week 02: AIのためのData EngineeringとSQL</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-02/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 02 of 24 · Section: Foundations · Category: Data &amp; SQL
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-02/notebooks/01-pandas-cleaning.ipynb">01-pandas-cleaning.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-02/notebooks/02-sql-with-duckdb.ipynb">02-sql-with-duckdb.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsはたった今100,000行を超えるshipment rowを生成しました。そして、generatorがflawを意図的に仕込んだため、このdataは <em>realのfreight dataが汚れるのとまったく同じ仕方で汚れています</em> 。<strong>200行のduplicate shipment row</strong>（同じtruckが二重に数えられている）、<strong>301個の欠損 <code>weight_kg</code> 値</strong>、<strong>1個の欠損lane <code>distance_km</code></strong> があります。このraw fileを信頼するdownstreamのconsumerが一人でもいれば、damageは静かに複利で積み上がります。duplicateはon-time rateとあらゆるcountを膨らませ、欠損distanceはWeek 3のETA modelが学習する穴になり、欠損weightはinvoiceの計算を壊します。さらに悪いことに、<em>そもそも「clean」が何を意味するのか誰も書き留めていない</em> ので、二人のanalystが同じfileを異なる方法で「fix」し、どの数字についても永遠に合意できません。</p>
+<p>今週がなければ、ZoroLogisticsが持つのはdata swampです。downstreamのすべてのmodelがraw fileのqualityを引き継ぎ、「AIが間違った答えを出す」責任はmodelに押し付けられますが、本当のroot causeはmodelが読んだtableにあります。今週を終えれば、会社は <strong>silver table</strong> を手にします。cleanされ、conformされ、再実行可能なvalidation suiteでgateされたtable、そしてそれに <em>questionを投げかける</em> ためのSQL skillです。これは、Zorostのdiscipline fileが間違ったAI答えの背後で最も一般的なroot causeと呼ぶもの、すなわち <strong>data engineering</strong> の週です。modelは読むtableと同じ程度にしか良くなれず、今週からそのtableの所有者はあなたです。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、raw <code>shipments.csv</code> をloadし、仕込まれたすべてのdata-quality issue（duplicate、<code>NaN</code> weight、<code>NaN</code> distance）を見つけ、document化し、fixできる。</li>
+<li>☐ 金曜日までに、「silver」tableがpassしなければならない、10以上の明示的でpandera styleのcheckからなるvalidation suiteを書ける。</li>
+<li>☐ 金曜日までに、SQL（DuckDB）でanalyticsのquestionに答えられる。carrier/lane/month別のon-time rate、window function、top-lane analysis。</li>
+<li>☐ 金曜日までに、clean済みのsilver datasetと、すべてのcleaning decisionとその根拠をdocument化したprofile reportをshipできる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td>data-qualityの概念。<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/02-ml-dl-fundamentals.md"><code>reference/knowledge-base/02-ml-dl-fundamentals.md</code></a> §2（splits）を読み、"no leakage"のruleを確認する</td>
+<td>pandas refresher：<code>filter</code>、<code>groupby</code>、<code>merge</code>、<code>dtypes</code></td>
+<td>「clean」の意味についてのNotes</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>欠損data、outlier、profiling</td>
+<td><code>01-pandas-cleaning.ipynb</code> Step 1〜3（profileとplanted issueの発見）</td>
+<td>5つのdata issueをcount付きでdocument化</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>SQLのjoin、aggregation、window function</td>
+<td><code>02-sql-with-duckdb.ipynb</code>（carrier/lane/month別on-time、window、top lane）</td>
+<td>SQL結果を記録する</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>data validation。明示的なinvariant</td>
+<td><code>01-pandas-cleaning.ipynb</code> Step 5（12-check gate）</td>
+<td>passするvalidation suite（12/12）</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>dataset versioningとreproducibility</td>
+<td>clean→validate→saveをend-to-endで再実行し、reportを書く</td>
+<td>silver tableとvalidation reportをcommit</td>
+<td>約3時間</td>
+</tr>
+<tr>
+<td><strong>Sat</strong></td>
+<td>週の復習</td>
+<td>quiz（<code>quiz.md</code>、8/10で合格）を受ける</td>
+<td>scoreをNotesに記録する</td>
+<td>約45分</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p>次の三週間のdiscipline fileは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/02-ml-dl-fundamentals.md"><code>reference/knowledge-base/02-ml-dl-fundamentals.md</code></a> ですが、今週の本当の主題は <strong>すべてのmodelの下にあるdata path</strong> です。一つのレンズを通して読んでください。<em>metricは、それを生み出したdataと同じ分だけしか誠実ではない。</em> tableにduplicate rowがあればon-time rateは膨らみ、lane distanceの三分の一が <code>NaN</code> なら、ETA modelは穴の上で学習します。cleaningは「本物の」AIの前にやる雑用ではなく、それこそが <em>AI engineering</em> です。</p>
+<h3 id="1-pandasfiltergroupjoinpivotdtypes">1. pandas：filter、group、join、pivot、dtypes</h3>
+<p>pandasはtableを <strong>shape</strong> する道具です。その大半をカバーする五つの動詞があります。<code>df[df.col &gt; 0]</code> で <strong>filter</strong>、<code>df.groupby("commodity")["weight_kg"].transform("median")</code> でgroup内を埋める <strong>group</strong> 化、<code>df.merge(lanes, on="lane_id", how="left")</code> で <strong>join</strong>（foreign keyのmaster dataを再結合する）、<code>df.pivot_table(...)</code> でlong tableをwideにする <strong>pivot</strong>、そして <code>df.dtypes</code> でphysical typeをinspectすること。cleaning notebookはこれらすべてを使います。<code>shipments</code> を <code>lanes</code> と <code>carriers</code> にmergeし、group-aware medianで欠損weightをimputeします。</p>
+<h3 id="2-dataoutlierdata-quality">2. 欠損data、outlier、data quality</h3>
+<p>real dataには三種類の欠陥があります。<strong>欠損data</strong>（<code>NaN</code>）にはdecisionが必要です。rowをdropするか、値をimputeするか、carry forwardするか。そしてそのdecisionは <em>記録されなければなりません</em> 。<strong>Outlier</strong>（200時間「遅延」したshipmentや、−5 kgのweight）は、genuineな極値かcorruptionかのどちらかで、どちらかはprofilingが教えてくれます。<strong>Structural defect</strong>（duplicate、<code>planned_arrival</code> がその <code>planned_departure</code> より前、どこも指していないforeign key）は、正当に見えるため最も危険です。generatorは一番目と三番目を仕込み、profilingはそのすべてを表面化させます。</p>
+<table>
+<thead>
+<tr>
+<th>種類</th>
+<th>このdataでの例</th>
+<th>典型的なfix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Missing</td>
+<td><code>NaN</code> の <code>weight_kg</code>（301）、<code>NaN</code> の <code>distance_km</code>（1）</td>
+<td>Impute（group-aware median）またはdrop、そして記録する</td>
+</tr>
+<tr>
+<td>Outlier</td>
+<td><code>delay_hours</code> は最大227.88 h</td>
+<td>まずprofileする。genuineなextremeかcorruptionかを決める</td>
+</tr>
+<tr>
+<td>Structural</td>
+<td>duplicate row（200）、どこも指していないFK</td>
+<td>Deduplicateする。referential integrityを強制する</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3-profilingsummary-statistics">3. Profilingとsummary statistics</h3>
+<p>fixする前にprofileします。<code>df.shape</code>、<code>df.dtypes</code>、<code>df.describe()</code>、<code>df.isna().sum()</code> は、一つの値に触れる前に <em>いくつ、どこに、どれほど極端か</em> を答えます。notebookのStep 1は <code>weight_kg</code>、<code>value_usd</code>、<code>delay_hours</code> のnumeric summaryをprintし、続いてStep 3が深掘りします。非正のweight、不可能なtransit row、on-time share。countを知るまでは、imputation strategyを選べません。</p>
+<h3 id="4-duckdbsqljoinaggregationwindow-function">4. DuckDBによるSQL：join、aggregation、window function</h3>
+<p>Python/pandasはtableをshapeし、<strong>SQLはそれにquestionを投げかけます</strong>。SQLは、これからDuckDBと、後にはSparkと、Week 21〜24にはDatabricks lakehouseと話すための言葉です。DuckDBはzero-installのembedded analytical databaseです。serverなしで、in-processのDataFramesの上で直接SQLを実行します。今週重要な三つの動詞は次のとおりです。</p>
+<table>
+<thead>
+<tr>
+<th>動詞</th>
+<th>何をするか</th>
+<th>Week 2での例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Join</strong></td>
+<td>foreign key経由でmaster dataを再結合する</td>
+<td><code>JOIN carriers c ON s.carrier_id = c.carrier_id</code></td>
+</tr>
+<tr>
+<td><strong>Aggregate</strong></td>
+<td>rowをgroupにcollapseしてreduceする</td>
+<td><code>AVG(CAST(s.is_on_time AS INT))</code> per carrier/lane/month</td>
+</tr>
+<tr>
+<td><strong>Window</strong></td>
+<td><em>すべてのrowを保持したまま</em> group横断で値を計算する</td>
+<td><code>RANK() OVER (PARTITION BY month ORDER BY on_time_rate DESC)</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Window function</strong> は理解が難しいものです。<code>GROUP BY</code> はrowを <em>collapse</em> しますが、windowはslideするgroup横断で値を計算しつつ各rowを保持します。したがって各carrierを <em>その月の中で</em> rankでき、DuckDBの <code>QUALIFY</code> はwindow結果に直接filterをかけます（「各月のtop 2 carrier」が一つの句で書けます）。経験則はこうです。groupごとに一行が欲しければ <code>GROUP BY</code>、neighborに依存するper-row値、rank、累積、移動平均が必要ならwindowです。</p>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Tool</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>「groupごとのrateは？」</td>
+<td><code>GROUP BY</code></td>
+<td>carrier / lane / month別のon-time rate</td>
+</tr>
+<tr>
+<td>「各group内で誰が上位か？」</td>
+<td>window + <code>RANK()</code> / <code>QUALIFY</code></td>
+<td>各月のtop-2 carrier</td>
+</tr>
+</tbody>
+</table>
+<h3 id="5-checkdata-validationpandera">5. 明示的なcheckによるdata validation（pandera）</h3>
+<p>cleanされたtableは <em>主張</em> であり、validation suiteは <em>証拠</em> です。notebookは12個の実行可能なinvariantを書きます。duplicateなし、<code>NaN</code> weightなし、weightはすべて正、<code>carrier_id</code>/<code>lane_id</code> のreferential integrity、<code>is_on_time</code> はboolean、<code>delay_hours</code> は <code>[-48, 240]</code> 内、など。それぞれがPASS/FAILをprintする <code>assert</code> styleの <code>check(name, cond)</code> です。これはprogram全体が築くのと同じverification disciplineです（requirementに結び付いたeval。<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/01-ai-engineering-discipline.md"><code>reference/knowledge-base/01-ai-engineering-discipline.md</code></a> §"Verification"を参照）。panderaはこれを、将来のどんなbatchでも再実行できるschemaへと形式化します。</p>
+<h3 id="6-dataset-versioningreproducibility">6. dataset versioningとreproducibility</h3>
+<p>Week 1から続くreproducibilityの糸は、ここでも続きます。raw dataはseedから再生成可能で、cleaning recipeは <em>記録されている</em> ため、<code>raw → silver</code> は一つのコマンドで再現できます。Week 21〜24はこの同じlogicをDatabricksの <strong>medallion pipeline</strong>（bronze → silver → gold）へと発展させます。「silver」をfolder名ではなく <strong>contract</strong> として扱ってください。既知のschema、既知のinvariant、passするsuite。</p>
+<p><strong>実例1：cleaningの算術。</strong> seed 42では、rawのshipments tableは100,200行です。<code>drop_duplicates()</code> が <strong>200行</strong> を取り除き、100,000行になります。301個の <code>NaN</code> weightは <strong>commodityごとのmedian</strong> で埋められます（全体のmedianは852.0 kg。commodity別のmedianはconstruction materialsの843 kgからapparel/paperの858 kgまで）。1個の <code>NaN</code> lane distanceは、全体のmedian distanceで埋められます。防御的なdrop（非正のweight、不可能なtransit）は <strong>0行</strong> を取り除きます。それ自体が有用な発見です。それらの欠陥は <em>存在しない</em> ので、silver tableはちょうど <strong>100,000行</strong> に着地します。これらの数字を一つずつreportに書き込むことが、pipelineをauditableにするものです。</p>
+<p><strong>実例2：on-time rateはbooleanの平均。</strong> 注目のKPIは <code>AVG(CAST(is_on_time AS INT))</code> です。<code>is_on_time</code> を0/1にcastすると、booleanは、その平均がそのままrateになる数値になります。100,000行のsilver rowのうち <strong>79,566行がon time</strong> → <code>0.7957</code>、すなわち <strong>79.6%</strong> のon-time rate（そして <strong>20.4%</strong> がlate）。この一行が、後続のすべてのmodelがpredict（Week 3〜4）するかimproveするかの対象になるKPIであり、rateとはbinaryの平均にすぎない理由を示しています。</p>
+<p><strong>実例3：windowはaggregateができないquestionを投げる。</strong> on-time rateをmonth別にgroup化すると、一月は <strong>0.7897</strong>（78.97%）と出ます。window queryはさらに、plainな <code>GROUP BY</code> が答えられない <em>別の</em> questionを投げます。「各月をリードしているのはどのcarrierか？」<code>RANK() OVER (PARTITION BY month ORDER BY on_time_rate DESC)</code> に <code>QUALIFY rnk &lt;= 2</code> を組み合わせると、month groupをcollapseせずに、各月のtop二つのcarrierを返します。全体のtop carrier（C016、on-time 88.96%）が毎月リードするとは限りません。windowは、単一のaggregateが隠してしまう月ごとのleadershipを露出させます。これが「rateはいくらか」と「誰が、いつ勝っているか」の違いです。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    A[raw shipments.csv&lt;br/&gt;100,200 rows] --&gt; B[Profile&lt;br/&gt;shape, dtypes, describe, isna]
+    B --&gt; C[Find planted issues&lt;br/&gt;200 dupes · 301 NaN weight · 1 NaN distance]
+    C --&gt; D[Clean&lt;br/&gt;drop dupes · impute weight by commodity median&lt;br/&gt;impute distance by global median]
+    D --&gt; E[&quot;Validate&lt;br/&gt;12 checks: dupes, NaNs, referential integrity, ranges&quot;]
+    E --&gt;|all PASS| F[silver/ tables + validation-report.md]
+    E --&gt;|any FAIL| C
+    F --&gt; G[DuckDB SQL&lt;br/&gt;joins, aggregates, windows]
+</div>
+<h3 id="_5">うまくいかない理由</h3>
+<p>cleaningは、<strong>profileする前にimputeする</strong> と壊れます（per-group medianが正しいのにglobal medianで埋める。もっと悪いと、countする <em>前に</em> 埋めるのでaudit trailが失われる）。<strong>いくつ捨てたかを記録せずにduplicateをdropする</strong> と壊れます。downstreamのcountが変わり、誰も理由を言えません。<strong>validation checkが黙ってpassする</strong> と壊れます。間違ったinvariantを検査したためです（例：埋めたばかりのcolumnで「<code>NaN</code> なし」をcheckする。これは循環です）。<strong>trainのみではなく全datasetでnormalizeする</strong> と壊れます。このleakageのdecisionはWeek 3のものですが、習慣はここから始まります。そして、cleaningを一回限りの作業として扱うと壊れます。再実行可能なsuiteがなければ、次のbatchはdirtyなまま届き、「silver」contractは蒸発します。どの場合もfixは同じです。うるさくfailするgate付きの、記録されたrecipeです。</p>
+<p>さらに深く学ぶには：discipline fileの「systems-engineering spine」（verificationこそcheckの置き場所）、そして来週必要になるtime-aware splitについては <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/02-ml-dl-fundamentals.md"><code>reference/knowledge-base/02-ml-dl-fundamentals.md</code></a> §2。</p>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><strong><code>notebooks/01-pandas-cleaning.ipynb</code></strong> はcommit済みのCSVsを読み込み（<code>data/</code> がなければin-memoryで再生成し）、それからprofileします。Step 1は <code>shape</code>、<code>dtypes</code>、三つのnumeric columnの <code>describe()</code>、columnごとのnull countをprintします。Step 2は三つのplanted issueを正確にcountします。Step 3は <em>仕込まれていない</em> もの、非正のweight、不可能なtransit row、on-time shareを見つけます。Step 4は四つのcleaning decision（dupeのdrop、commodity medianによるweightのimpute、medianによるdistanceのimpute、防御的なdrop）を実行し、それぞれのcountをprintします。Step 5は <strong>12-check gate</strong> を実行し、<code>CHECKS_PASSED: 12 of 12</code> をprintします。Step 6は <code>data/silver/</code>（三つのtable）と <code>validation-report.md</code> を書き出します。最後のcellは <strong><code>CHECKS_PASSED</code></strong> と <strong><code>SILVER_ROW_COUNT</code></strong>、あなたが記録すべき二つの数字をprintします。</p>
+<p><strong><code>notebooks/02-sql-with-duckdb.ipynb</code></strong> は <code>%pip</code> でduckdbをinstallし、<code>con.register(...)</code> で三つのtableをregisterしてから、五つのqueryを実行します。company全体のon-time rate。on-time rateによるtop-5 carrierとbottom-5 lane。月別on-time rate（<code>date_trunc('month', planned_departure)</code>）。各月top-2 carrierのための <strong>window function</strong>（<code>RANK() OVER (PARTITION BY month ORDER BY on_time_rate DESC)</code> に <code>QUALIFY rnk &lt;= 2</code>）。そしてtop-lane analysis（shipment数、平均 <code>delay_hours</code>、合計 <code>value_usd</code>）。最後のcellは <strong><code>OVERALL_ON_TIME_RATE</code></strong> をprintします。期待値は≈ 0.7957。「正しい」出力は、12/12のcheckがpass、silver row countが100,000、on-time rateが≈ 79.6%です。</p>
+<p>変更するcell：Standard exerciseはStep 4のcleaning decisionを変えます（weightに <em>global</em> medianを試し、group-aware版との違いを記録する）し、Step 3の深いprofilingで見つかった、仕込まれていないdefectをdocument化します。Stretch exerciseは月別on-time queryをwindow functionで書き直し、<code>GROUP BY</code> の結果に対する <code>np.allclose</code> assertionを追加します。validationのStep 5は、決して緩めてはいけない唯一のcellです。一つでもcheckがfailしたら、そのtableはsilverではありません。silver row countが100,200とprintされたら <code>drop_duplicates()</code> を忘れています。on-time rateが1.0とprintされたらbooleanのcastを間違えています。金曜日のprofile reportは、これらの数字に根拠を添えて書き下ろしたものであり、decisionごとに一行ずつ書きます。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> clean済みのshipment tableを含む <code>data/silver/</code> directory、12のcheckとそのpass/failを列挙する <code>validation-report.md</code>、そしてすべてのcleaning decision（何を見つけ、何をしたか、なぜか）をdocument化したprofile report。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人があなたのcleaning notebookをraw CSVから再実行し、まったく同じsilver tableを再現できること。そしてreportを読んで、<em>cleanerが何をしたか</em>、どのrowをdropし、どの <code>NaN</code> を（何で）imputeし、どのcheckが結果をgateしているかを確認できること。before/afterの数字（duplicate count、<code>NaN</code> のcount、row count）を見せられ、各decisionを一文で擁護できること。</p>
+<p><strong>Stretch variant:</strong> notebookの手書きの <code>check()</code> listを、実際の <strong>pandera</strong> の <code>DataFrameSchema</code> に置き換え、pipelineを単一の実行可能な <code>data/make_silver.py</code> scriptにします。こうして <code>python make_silver.py</code> が、再生成、clean、validate、silverへの書き出しを一つのコマンドで行います。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>なぜ起きるか</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NaN</code> をcountする前にimputeする</td>
+<td>profileより先に「fix」したがる</td>
+<td>まずprofileする。countを記録し、imputeし、再checkする</td>
+</tr>
+<tr>
+<td><code>groupby(...).transform("median")</code> があるgroupで <code>NaN</code> を返す</td>
+<td>そのgroupの値が <em>すべて</em> <code>NaN</code></td>
+<td>空のgroupには全体のmedianにfallbackする</td>
+</tr>
+<tr>
+<td>duplicateを黙ってdropする</td>
+<td>before/afterのcountがない</td>
+<td><code>before_rows - len(ships)</code> をprintして記録する</td>
+</tr>
+<tr>
+<td>循環するvalidation check</td>
+<td>埋めた <em>後</em> に「<code>NaN</code> なし」をcheckする</td>
+<td>重要な性質をvalidateし、imputation前のraw <code>NaN</code> countを一つ残しておく</td>
+</tr>
+<tr>
+<td><code>CAST(is_on_time AS INT)</code> が失敗する</td>
+<td>columnはbooleanなのにengineがtextとして扱う</td>
+<td><code>AVG</code> の前に（DuckDBで）明示的に <code>INT</code> にcastする</td>
+</tr>
+<tr>
+<td>referential-integrity checkがrowをskipする</td>
+<td><code>isin()</code> を間違ったtableのkeyに対して評価した</td>
+<td>master側の <em>primary</em> keyに対して <em>foreign</em> keyでjoinする</td>
+</tr>
+<tr>
+<td>「silver」をcontractではなくfolder扱いする</td>
+<td>gateのないnaming convention</td>
+<td>新しいbatchごとに12-check suiteを再実行する。FAILならbuildをfailさせる</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Bronze / silver / gold</strong>: medallionの各層。rawのlanding data、clean/conform済みdata、消費向けのaggregated data。</li>
+<li><strong>Profiling</strong>: cleaningの前にshape、dtypes、summary stats、missingnessを測ること。</li>
+<li><strong>Imputation</strong>: 欠損値を計算した値（例：median）で埋めること。decisionとして記録する。</li>
+<li><strong>Duplicate row</strong>: 同一のrowが重複すること。downstreamのあらゆるcountを膨らませる。</li>
+<li><strong>Foreign key / primary key</strong>: 別tableのrowを参照するcolumn / 一意に識別するcolumn。</li>
+<li><strong>Referential integrity</strong>: すべてのforeign keyの値が、既存のprimary keyと一致すること。</li>
+<li><strong>Join</strong>: 共通のkey上で二つのtableのrowを結合すること。</li>
+<li><strong>Aggregation</strong>: rowをgroupにcollapseしてreduceすること（count、avg、sum）。</li>
+<li><strong>Window function</strong>: すべてのrowを保持したままgroup横断で計算される値（例：<code>RANK() OVER</code>）。</li>
+<li><strong>Validation suite</strong>: tableが「clean」とみなされるためにpassすべき、実行可能なinvariant。</li>
+<li><strong>DuckDB</strong>: DataFramesの上でSQLを実行する、embeddedでin-processのanalytical database。</li>
+<li><strong>pandera</strong>: dataframeのcheckを形式化するschema/validation library。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-02/quiz.md"><code>quiz.md</code></a> を開き、10問すべてに答えます。合格ラインは <strong>8/10</strong> です。各問題には、対応するConceptsのsubsectionまたはnotebook cellが記載されています。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exerciseがあります。<strong>Easy</strong>（cleaning notebookを実行してcountを記録）、<strong>Standard</strong>（五つのplanted issueをevidence付きでdocument化）、<strong>Stretch</strong>（on-time queryをwindow functionで書き直し、一致をassertする）、<strong>Portfolio</strong>（cleaningを実行可能な <code>make_silver.py</code> にする）。各hintは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-02/exercises.md"><code>exercises.md</code></a> にあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>pandas user guide（missing data、merge/groupby）：https://pandas.pydata.org/docs/user_guide/index.html</li>
+<li>pandas <code>groupby</code> documentation：https://pandas.pydata.org/docs/user_guide/groupby.html</li>
+<li>DuckDB SQL documentation：https://duckdb.org/docs/sql/introduction</li>
+<li>DuckDB Python API：https://duckdb.org/docs/api/python/overview</li>
+<li>DuckDB window functions：https://duckdb.org/docs/sql/window_functions</li>
+<li>pandera documentation：https://pandera.readthedocs.io/</li>
+<li>Andrew Ng, <em>The AI Engineering Skills Map</em>, The Batch issue 366：https://www.deeplearning.ai/the-batch/issue-366</li>
+<li>Fereydun Hashemi（Zorost）, <em>The AI Engineering Skills Map, turned into a training plan</em>：https://zorost.com/ai-engineering-skills-map-training-guide</li>
+<li>Aurélien Géron, <em>Hands-On Machine Learning</em>, 3rd ed. (O'Reilly, 2022)：https://www.oreilly.com/library/view/hands-on-machine-learning/9781098125967/</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

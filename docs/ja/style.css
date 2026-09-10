@@ -1,0 +1,44 @@
+
+:root { --ink:#14213D; --mut:#5B6779; --line:#DDE3EC; --bg:#FFFFFF; --soft:#F5F8FC; --accent:#0E9384; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin:0; background:var(--bg); color:var(--ink);
+  font:16px/1.75 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Helvetica Neue",Arial,sans-serif; }
+.wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+a { color:#4260E8; text-decoration:none; }
+a:hover { text-decoration:underline; }
+.jnav { border-bottom:1px solid var(--line); background:#fff; position:sticky; top:0; z-index:5; }
+.jnav .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:56px; }
+.jnav .brand { font-weight:700; letter-spacing:.02em; color:var(--ink); }
+.jnav .brand .tag { font-weight:600; color:var(--accent); font-size:13px; margin-left:6px; }
+.jnav nav { display:flex; gap:14px; flex-wrap:wrap; font-size:14px; }
+.subnav { display:flex; gap:12px; align-items:center; padding:10px 0; font-size:14px;
+  border-bottom:1px solid var(--line); flex-wrap:wrap; }
+.subnav .wk { font-weight:700; }
+.subnav a.on { color:var(--ink); font-weight:700; }
+.ja { padding:28px 20px 60px; }
+.ja h1 { font-size:28px; line-height:1.35; margin:.2em 0 .6em; }
+.ja h2 { font-size:22px; margin:1.8em 0 .6em; padding-bottom:.25em; border-bottom:1px solid var(--line); }
+.ja h3 { font-size:18px; margin:1.5em 0 .5em; }
+.ja blockquote { margin:1em 0; padding:.6em 1em; background:var(--soft);
+  border-left:4px solid var(--accent); color:var(--mut); border-radius:0 6px 6px 0; }
+.ja blockquote p { margin:.2em 0; }
+.ja table { border-collapse:collapse; width:100%; margin:1em 0; font-size:14.5px;
+  display:block; overflow-x:auto; }
+.ja th, .ja td { border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top; }
+.ja th { background:var(--soft); }
+.ja pre { background:var(--soft); border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; overflow:auto; font-size:13.5px; line-height:1.6; }
+.ja code { background:rgba(20,33,61,.06); padding:.12em .35em; border-radius:4px; font-size:.92em; }
+.ja pre code { background:none; padding:0; font-size:inherit; }
+.ja ul, .ja ol { padding-left:1.4em; }
+.ja li { margin:.25em 0; }
+.ja img { max-width:100%; height:auto; border:1px solid var(--line); border-radius:8px; }
+.ja hr { border:none; border-top:1px solid var(--line); margin:2em 0; }
+.mermaid { background:var(--soft); border:1px solid var(--line); border-radius:8px;
+  padding:14px; margin:1em 0; text-align:center; overflow-x:auto; }
+.jfoot { border-top:1px solid var(--line); background:var(--soft); color:var(--mut); font-size:13px; }
+.jfoot .wrap { display:flex; gap:18px; flex-wrap:wrap; padding:18px 20px; }
+@media (max-width:640px){ .ja h1{font-size:23px} .ja h2{font-size:19px}
+  .jnav .wrap{flex-wrap:wrap; padding:10px 20px} }

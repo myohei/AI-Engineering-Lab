@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 03: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 03</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-03/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-03-checklist">Week 03: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-03/exercises.md">英語版</a> · <a href="README.html">Week 03 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-eta-regression-baseline.ipynb</code> を最後まで実行します。最後に、
+   mean/median baselineと三つのregressorのMAE/RMSE比較がprintされます。最良のtest MAEを
+   Week 3のtracker sheetに記録してください。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: 四つ目のregressor（例えば <code>HistGradientBoostingRegressor</code>）を、
+   <em>同じ</em> time-aware splitとfeatureで追加します。同じ比較表にそのMAE/RMSEを報告し、
+   baselineに勝ったかどうかと、その差（delta）を一行で述べてください。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: 単一のvalidation splitを、scikit-learnの <code>TimeSeriesSplit</code> に置き換え、
+   最良のmodelをcross-validationし、foldをまたぐMAEのmean ± standard deviationを報告
+   します。時間順のcross-validation推定が一つのrandom splitより公平である理由を説明する
+   markdown cellを追加します。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: <strong>ETA prediction (ML → DL) with model cards</strong> のmilestone
+   （<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/projects/README.md"><code>curriculum/projects/README.md</code></a> を参照）を進めます。Week 3
+   model cardと、すべてのrunのmodel、split日付、seed、metricを記録する <code>experiments.json</code>
+   logをcommitします。これはWeek 4のneural modelが超えるべきraw materialです。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: printされた比較表から、baseline <em>と</em> 各modelのMAE/RMSEを記録します。
+   「最良」の行はtest MAEが最も低い行で、それはmodelですらないかもしれない（median baselineが最良行になることもある）。</li>
+<li><strong>Standard</strong>: 同じ <code>models</code> dictに <code>HistGradientBoostingRegressor</code> を追加し、同一の
+   <code>Pipeline([("prep", prep), ("model", ...)])</code> wrapperを保ちます。変わるのはestimator
+   だけにします。</li>
+<li><strong>Stretch</strong>: <code>TimeSeriesSplit</code> は <em>順序付き</em> のtrain/test index pairを生成します。
+   それをpipelineでiterateしてfoldのMAEsを平均します。fold内でも決してshuffleしない
+   ことに注意します。</li>
+<li><strong>Portfolio</strong>: <code>experiments.json</code> には、splitを割合ではなく二つのcut date（<code>CUT1</code>、
+   <code>CUT2</code>）として保存します。こうするとlogはreproducibleです。「80/20」という文字列は、
+   見知らぬ人があなたのsplitを再構築するには十分ではありません。</li>
+</ol>
+<h2 id="checklistmanifestjsonexcel-tracker">Checklist（manifest.jsonとExcel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: 教師あり学習とevalの考え方を学ぶ。modelより先にmetricを選ぶ。</li>
+<li>☐ Tue: ETA regression baselineを実行。3 modelのMAE/RMSEを比較表にlogする。</li>
+<li>☐ Wed: time-aware splitとcross-validationを実装。modelを公平に比較する。</li>
+<li>☐ Thu: on-time classification。precision/recall/F1、thresholdのtradeoff、confusion matrix。</li>
+<li>☐ Fri: Use case：Week 3 model card（metric、split、top error source）を書いてcommitする。</li>
+<li>☐ Sat: Week 3 quiz（quiz.md）を受け、8/10で合格する。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新。すべてのexperimentをJSON experiment logに記録する。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

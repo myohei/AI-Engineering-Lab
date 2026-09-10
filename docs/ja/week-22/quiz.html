@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 22: Quiz（10問、8/10で合格）</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 22</span> <a href="README.html">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html" class="on">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-22/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-22-quiz10810">Week 22: Quiz（10問、8/10で合格）</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-22/quiz.md">英語版</a> · <a href="README.html">Week 22 README</a> · <a href="exercises.html">演習</a></p>
+</blockquote>
+<p>各問に答えてから、Answer keyで確認してください。各問の末尾には、出題元のConcepts section（§）またはnotebook cellへのpointerが付いています。</p>
+<ol>
+<li><strong>(MCQ)</strong> PySparkにおいて、<em>action</em>（実行をtriggerする）はどれですか？ <em>(Concepts §lazinessを参照)</em></li>
+</ol>
+<ul>
+<li>A) <code>df.select("id")</code></li>
+<li>B) <code>df.filter(col("x") &gt; 0)</code></li>
+<li>C) <code>df.count()</code></li>
+<li>D) <code>df.withColumn("y", col("x") * 2)</code></li>
+</ul>
+<ol start="2">
+<li>
+<p><strong>(Short answer)</strong> notebookのcross-check cellが、完全一致 <code>py_avg ==
+   sql_avg</code> のtestではなく <code>match:
+   abs(py_avg - sql_avg) &lt; 1e-6</code> をprintするのはなぜですか？ <em>(Concepts §PySpark worked example、notebook 01 final cellsを参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> Lakeflow Pipelinesで、<em>現在のstateを反映するよう再計算され</em>、dimensionが遅く変わっても正しいのはどのdataset typeですか？ <em>(Concepts §Lakeflow Pipelinesを参照)</em></p>
+</li>
+</ol>
+<ul>
+<li>A) streaming table</li>
+<li>B) materialized view</li>
+<li>C) temporary view</li>
+<li>D) external table</li>
+</ul>
+<ol start="4">
+<li><strong>(MCQ)</strong> notebook <code>02-streaming-and-dlt-pipeline.ipynb</code> で、<code>@dp.expect_or_drop("weight_positive", "weight_kg &gt; 0")</code> は <code>weight_kg = -5</code> のrowに何をしますか？ <em>(Concepts §expectations、notebook 02 cell 5を参照)</em></li>
+</ol>
+<ul>
+<li>A) rowを保持し、warning metricを記録する</li>
+<li>B) pipeline update全体を止める</li>
+<li>C) rowを除去してupdateを続行する</li>
+<li>D) weightを0に変換する</li>
+</ul>
+<ol start="5">
+<li>
+<p><strong>(Short answer)</strong> Lakeflowのdataset functionは <code>collect()</code>、<code>count()</code>、<code>toPandas()</code>、<code>save()</code> を呼んではいけません。理由を一文で説明してください。 <em>(Concepts §Lakeflow Pipelinesを参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> 同じsourceに対して二つのStructured Streaming queryを実行しますが、両方を一つのcheckpoint locationに向けています。どうなりますか？ <em>(Concepts §Structured Streaming、How it breaksを参照)</em></p>
+</li>
+</ol>
+<ul>
+<li>A) stateを安全に共有し、両方が正しくresumeする</li>
+<li>B) exactly-onceのresume stateが壊れる。各queryには独自のcheckpointが必要</li>
+<li>C) 何も起きない。checkpointはread-only</li>
+<li>D) 二つ目のqueryが黙ってbatchになる</li>
+</ul>
+<ol start="7">
+<li><strong>(MCQ)</strong> streaming writeで対応して <strong>いない</strong> Delta sink output modeはどれですか？ <em>(Concepts §Structured Streamingを参照)</em></li>
+</ol>
+<ul>
+<li>A) Append</li>
+<li>B) Complete</li>
+<li>C) Update</li>
+<li>D) AppendとCompleteはどちらも動く</li>
+</ul>
+<ol start="8">
+<li>
+<p><strong>(Short answer)</strong> PySpark KPI aggregationで、<code>F.when(F.col("is_on_time"), 1.0).otherwise(0.0)</code> を <code>F.avg(...)</code> でwrapし、boolean columnを直接平均しないのはなぜですか？ <em>(Concepts §PySpark worked example、notebook 01 cell 7を参照)</em></p>
+</li>
+<li>
+<p><strong>(MCQ)</strong> <strong>Lakeflow Job</strong> のtaskが、依存関係すべてが成功したときだけ実行されるようにしたい。これを表すdefaultのRun-if gateはどれですか？ <em>(Concepts §Lakeflow Jobsを参照)</em></p>
+</li>
+</ol>
+<ul>
+<li>A) <code>AT_LEAST_ONE_SUCCESS</code></li>
+<li>B) <code>NONE_FAILED</code></li>
+<li>C) <code>ALL_SUCCESS</code></li>
+<li>D) <code>ALL_DONE</code></li>
+</ul>
+<ol start="10">
+<li><strong>(MCQ)</strong> Auto Loader（<code>cloudFiles</code>）と <code>COPY INTO</code> の比較で、Auto Loaderを選ぶのはどんなときですか？ <em>(Concepts §Structured Streamingを参照)</em></li>
+</ol>
+<ul>
+<li>A) schemaが変わらない数千のfileを扱うとき</li>
+<li>B) 数百万のfileや進化するschemaを扱うとき</li>
+<li>C) Kafka topic専用のとき</li>
+<li>D) checkpointを避けたいとき</li>
+</ul>
+<h2 id="answer-key">Answer key</h2>
+<ol>
+<li>
+<p><strong>C: <code>df.count()</code>.</strong> <code>count</code>、<code>show</code>、<code>collect</code>、<code>saveAsTable</code> はactionです。<code>select</code>、<code>filter</code>、<code>withColumn</code> はlazyなtransformationです。</p>
+</li>
+<li>
+<p><strong>浮動小数点演算</strong>では、等価な二つのaggregationが下桁の数桁で食い違うことがあります。tolerance check（<code>&lt; 1e-6</code>）は、丸め差によるfalse negativeなしに「同じ数字」をtestします。</p>
+</li>
+<li>
+<p><strong>B: materialized view。</strong> 現在のstateを反映するよう再計算されます（"always correct"）。streaming tableは各recordを一度だけ処理し、dimensionの遅い変更では再計算されません。</p>
+</li>
+<li>
+<p><strong>C: rowを除去して続行します。</strong> <code>expect_or_drop</code> は違反rowを捨てます。<code>@dp.expect</code> ならwarnして保持し、<code>expect_or_fail</code> ならupdateを中断するところです。</p>
+</li>
+<li>
+<p><strong>それらはeager実行を強制するactionだから</strong>です。これは、pipelineが順序/retryの解決に必要とするdeclarative planを壊します。dataset functionは、触られていないlazyなDataFrameをreturnしなければなりません。</p>
+</li>
+<li>
+<p><strong>B.</strong> checkpointはqueryごとのoffset、commit、stateを保存します。一つのpathを共有する二つのqueryは、互いのresumeを壊します。各queryに独自のUC volume pathが必要です。</p>
+</li>
+<li>
+<p><strong>C: Update。</strong> Delta sinkはAppendとCompleteに対応しますが、Update modeには対応しません。</p>
+</li>
+<li>
+<p><strong>booleanはそのままでは有意に平均できない</strong>ためです。さらに <code>is_on_time</code> は推論次第でbooleanにも文字列にもなり得ます。1.0/0.0にcastすれば数値になり、<code>avg</code> がそれを正しいon-time rateにします。</p>
+</li>
+<li>
+<p><strong>C: <code>ALL_SUCCESS</code>。</strong> これがdefaultのRun-if gateで、すべての依存taskが成功した後にtaskが実行されます。</p>
+</li>
+<li>
+<p><strong>B.</strong> Auto Loaderはscaleとschema evolutionのために作られています（数百万のfile、incremental、進化するschema）。<code>COPY INTO</code> は安定した数千のfileに対してより単純です。</p>
+</li>
+</ol>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 16: Multi-Agent SystemとMCP</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 16</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-16/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-16-multi-agent-systemmcp">Week 16: Multi-Agent SystemとMCP</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-16/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 16 of 24 · Section: Agents · Category: Multi-Agent &amp; Protocols
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-16/notebooks/01-mcp-server-lab.ipynb">01-mcp-server-lab.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-16/notebooks/02-multiagent-triage-team.ipynb">02-multiagent-triage-team.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogistics supportは一つのjobではありません。同じshirtを着た四つのjobです。tracking questionにはshipments datasetが要り、それ以外は要りません。refund questionにはorder valueとclaims policyが、documents questionにはpolicy corpusが、そして曖昧な、あるいはabusiveなticketには人間が要ります。<em>すべての</em> toolと <em>すべての</em> contextを持つ一つのagentは、四つすべてに答えられます。そして、それこそが問題です。その単一のcontext windowは、すべてのtool descriptionとすべてのpolicy文を運びます。だからpromptは膨れ、token costは高く、一つの毒された、あるいはtopic外の会話がagent <em>全体</em> をコースから逸らせてしまいます。その一方で、すべてのtoolは一回限りのintegrationです。<code>track_shipment</code> はsupport agentに手で配線され、来月にはbilling agentが同じtoolを、別のframeworkで、ゼロからまた配線することになります。</p>
+<p>二つの測定されたupgradeがこれをfixします。そして今週のdisciplineは、それぞれが <em>自分のcostに見合うこと</em> を証明しなければならない、ということです。<strong>MCP</strong>（Model Context Protocol）はtool layerを標準化します。一つのserverが <code>track_shipment</code>、<code>list_carriers</code>、<code>get_policy</code> をexposeし、<em>任意の</em> MCP clientがそれらを消費する。integrationを一度書けば、どこでも再利用できます。<strong>Multi-agent orchestration</strong> は仕事を分割します。supervisorが各ticketを、必要なtoolとcontextだけを持つspecialistにrouteするのです。しかし分割は無償ではありません。coordination overhead、latency、token、そして新しいfailure modeであるbad handoffを追加します。だからdeliverableはteamではありません。同じ10 ticketをteamとWeek 15 single agentの両方に通し、architectureを、box三つのdiagramではなく数字で正当化する <strong>A/B report</strong> です。数字がteamを正当化しないなら、single agentをshipするのがseniorの動きです。そして、それを声に出して言うことこそが、すべてのpointです。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、<code>mcp</code> Python SDK（<code>FastMCP</code>）で <code>track_shipment</code>、<code>list_carriers</code>、<code>get_policy</code> をexposeする <strong>MCP server</strong> をbuildしてtestし、in-notebook MCP clientを接続してそれらを呼び出せる。</li>
+<li>☐ 金曜日までに、MCPの <strong>host / client / server</strong> の役割と、tools/resources/promptsのprimitiveを説明でき、toolのJSON Schemaをmodelとserverの間の契約として読める。</li>
+<li>☐ 金曜日までに、LangGraphで <strong>supervisor + 三人のspecialist</strong> からなるteamをorchestrateし、<code>zoro.data.support_tickets()</code> からの10の実際のticketをrouteできる。</li>
+<li>☐ 金曜日までに、team vs. Week 15 single agentの <strong>A/B比較</strong> を実行できる。accuracy、latency、token、cost。そして数字から、一段落のarchitecture正当化を書ける。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run / build</th>
+<th>Ship</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/10-agents-multiagent.md"><code>reference/knowledge-base/10-agents-multiagent.md</code></a> §6、§8 のmulti-agent doctrineとorchestration-pattern表、そして <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/11-mcp-ecosystem.md"><code>reference/knowledge-base/11-mcp-ecosystem.md</code></a> のすべてを読む（約1.5時間）</td>
+<td>Week 15 single agentを読み直し、「team」は何を変えるかをlist化する</td>
+<td>「teamはいつ見合うか」についての一段落note</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>MCP architecture + JSON-RPC transport（約1時間）</td>
+<td>notebook 01 cell [2]〜[8] を実行: toolsを定義、<code>FastMCP</code> server fileを書く、in-notebook clientを接続</td>
+<td>clientがprotocol越しに3つのtoolを呼ぶserver</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>supervisor / manager-worker pattern（約45分）</td>
+<td>notebook 02 cell [2]〜[8] を実行: supervisor + 三つのspecialist node、team graphをassemble</td>
+<td>10 ticketをrouteするtriage graph</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>A/B測定（約45分）</td>
+<td>notebook 02 cell [9]〜[12] を実行: single-agent baseline + 10-ticket A/B</td>
+<td>A/B table（accuracy / latency / tokens / cost）</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>n/a</td>
+<td>cell [13]〜[14] を実行: 数字から正当化を書く</td>
+<td><code>TEAM_ACCURACY</code>、<code>SINGLE_ACCURACY</code>、<code>ACCURACY_DELTA</code> + 書かれた正当化</td>
+</tr>
+<tr>
+<td><strong>Sat</strong></td>
+<td>n/a</td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-16/quiz.md"><code>quiz.md</code></a> を受ける（8/10で合格）</td>
+<td>scoreをtracker Notesに記録</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p>二つのhalfがあり、それぞれがWeek 15からの測定された一歩上です。完全な扱いは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/10-agents-multiagent.md"><code>reference/knowledge-base/10-agents-multiagent.md</code></a> と <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/11-mcp-ecosystem.md"><code>reference/knowledge-base/11-mcp-ecosystem.md</code></a> を読んでください。</p>
+<h3 id="mcp-nintegrationprotocol">MCP: N個のintegrationの代わりに一つのprotocol</h3>
+<p><strong>MCP</strong> は「AI integrationのUSB-C」です。toolごとのbespoke integrationの代わりに、任意のMCP clientが任意のMCP serverの能力を使えるようにするclient-server protocolです。三つの役割: <strong>host</strong> はLLMを動かし、connectionを開始します（Claude Desktop、IDE、agent framework）。<strong>client</strong> はhostの中に住み、serverごとに一つのconnectionを持ちます。<strong>server</strong> は能力をexposeし、通常は外部systemごとに一つです。serverがexposeできる三つのprimitive:</p>
+<table>
+<thead>
+<tr>
+<th>Primitive</th>
+<th>何であるか</th>
+<th>ZoroLogisticsでの例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tools</strong></td>
+<td>modelがinvokeするfunction（modelが呼び、serverが実行する）</td>
+<td><code>track_shipment(shipment_id)</code></td>
+</tr>
+<tr>
+<td><strong>Resources</strong></td>
+<td>modelが読むcontext/data（file、record、row）</td>
+<td>policy文書、lane table</td>
+</tr>
+<tr>
+<td><strong>Prompts</strong></td>
+<td>modelが使える、再利用可能なprompt template</td>
+<td>「このtracking eventを要約して」</td>
+</tr>
+</tbody>
+</table>
+<p>messageは、<strong>stdio</strong>（local subprocess。notebookが使うもの）または <strong>Streamable HTTP</strong>（remote/hosted）上の <strong>JSON-RPC 2.0</strong> です。鍵となるartifactは <strong>tool schema</strong>、toolとその引数を名指しするJSON Schemaです。modelが呼び出しを決めるときに読む、まさに契約だからです。これは今週を、Week 14の「toolのdescriptionはprompt engineeringである」という考えへまっすぐつなぎ、それをprotocolとして標準化します。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart LR
+    subgraph Host[&quot;Host: agent framework / IDE&quot;]
+        M[LLM] &lt;--&gt; C[MCP Client]
+    end
+    C &lt;--&gt;|stdio or HTTP, JSON-RPC| S[&quot;MCP Server: FastMCP&quot;]
+    S --&gt; Z[(ZoroLogistics data + policy corpus)]
+</div>
+<h3 id="multi-agent-lessonrestraint">Multi-agent: 最初のlessonはrestraint</h3>
+<p><strong>multi-agent</strong> は、taskを複数のagentにまたがって分割します。それぞれが自分のinstructions、tools、そして（多くの場合）自分のcontext windowを持ちます。benefitは本物ですが <em>条件付き</em> です。<strong>context isolation</strong>（各agentは必要なものだけを見る）、<strong>role specialization</strong>（jobごとに異なるpromptとtool）、<strong>並列性</strong>、そして <strong>failure isolation</strong>。costは: coordination overhead、latency、token、そして <strong>bad handoff</strong>。Anthropicのguidanceはぶっきらぼうです。よくpromptされた一つのagentと良いtoolから始め、複数の <em>agent</em> の前に <em>workflow</em> を追加し、測定されたbenefitがcostを上回るときにだけ分割しなさい。あなたがbuildするarchitecture、<strong>supervisor + specialist</strong>（manager-worker pattern）は、最初に学ぶ価値のあるconservativeなdefaultです。supervisorが一度classifyしてrouteし、各specialistが自分のtoolで一つのjobをし、supervisorが（<code>synthesize</code> node経由で）answerを組み立てます。</p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>仕組み</th>
+<th>最適なとき</th>
+<th>注意点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Supervisor / manager-worker</strong></td>
+<td>一つのorchestratorがdecompose、delegate、synthesisする</td>
+<td>一つのgoalの下の多様なsubtask。中央control</td>
+<td>managerがbottleneckになる。contextが膨らむ</td>
+</tr>
+<tr>
+<td><strong>Sequential pipeline</strong></td>
+<td>固定された下流順序（extract → validate → publish）</td>
+<td>安定した既知の順序</td>
+<td>それは <em>multi-agent system</em> ではなく <em>workflow</em> です</td>
+</tr>
+<tr>
+<td><strong>Handoffs</strong></td>
+<td>会話の途中で、agentからagentへcontrolが渡る</td>
+<td>専門性が変わっていく一つのthread</td>
+<td>handoffをまたいで共有contextを保つこと</td>
+</tr>
+<tr>
+<td><strong>Debate / peer-review</strong></td>
+<td>複数のagentが解き/critiqueし、それから調整する</td>
+<td>costに見合う難しいreasoning</td>
+<td>数倍のcostとlatency</td>
+</tr>
+<tr>
+<td><strong>Swarm</strong></td>
+<td>同質な多数のagent、創発的なcoordination</td>
+<td>research/demoの領域</td>
+<td>productionでは制御が難しい</td>
+</tr>
+</tbody>
+</table>
+<p>すべてのpatternの下には、一つのarchitectural forkがあります。<strong>shared memory</strong>（すべてのagentがread/writeするblackboard store。柔軟だがstalenessを引き継ぐ）vs. <strong>message passing</strong>（明示的なagent間call、またはA2A。typedでaudit可能だが結合はよりきつい）。production systemは通常、hybridです。controlにはmessage passing、durableなstateにはshared store。</p>
+<h3 id="mcp-vs-a2a">MCP vs. A2A</h3>
+<p>MCPは <em>capability</em> layerで、一つのagentをtoolとdataにつなぎます。<strong>agent-to-agent protocolではありません</strong>。それは <strong>A2A</strong>（GoogleのAgent2Agent）の役割で、あるagentが別のagentに仕事をどうdiscoveryし、記述し、delegateするかを、<strong>Agent Card</strong> と長時間実行の <strong>task</strong> を通じて標準化します。二つは補完的です。agentがlocalで使うtoolにはMCP、network越しに別のagentへ仕事を渡すときにはA2Aです。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>MCP</th>
+<th>A2A</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>目的</td>
+<td>一つのagentにtool/dataへのaccessを与える</td>
+<td>agent同士がsystemをまたいで会話する</td>
+</tr>
+<tr>
+<td>層</td>
+<td>Capability（「このAPIにagentをつなぐ」）</td>
+<td>Interop（「third-party agentにdelegateする」）</td>
+</tr>
+<tr>
+<td>典型的なtransport</td>
+<td>stdio / HTTP</td>
+<td>公開されたAgent Card付きのnetwork service</td>
+</tr>
+</tbody>
+</table>
+<h3 id="discipline">測定のdiscipline</h3>
+<p>今週のdeliverableは、opinionではなく <strong>A/B report</strong> です。同じ10 ticketをteam（<code>team_run</code>）とWeek 15 single agent（<code>single_run</code>）に通し、<strong>accuracy、latency、token、cost</strong> を並べて比較します。予想され、かつ正しいfindingは、多くの場合こうです。single agentがlatencyとcostで勝ち、teamがaccuracyで勝つのは狭いsliceだけ。あなたのjobは、<em>どのsliceかを言い</em>、<em>数字から正当化する</em> ことです。tableで擁護できないmulti-agent systemはdemoです。できるものはengineering decisionです。</p>
+<h3 id="_5">うまくいかない理由</h3>
+<p>MCPはmodelに <em>行動する</em> 能力を渡すので、各serverは <strong>privilege boundary</strong> です。failure modeは、Week 14のguardrailをprotocol層で書き直したものです。<strong>gateなしでexposeされたwrite tool</strong>（HITLなしの <code>request_refund</code>）は、不可逆actionのfailureです。このlabのread toolは安全で、write toolはWeek 15のinterruptでgateできるようになるまで、意図的にlabから外されています。<strong>schema drift</strong> — serverのtoolが変わったのに、clientのcache済みschemaが古い — は、Week 14と同じ「invalid arguments」classを、protocol境界を越えて生みます。<strong>malicious、または信頼できないserver</strong> は、modelをsteerする細工されたcontentを返しえます（prompt injection）。だから出所が重要です。multi-agent側の新しいfailureは <strong>bad handoff</strong> です。supervisorがticketを誤routeする、あるいはspecialistが、synthesizerが上書きしてしまったstate fieldを受け取る。そして <em>測定自身</em> も壊れえます。二つのarmが違うticketを実行したA/B、あるいは「cost」がsupervisorのhandoff tokenを無視したA/Bは、teamを甘く見せる比較です。それぞれは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/10-agents-multiagent.md"><code>reference/knowledge-base/10-agents-multiagent.md</code></a> §10 の名前付きclassにmapされ、fixは同じreflexです。observableにして、それからgateする。</p>
+<h3 id="1-mcp-round-trip">実例1: MCP round trip</h3>
+<p>in-notebook clientはserverをstdio subprocessとして起動し（<code>StdioServerParameters(command=sys.executable, args=[server_file])</code>）、<code>initialize()</code> を呼び、それから <code>list_tools()</code> が三つのschemaを返し、<code>call_tool("track_shipment",
+{"shipment_id": "S0000123"})</code> がtracking recordを <em>protocol越しに</em> 返します。notebookは <code>ROUND_TRIP_TOOLS = 3</code> をprintします。clientがerrorなしに呼んだtoolの数です。<code>track_shipment</code> のschemaは、契約の縮図です: <code>{"type": "object", "properties":
+{"shipment_id": {"type": "string"}}, "required": ["shipment_id"]}</code>。modelが <code>{"shipment_id": 123}</code>（stringではなくint）をemitしたら、serverはそれを拒否し、modelは自己修正します。Week 14と同じfail-fast validationが、今度はprotocolのschemaによって強制されます。</p>
+<h3 id="2-ab-cost-quality-table">実例2: A/B cost-quality table</h3>
+<p>10のseeded ticketを両方のarmに通します。<code>team_run</code> はsupervisor → specialist → synthesizeと歩き、handoff + synthesis overheadとして固定の <code>+200</code> tokenを課します。<code>single_run</code> は、handoffなしのclassify → tool → answerを実行します。代表的な（そして <em>正しい</em>）結果:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Team</th>
+<th>Single</th>
+<th>Delta</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Routing accuracy</td>
+<td>0.9</td>
+<td>0.9</td>
+<td>0.0</td>
+</tr>
+<tr>
+<td>Avg latency（ms）</td>
+<td>higher</td>
+<td>lower</td>
+<td>teamのほうが遅い</td>
+</tr>
+<tr>
+<td>Total tokens</td>
+<td>higher（handoff + synthesis）</td>
+<td>lower</td>
+<td>team +N token</td>
+</tr>
+<tr>
+<td>Total cost（$）</td>
+<td>higher</td>
+<td>lower</td>
+<td>team +$</td>
+</tr>
+</tbody>
+</table>
+<p>この10 ticketでは、intentの分類は容易で、toolは安く、isolated contextや並列仕事を必要とするものは何もありません。だからteamは、accuracy gainなしにhandoffへより多くのtokenを使い、notebookの正当化はまさにそれを言います: <em>the team is NOT justified for this slice</em>（このsliceではteamは正当化されない）。それがseniorのfindingであり、acceptance gateが報いるものです。teamがcostに見合うのは、specialistが別々のcontext windowを、specialistごとのtoolを、あるいは一つのpromptには収まらないticketへの並列実行を必要とするときだけです。</p>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p>二つのnotebookで、<code>zoro</code> data以外に共有するstateはありません。</p>
+<p><code>notebooks/01-mcp-server-lab.ipynb</code>（API key不要）は、11 cellでserver側をbuildします。cell [2]〜[4] はlookup tableをseedし、三つのplain functionを定義し、<code>FastMCP</code> がtype hintから導出するものと同じ内容の手書き <code>MANUAL_SCHEMAS</code> を書きます。cell [6] は、self-containedな <code>server.py</code> をtemp dirに書き、stdio subprocessとして実行します。<strong>MCP Inspector</strong>（<code>npx @modelcontextprotocol/inspector python &lt;server_file&gt;</code>）が使うのとまったく同じpatternで、agentに配線する前にserverを対話的にdebugするのがこれです。cell [8]〜[10] はin-notebook clientを接続し、三つのtoolすべてをprotocol越しに呼び、<code>list_tools()</code> が返す実際のschema JSONをprintします（SDKがない場合はmanual schemaにfallback）。cell [11] が最後の数字をprintします: <code>ROUND_TRIP_TOOLS</code>。</p>
+<p><code>notebooks/02-multiagent-triage-team.ipynb</code> は、14 cellでteamをbuildします。cell [2]〜[6] は、ground-truthのmapping（<code>CAT_TO_ROUTE</code>）、specialistごとのtool、<code>supervisor_classify</code>、そして六つのnode function（<code>supervisor</code>、<code>tracking</code>、<code>refunds</code>、<code>docs</code>、<code>synthesize</code>、<code>escalate</code>）を定義します。cell [8] は、<code>supervisor</code> から四つのrouteへのconditional edge付きで <code>StateGraph</code> をassembleし、LangGraphがあってもなくても動くmanual walkerである <code>team_run</code> を定義します。cell [10] は、handoffなしに <em>すべての</em> toolを運ぶ、Week-15 baselineの <code>single_run</code> を定義します。cell [12]〜[14] は同じ10 ticketを両方のarmに通し、A/B tableをprintし、それから <code>TEAM_ACCURACY</code>、<code>SINGLE_ACCURACY</code>、<code>ACCURACY_DELTA</code> を計算し、自動生成された正当化をprintします。「正しい」出力: teamのMermaid graph、ticketごとのroute table、A/B summary、そして <em>結論</em> が <em>数字</em> と一致する正当化paragraph — seeded sampleでは「the team is NOT justified for this slice」です。二つのnotebookが共有するのは <code>zoro</code> importだけで、どちらを先に実行しても構いません。MCP labにkeyは不要で、triage labのclassifierもkeyなしで動きます（実際のmodel hookは、swap-in用のcommentです）。記録すべき三つの数字は、<code>ROUND_TRIP_TOOLS</code>（notebook 01から）、そして <code>TEAM_ACCURACY</code> / <code>SINGLE_ACCURACY</code> と <code>ACCURACY_DELTA</code>（notebook 02から）で、最後のものは、正当化のすべてを一つの符号付き数字にまとめたものです。</p>
+<h2 id="friday-use-case">Friday: Use case</h2>
+<p><strong>Deliverable:</strong> 二つのnotebookをend-to-endに実行し、以下を提出します。(a) tool schemaを見せる、動くMCP server + client round-trip、(b) triage teamのsingle agentに対するA/B report（accuracy、latency、token、cost）と書かれたarchitecture正当化。</p>
+<p><strong>Acceptance gate（Zorost式）:</strong> 見知らぬ人があなたのMCP clientを実行して、<code>track_shipment</code> がprotocol越しに呼ばれるのを見られ、A/B tableと、そのtable <em>から</em> あなたが書いた正当化を読めること。この10 ticketでteamがsingle agentに勝つ（あるいは正直に負ける）理由を、cellごとに擁護できること。A/B tableなし、shipなし。</p>
+<p><strong>Stretch variant:</strong> 四つ目のspecialist（<code>billing</code>）を、独自のrouting rule付きで追加し、同じ10 ticketでA/Bを再実行し、新しい数字で正当化を書き直します。四つ目のspecialistがaccuracy deltaを <em>変えた</em> 場合は、routing tableから <em>なぜか</em> を説明します。specialistがcoordination costに見合っているのか、diagramにboxを一つ追加しているだけなのかが、そこで分かります。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>見た目</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>要らない問題にteam</strong></td>
+<td>single agentと同じaccuracyで、tokenはより多い</td>
+<td>single agentをshipする。正当化でそう言う</td>
+</tr>
+<tr>
+<td><strong>Bad handoff</strong></td>
+<td>supervisorが誤routeする、またはsynthesizerが必要とするfieldが上書きされた</td>
+<td>routingをdeterministic + test済みにする。stateはappend-onlyに保つ</td>
+</tr>
+<tr>
+<td><strong>write toolがungate</strong></td>
+<td>approvalなしで <code>request_refund</code> が実行される</td>
+<td>write toolは、Week 15のinterruptがgateできるようになるまで外に出さない。readはallowlist</td>
+</tr>
+<tr>
+<td><strong>Schema drift</strong></td>
+<td>clientのcache済みschema ≠ serverの現在のtool</td>
+<td>server変更後に <code>list_tools()</code> を再実行する。schemaを契約として扱う</td>
+</tr>
+<tr>
+<td><strong>信頼できないserver</strong></td>
+<td>細工されたtool出力がmodelをsteerする（prompt injection）</td>
+<td>信頼するserverだけを接続する。versionをpinする。exposeするtoolをreviewする</td>
+</tr>
+<tr>
+<td><strong>不公平なA/B</strong></td>
+<td>違うticket、あるいはhandoff tokenを無視したcost</td>
+<td>両armに同じ10 ticket。supervisor + synthesisのtokenを数える</td>
+</tr>
+<tr>
+<td><strong>schema description内のsecret</strong></td>
+<td>API keyがmodelのcontextにleakする</td>
+<td>credentialはserver側でenv varから注入する。tool出力には決して入れない</td>
+</tr>
+<tr>
+<td><strong>Inspectorをskip</strong></td>
+<td>serverとagentを同時にdebugする</td>
+<td>まずMCP Inspectorですべてのtoolをtestし、serverを切り分ける</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>MCP（Model Context Protocol）</strong>: appがmodelにtool、resource、promptへのaccessを与える方法を標準化する、openなclient-server protocol。</li>
+<li><strong>Host</strong>: LLMを動かし、MCP connectionを開始するapplication。</li>
+<li><strong>Client</strong>: serverごとに一つのconnectionを持つ、hostの中のcomponent。</li>
+<li><strong>Server</strong>: protocol越しに能力をexposeするprocess。通常は外部systemごとに一つ。</li>
+<li><strong>Tool schema</strong>: toolとその引数を名指しするJSON Schema。modelが読む契約。</li>
+<li><strong><code>FastMCP</code></strong>: MCP serverをbuildするための、high-levelなPython SDK decorator API。</li>
+<li><strong>Supervisor / manager-worker</strong>: 一つのagentがdecompose、delegate、synthesisするorchestration pattern。</li>
+<li><strong>Context isolation</strong>: 各agentが必要なtool/contextだけを見て、windowを小さく保つこと。</li>
+<li><strong>Bad handoff</strong>: agent間のroutingまたはstate移転の失敗。</li>
+<li><strong>A2A（Agent2Agent）</strong>: MCPと補完的な、agent間delegationのためのGoogleのprotocol。</li>
+<li><strong>A/B report</strong>: architectureの選択を正当化する、side-by-sideの比較（accuracy、latency、token、cost）。</li>
+<li><strong>MCP Inspector</strong>: 配線する前にserverのtoolをlistして呼ぶための、対話的なtool。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-16/quiz.md"><code>quiz.md</code></a> を受けましょう。MCPの役割/transport、orchestration pattern、A/B notebookの数字をcoverする10問です。<strong>8/10で合格</strong> です。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exerciseがあります。<strong>Easy</strong>（MCP labを実行し、<code>track_shipment</code> のschemaを記録）、<strong>Standard</strong>（四つ目のMCP tool <code>get_bol</code> を追加）、<strong>Stretch</strong>（四つ目のspecialistを追加してA/Bを再実行）、<strong>Portfolio</strong>（server、team、A/B reportをcommit）。全文と <strong>Hints</strong> は <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-16/exercises.md"><code>exercises.md</code></a> を参照してください。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>MCP specification, Architecture: https://modelcontextprotocol.io/specification/2025-03-26/architecture</li>
+<li>MCP Python SDK (FastMCP): https://github.com/modelcontextprotocol/python-sdk</li>
+<li>MCP Inspector: https://github.com/modelcontextprotocol/inspector</li>
+<li>LangGraph documentation: https://docs.langchain.com/oss/python/langgraph</li>
+<li>Anthropic, <em>Building Multi-Agent Systems (when and how)</em>: https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them</li>
+<li>Anthropic, <em>Common Workflow Patterns for AI Agents</em>: https://claude.com/blog/common-workflow-patterns-for-ai-agents-and-when-to-use-them</li>
+<li>Google, <em>Announcing the Agent2Agent Protocol (A2A)</em>: https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/</li>
+<li>awesome-mcp-servers (server ecosystem): https://github.com/punkpeye/awesome-mcp-servers</li>
+<li>Nous Research Hermes Agent (A2A reference): https://github.com/NousResearch/hermes-agent</li>
+<li>Zorost Intelligence: https://zorost.com</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

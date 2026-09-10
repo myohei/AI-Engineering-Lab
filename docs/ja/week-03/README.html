@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 03: Machine Learningの基礎</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 03</span> <a href="README.html" class="on">本文</a> <a href="exercises.html">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-03/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-03-machine-learning">Week 03: Machine Learningの基礎</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-03/README.md">英語版</a> · <a href="exercises.html">演習</a> · <a href="quiz.html">クイズ</a>
+AI Engineering Labの一部 · Week 03 of 24 · Section: Foundations · Category: Classical ML
+· Notebooks: <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-03/notebooks/01-eta-regression-baseline.ipynb">01-eta-regression-baseline.ipynb</a> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-03/notebooks/02-on-time-classification.ipynb">02-on-time-classification.ipynb</a></p>
+</blockquote>
+<h2 id="_1">問題</h2>
+<p>ZoroLogisticsは、顧客に <em>トラックが実際にいつ到着するか</em> を伝え、<em>どのshipmentが約束した時間帯を外すリスクがあるか</em> を知りたいと考えています。naiveなapproachは当て推量です。過去を平均するか、すべてのshipmentがon timeだと仮定します。平均はshipmentごとに約<strong>5時間</strong>外れ、「全員on time」は~80%の確率で正しく、<em>lateになる20%のshipment</em> にはまったく役に立ちません。そしてまさにそのshipmentこそ、返金、破られたSLAs、怒りの電話を引き起こすものです。businessにはmodelが必要ですが、その数字が信頼できなければmodelは無価値です。</p>
+<p>今週がなければ、ZoroLogisticsは、<em>learnした</em> modelと<em>未来を暗記した</em> modelの違いを言えません。randomにshuffleされたsplitは、十二月のshipment（holiday混雑込み）にmodelを訓練させ、その間に一月のshipmentがtest setに座ることを許します。modelは過去を「予測」して、出荷されるまで素晴らしく見えます。今週を終えれば、会社はdisciplineの効いたbaselineを手にします。<strong>time-aware split</strong>（過去でtrainし、未来でtestする）、<strong>modelより先に選ばれたmetric</strong>（ETAには時間単位のMAE、on-timeにはlate classのF1）、そしてmodelが <em>どこで</em> 失敗するかを名指しする <strong>最初のerror analysis</strong> です。これが、program全体の中心となる習慣、<em>modelより先にmetricを選ぶ、splitなしには何も信じない</em>、がインストールされる週です。</p>
+<h2 id="_2">目標</h2>
+<ul>
+<li>☐ 金曜日までに、time-awareなtrain/validation/test splitを構築し、random shuffleがなぜ未来をleakするのかを説明できる。</li>
+<li>☐ 金曜日までに、ETAのために三つのscikit-learn regressorを訓練し、mean/median baselineとMAE/RMSEで比較できる。</li>
+<li>☐ 金曜日までに、on-time classifierを訓練し、precision/recall/F1、thresholdのtradeoff、confusion matrixを報告できる。</li>
+<li>☐ 金曜日までに、metric、split、top error sourceを記載したWeek 3 model cardをshipできる。</li>
+</ul>
+<h2 id="_3">日ごとの計画</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Study</th>
+<th>Run</th>
+<th>Ship</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mon</strong></td>
+<td><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/02-ml-dl-fundamentals.md"><code>reference/knowledge-base/02-ml-dl-fundamentals.md</code></a> §1〜7（supervised learning、splits、metrics、baselines）を読む</td>
+<td><code>01-eta-regression-baseline.ipynb</code> のfeature-table + splitのcell</td>
+<td>Notes：modelより先にmetric</td>
+<td>約2時間</td>
+</tr>
+<tr>
+<td><strong>Tue</strong></td>
+<td>regression、MAE/RMSE、baseline</td>
+<td>baseline + 三regressorのcell</td>
+<td>4行の比較表（baseline + 3 model）</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Wed</strong></td>
+<td>time-aware split、cross-validation、feature scaling</td>
+<td>splitを再実行。<code>TimeSeriesSplit</code> を試す</td>
+<td>公平な比較をlogに残す</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Thu</strong></td>
+<td>classification、precision/recall/F1、threshold</td>
+<td><code>02-on-time-classification.ipynb</code> をend-to-endで</td>
+<td>confusion matrix + threshold sweep</td>
+<td>約2.5時間</td>
+</tr>
+<tr>
+<td><strong>Fri</strong></td>
+<td>bias/variance、error analysis</td>
+<td>errorをweatherでsliceし、model cardを書く</td>
+<td><code>week-03-model-card.md</code> をcommit</td>
+<td>約3時間</td>
+</tr>
+<tr>
+<td><strong>Sat</strong></td>
+<td>週の復習</td>
+<td>quiz（<code>quiz.md</code>、8/10で合格）を受ける</td>
+<td>scoreをNotesに記録する</td>
+<td>約45分</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">概念</h2>
+<p>notebookに触れる前に <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/02-ml-dl-fundamentals.md"><code>reference/knowledge-base/02-ml-dl-fundamentals.md</code></a> を読んでください。これが今週の正確なspecです。通底するのは、classical ML向けに言い換えたNgの中心ideaです。<strong>modelより先にmetricを選び、splitなしには何も信じない。</strong> 数字のないmodelはdemoです。splitのない数字は当て推量です。</p>
+<h3 id="1-regression-vs-classification">1. 教師あり学習：regression vs classification</h3>
+<p><strong>教師あり学習</strong> とは、label付きexampleのことです。それぞれの入力行がtargetを持ち、modelはinputs → targetをlearnします。二つのfamilyはtargetだけが違います。<strong>regression</strong> は連続値（ここでは <code>delay_hours</code>、実際の到着マイナス計画）を予測し、<strong>classification</strong> はcategory（on-time vs. late）を予測します。codeの形は同一で、変わるのはlossとmetricだけです。notebookは <code>delay_hours</code> を直接予測します。なぜなら <code>planned_arrival + predicted_delay</code> が調整済みETA <em>であり</em> 、delayを予測することはETA修正量を予測することだからです。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Regression</th>
+<th>Classification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Target</td>
+<td><code>delay_hours</code>（連続）</td>
+<td><code>is_late</code>（0/1）</td>
+</tr>
+<tr>
+<td>最適化するloss</td>
+<td>MSE</td>
+<td>binary cross-entropy</td>
+</tr>
+<tr>
+<td>Headline metric</td>
+<td>MAE（時間）</td>
+<td>late classのF1</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2-trainvaltest-splitfreighttime-aware">2. train/val/test split：freightにはtime-aware</h3>
+<p>訓練に使ったdataを評価には使いません。標準的なdisciplineは三つの disjoint な集合です。<strong>train</strong>（fit）、<strong>validation</strong>（hyperparameterのtune）、<strong>test</strong>（一度だけ報告）。freightにはさらに硬いruleがあります。<strong>時系列で割り、決してshuffleしない。</strong> shipment dataは時系列で、weather、holiday、混雑は一年の間にdriftします。randomなshuffleは「未来」のshipmentが訓練にleakし、「過去」がtestに座ることを許します。この <strong>leakage</strong> はすべてのmetricを膨らませ、modelが過去について素晴らしく見えるようにします。</p>
+<p><strong>実例1：time-aware split。</strong> dataは2025-01-01から2025-12-30までを跨ぎます。cut date <code>CUT1="2025-08-01"</code> と <code>CUT2="2025-10-01"</code> で、splitは <strong>58,392 train / 16,749 validation / 24,859 test</strong> 行に着地します。およそ58% / 17% / 25%です。splitが（shuffleではなく）<code>planned_departure</code> 上であるため、すべての訓練行はすべてのvalidation行より前、さらにすべてのtest行より前です。modelは未来を見ることが <em>禁止</em> されます。間のvalidation windowは、testに触れずにhyperparameterをtuneするためにだけ存在します。Week 4はまさにこのsliceでwidth/dropout/weight-decayをtuneし、test setは最後まで封印されたままです。</p>
+<h3 id="3-scikit-learnlinear-modeltreeensemble">3. scikit-learn：linear model、tree、ensemble</h3>
+<p>標準的なtabularのはしごで、どれも同じ <code>ColumnTransformer</code>（numericはscale、categoricalはone-hot）でwrapするので比較は公平になります。<strong>LinearRegression</strong>（linear baseline）、<strong>RandomForestRegressor</strong>（bagged tree）、<strong>GradientBoostingRegressor</strong>（逐次boosting）です。treeは生のthresholdでsplitするためscalingが要りませんが、pipelineはすべてのmodelを同一の入力に保ちます。classificationでは <strong>LogisticRegression</strong> と <strong>RandomForestClassifier</strong> を使い、どちらも <code>predict_proba</code> の確率を出します。</p>
+<h3 id="4-metricsmaermseaccuracyprecisionrecallf1">4. metrics：MAE、RMSE、accuracy、precision/recall、F1</h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Headline metric</th>
+<th>理由</th>
+<th>Watch metric</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ETA regression</td>
+<td><strong>MAE</strong>（時間）</td>
+<td>「平均でX時間外れる」と読める</td>
+<td><strong>RMSE</strong> がerrorのtailを露出させる</td>
+</tr>
+<tr>
+<td>on-time classification</td>
+<td><strong>late classのF1</strong></td>
+<td>targetがimbalanced。accuracyは嘘をつく</td>
+<td>precision-recall curve、costを重み付けしたthreshold</td>
+</tr>
+</tbody>
+</table>
+<p><strong>MAE</strong> は少数の巨大なmissにrobustです。<strong>RMSE</strong> はerrorを二乗するためtailを罰します。RMSE ≫ MAEなら、少数のshipmentが劇的に外れており、それらがerror analysisの優先事項です。targetがimbalancedなとき、<strong>accuracyはheadlineとして禁止されます</strong>。~20%がlateなら、「常にon time」は~80%のaccuracyを取りながら、すべてのlate shipmentを見逃します。<strong>Precision</strong>（flagしたもののうち本物だった割合）と <strong>recall</strong>（lateのうち捕捉できた割合）はthresholdに対してtradeoffし、<strong>F1</strong> はその調和平均です。</p>
+<h3 id="5-cross-validationfeature-scaling">5. cross-validationとfeature scaling</h3>
+<p>単一のheld-out foldは訓練dataを浪費し、noisyな推定を与えます。<strong>k-fold cross-validation</strong> はheld-outするfoldをrotateしてscoreを平均します。時系列dataには <strong>time-series cross-validation</strong>（<code>TimeSeriesSplit</code>）を使い、foldが常に時間的に前進するようにします。randomなk-foldが十二月のshipmentを一月の訓練foldにshuffleすれば、time-aware splitが取り除いたまさにそのleakageを再導入します。<strong>Feature scaling</strong> はdistance/gradientベースのmodelに効きます。標準化（z-score）かmin-maxか。そして決定的なのは、<strong>scalerをtrainだけでfitし</strong>、その後val/testにtransformすることです。そうしないとtestの統計量が訓練にleakします。tree ensembleはscalingを一切必要としない、これがtabularのdefault baselineである理由の一つです。</p>
+<p><strong>bias/variance</strong> の分解は、比較表がなぜそのように見えるかを説明します。linear modelは <strong>bias</strong> が高く（23個のfeatureに直線しか引けない）、それでもここではより柔軟なgradient boosterと互角です。余分な柔軟性がこのnoisyなtargetではほとんど買えない、というhintです。訓練で卓越しvalidationで崩れるmodelは <strong>variance</strong> が高い（overfitting）です。Week 4のlearning curveは、そのgapを単一のtest数から推測するのではなく、直接 <em>見る</em> 場所です。</p>
+<h3 id="6-biasvarianceoverfittingbaseline">6. bias、variance、overfitting、baseline</h3>
+<p>errorは <strong>bias</strong>（単純すぎる → underfit）、<strong>variance</strong>（敏感すぎる → overfit）、そして抑えられないnoiseに分解されます。<strong>Baseline</strong> は、本物のsolutionが超えなければならない床です。regressionでは訓練targetのmean/medianを予測し、classificationでは多数classを予測します。ZoroLogisticsのすべての成果物はbaselineと比較し、deltaを述べます。</p>
+<p><strong>実例2：負けないbaseline。</strong> <code>delay_hours</code> は強く右に裾を引きます（median <strong>0.73 h</strong>、mean <strong>3.56 h</strong>、max <strong>227.88 h</strong>）。test setでは <strong>median baselineがMAE 3.795 h</strong>、<strong>mean baselineが5.088 h</strong>、三つのmodelは <strong>LinearRegression 4.843 h、GradientBoosting 4.871 h、RandomForest 5.581 h</strong> に着地します。median baselineは <em>すべてのmodelに勝ちます</em>。教科書的な誠実な結果です。長い裾のtargetではrobustなmedianは超えにくく、model cardにとって正しい結論は「deltaは負。linear/gradient-boostingの組は4.85 h近辺で互角」です。それを正直に報告することは、都合よく選んだ勝利より価値があります。</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Test MAE（時間）</th>
+<th>vs. median baseline（3.795 h）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LinearRegression</td>
+<td>4.843</td>
+<td>+1.05 悪い</td>
+</tr>
+<tr>
+<td>GradientBoosting</td>
+<td>4.871</td>
+<td>+1.08 悪い</td>
+</tr>
+<tr>
+<td>RandomForest</td>
+<td>5.581</td>
+<td>+1.79 悪い</td>
+</tr>
+</tbody>
+</table>
+<p><strong>実例3：businessが棲むのはthreshold。</strong> defaultの0.5 thresholdでのLogisticRegressionは <strong>precision 0.570 / recall 0.059 / F1 0.107</strong> を取ります。late shipmentの6%しか捕捉できません。thresholdをsweepすると、<strong>0.20</strong> がvalidation F1を <strong>0.384</strong> で最大化することが分かります。held-out test setではそれは <strong>F1 0.379</strong>（precision 0.311、recall 0.486）になります。thresholdを上げ下げすると、誤報（安い：能動的な通知）と見逃し（高い：破られたSLA）の間で動作点が動き、confusion matrixはそのtradeをfalse positiveとfalse negativeの間のshiftとして <em>見える形に</em> します。</p>
+<div class="mermaid">%%{init:{&quot;theme&quot;:&quot;base&quot;,&quot;fontFamily&quot;:&quot;Helvetica Neue,Helvetica,Arial,sans-serif&quot;,&quot;flowchart&quot;:{&quot;curve&quot;:&quot;basis&quot;,&quot;padding&quot;:14,&quot;nodeSpacing&quot;:45,&quot;rankSpacing&quot;:55},&quot;themeVariables&quot;:{&quot;fontSize&quot;:&quot;15px&quot;,&quot;background&quot;:&quot;#FFFFFF&quot;,&quot;primaryColor&quot;:&quot;#EEF2F7&quot;,&quot;primaryTextColor&quot;:&quot;#14213D&quot;,&quot;primaryBorderColor&quot;:&quot;#14213D&quot;,&quot;secondaryColor&quot;:&quot;#FFF1E3&quot;,&quot;secondaryTextColor&quot;:&quot;#14213D&quot;,&quot;tertiaryColor&quot;:&quot;#E7F4F1&quot;,&quot;tertiaryTextColor&quot;:&quot;#14213D&quot;,&quot;lineColor&quot;:&quot;#64748B&quot;,&quot;textColor&quot;:&quot;#14213D&quot;,&quot;edgeLabelBackground&quot;:&quot;#FFFFFF&quot;,&quot;clusterBkg&quot;:&quot;#F5F8FC&quot;,&quot;clusterBorder&quot;:&quot;#94A3B8&quot;,&quot;nodeBorder&quot;:&quot;#14213D&quot;,&quot;mainBkg&quot;:&quot;#EEF2F7&quot;,&quot;titleColor&quot;:&quot;#14213D&quot;}}}%%
+flowchart TD
+    A[&quot;build_features&lt;br/&gt;join lanes + carriers, impute NaNs,&lt;br/&gt;month &amp; day_of_week&quot;] --&gt; B[time-aware split&lt;br/&gt;train &lt; Aug 1 &lt; val &lt; Oct 1 &lt; test]
+    B --&gt; C[baseline floor&lt;br/&gt;mean / median delay]
+    B --&gt; D[train 3 regressors&lt;br/&gt;Linear · RandomForest · GradientBoosting]
+    D --&gt; E[MAE / RMSE on test&lt;br/&gt;compare vs baseline, state delta]
+    E --&gt; F[error analysis&lt;br/&gt;slice MAE by weather_severity]
+    B --&gt; G[&quot;classification&lt;br/&gt;target = is_late ~ 20%&quot;]
+    G --&gt; H[threshold sweep on val&lt;br/&gt;pick max-F1 point]
+    H --&gt; I[confusion matrix + F1 on test]
+</div>
+<h3 id="_5">うまくいかない理由</h3>
+<p>splitは、<strong>shuffleされたcross-validation</strong>（訓練に未来のshipmentが入る）、時間を無視する <strong>randomな <code>train_test_split</code></strong>、そして <strong>scalerのleak</strong> で壊れます。分割前に全dataで <code>StandardScaler</code> をfitすると、test setのmeanと分散が訓練に入り込みます。metricは、imbalancedなtargetで <strong>accuracyを報告する</strong>（すべてのlate shipmentを見逃しながら「80%正確」）、あるいはdelayなのか総時間なのかを述べずに <strong>生のtransit timeでMAE</strong> を報告すると壊れます。baselineは <em>存在しない</em> と壊れます。「何にも勝っていない」modelは検証不能です。そして全体は、thresholdのtune中に <strong>test setに二度以上触れる</strong> と壊れます。validationでtuneし、testではちょうど一度だけ評価する。さもなければ「誠実な」数字はもう一つのoverfitした数字になります。</p>
+<p>さらに深く学ぶには：discipline fileの§2〜7（splits、metrics、baselines）、そしてevals + error analysisが定義的なskillである理由については <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/reference/knowledge-base/01-ai-engineering-discipline.md"><code>reference/knowledge-base/01-ai-engineering-discipline.md</code></a> §"Building and deploying AI applications"。</p>
+<h2 id="notebook-walkthrough">Notebook walkthrough</h2>
+<p><strong><code>notebooks/01-eta-regression-baseline.ipynb</code></strong> は、一つの <code>build_features()</code> 関数でfeature tableを構築し（<code>lanes</code>/<code>carriers</code> のjoin、planted NaNsのimpute、<code>month</code>/<code>day_of_week</code> のderive）、<code>NUM_COLS</code>（7 numeric）と <code>CAT_COLS</code>（<code>weather_severity</code>、<code>commodity</code>）を <code>ColumnTransformer</code> 経由で定義し、<code>CUT1</code>/<code>CUT2</code> で時系列にsplitします。baseline cellはtestでmean/medianのMAE/RMSEを計算します。model cellはLinearRegression、RandomForest、GradientBoostingをfitして比較DataFrameをprintします。error-analysis cellはMAEで最良のmodelを選び、<code>|pred − y|</code> を <code>weather_severity</code> でsliceします。最後のcellは <strong><code>BEST_TEST_MAE</code></strong> と <strong><code>BEST_TEST_RMSE</code></strong> をprintします。median baselineは <strong>3.8 h</strong> 近く、modelは <strong>4.8〜5.6 h</strong> 近くを期待してください（baselineが勝ちます。正直に記録する）。</p>
+<p><strong><code>notebooks/02-on-time-classification.ipynb</code></strong> は同じfeature/splitを再構築し、labelを <code>is_late = (~is_on_time)</code> に反転し、late share（~20%）をprintします。LogisticRegressionとRandomForestをfitし、0.5でprecision/recall/F1を報告し、続いて19個のthresholdをsweepしてmax-F1の動作点を見つけ、0.5と選んだthresholdでのconfusion matrixをprintし、最後にtestで評価します。最後のcellはprecision/recall付きの <strong><code>BEST_TEST_F1</code></strong>（≈0.38）をprintします。「正しい」出力：splitのsizeが一致（~58k/17k/25k）、late share ≈ 0.20、そしてlate classのF1がそのthresholdとともに報告されていること。</p>
+<p>変更するcell：Standard exerciseは、regression notebookの <code>models</code> dictに四つ目のentry（例：<code>HistGradientBoostingRegressor</code>）を追加します。同じpipeline wrapper、同じsplit。これで比較は公平なままです。Stretch exerciseは単一の <code>CUT1</code>/<code>CUT2</code> splitを <code>TimeSeriesSplit</code> に置き換え、foldのMAEsを平均します。classification notebookでは、<code>np.linspace(0.05, 0.95, 19)</code> のsweepが動作点を選ぶ唯一の場所です。confusion matrixとtest F1はその選択を引き継ぐので、test labelに対してthresholdをtuneしてはいけません。正しいrunは、すべての数字を <em>そのsplitとbaseline deltaとともに</em> 述べます。splitの日付とmedian baselineなしの裸の「MAE 4.87」は結果ではありません。metric、split、top error sourceの三つのfieldこそ、Week 3 model cardが記録すべきものです。</p>
+<h2 id="use-casefriday">Use case（Friday）</h2>
+<p><strong>Deliverable:</strong> 三つのものを載せたWeek 3 model card（<code>week-03-model-card.md</code>）。headline metric（ETAにはMAE、on-timeにはlate classのF1）、それを生み出した正確なsplit（cut dateであって「80/20」ではない）、そしてerrorをsliceして見つかった単一の最大error source（weather、あるlane、あるcarrier）。</p>
+<p><strong>Zorost gate:</strong> 見知らぬ人があなたのmodel cardを読み、notebookから数字を再現できること。同じsplit、同じseed、同じmetric。そしてあなたは <em>modelが何を間違えたか</em> を見せられます。topのerror clusterと、その原因に関する一文の仮説です。error analysisのないmetricは、成果物の半分です。</p>
+<p><strong>Stretch variant:</strong> 単一のvalidation splitを <code>TimeSeriesSplit</code> cross-validationに置き換え、foldをまたぐMAEのmean ± stdを報告します。さらに比較に四つ目のmodel <code>HistGradientBoostingRegressor</code> を追加し、baselineに対するdeltaを述べます。</p>
+<h2 id="pitfall">よくあるpitfall</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>なぜ起きるか</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>時系列dataへのrandom <code>train_test_split</code></td>
+<td>freightが時系列であることを忘れる</td>
+<td>明示的なcut dateで <code>planned_departure</code> 上でsplitする</td>
+</tr>
+<tr>
+<td>scalerを全dataでfit</td>
+<td>便利だから（<code>StandardScaler().fit(X)</code>）</td>
+<td>trainだけで <code>fit</code> し、val/testには <code>transform</code></td>
+</tr>
+<tr>
+<td>late classでaccuracyを報告</td>
+<td>default metricの習慣</td>
+<td><code>is_late</code> でF1/precision/recallを報告し、生のaccuracyは決して使わない</td>
+</tr>
+<tr>
+<td>tuning中にtest setに触れる</td>
+<td>thresholdを「確認」したくなる</td>
+<td><strong>val</strong> でthresholdをsweep。testはちょうど一度だけ評価</td>
+</tr>
+<tr>
+<td>baselineなし</td>
+<td>当然の答えをskipする</td>
+<td>まずmean/median（と多数class）を計算し、deltaを述べる</td>
+</tr>
+<tr>
+<td>MAEなしでRMSEを報告</td>
+<td>一つの数字に偏る</td>
+<td>両方報告する。RMSE ≫ MAEは重いerror tailの印</td>
+</tr>
+<tr>
+<td><code>delay_hours</code> のskewを無視</td>
+<td>targetが正規分布だと仮定</td>
+<td>median baselineを使う。長い裾で強いことを期待する</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Supervised learning</strong>: label付きinputからtargetへのmappingを学ぶこと。</li>
+<li><strong>Regression / classification</strong>: 連続値を予測するか、categoryを予測するか。</li>
+<li><strong>Time-aware split</strong>: 時系列で割り、訓練が常にvalidation/testより前になるようにすること。</li>
+<li><strong>Leakage</strong>: 未来（やtest）の情報が訓練を汚染し、metricを膨らませること。</li>
+<li><strong>MAE / RMSE</strong>: 平均絶対誤差（典型的な外れ）と二乗平均平方根誤差（tailを罰する）。</li>
+<li><strong>Precision / recall / F1</strong>: 誤報率、見逃し率、そしてその調和平均。</li>
+<li><strong>Threshold</strong>: classifierのscoreをlabelに変える確率の切り替え点。</li>
+<li><strong>Confusion matrix</strong>: classifierのdecisionのTP/FP/FN/TN会計。</li>
+<li><strong>Baseline</strong>: 本物のmodelが超えるべきnaiveなmodel（mean/median/多数class）。</li>
+<li><strong>Cross-validation</strong>: held-out foldをrotateして安定性を推定する。freightでは時間的に前へ。</li>
+<li><strong>Bias / variance</strong>: underfitting（単純すぎる）とoverfitting（敏感すぎる）のerror。</li>
+<li><strong>Model card</strong>: modelのmetric、split、top error sourceの一頁の記録。</li>
+</ul>
+<h2 id="self-checkquiz">Self-check（quiz）</h2>
+<p><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-03/quiz.md"><code>quiz.md</code></a> を開き、10問すべてに答えます。合格ラインは <strong>8/10</strong> です。各問題には、対応するConceptsのsubsectionまたはnotebook cellが記載されています。</p>
+<h2 id="exercises">Exercises</h2>
+<p>四つのgraded exerciseがあります。<strong>Easy</strong>（regression notebookを実行してMAE/RMSEを記録）、<strong>Standard</strong>（四つ目のregressorを追加してdeltaを述べる）、<strong>Stretch</strong>（時系列cross-validation）、<strong>Portfolio</strong>（model card + experiment logをcommit）。各hintは <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-03/exercises.md"><code>exercises.md</code></a> にあります。</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>scikit-learn user guide：https://scikit-learn.org/stable/user_guide.html</li>
+<li>scikit-learn <code>TimeSeriesSplit</code>：https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html</li>
+<li>scikit-learn metrics：https://scikit-learn.org/stable/modules/classes.html#module-sklearn.metrics</li>
+<li>scikit-learn supervised learning（linear model、forest、boosting）：https://scikit-learn.org/stable/supervised_learning.html</li>
+<li>Andrew Ng, <em>The AI Engineering Skills Map</em>, The Batch issue 366：https://www.deeplearning.ai/the-batch/issue-366</li>
+<li>Andrew Ng, <em>Improve Agentic Performance with Evals and Error Analysis, Part 1</em>：https://www.deeplearning.ai/the-batch/improve-agentic-performance-with-evals-and-error-analysis-part-1</li>
+<li>Fereydun Hashemi（Zorost）, <em>The AI Engineering Skills Map, turned into a training plan</em>：https://zorost.com/ai-engineering-skills-map-training-guide</li>
+<li>Aurélien Géron, <em>Hands-On Machine Learning</em>, 3rd ed. (O'Reilly, 2022)：https://www.oreilly.com/library/view/hands-on-machine-learning/9781098125967/</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>
+
+</body>
+</html>

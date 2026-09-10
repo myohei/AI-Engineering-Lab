@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 14: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 14</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-14/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-14-checklist">Week 14: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-14/exercises.md">英語版</a> · <a href="README.html">Week 14 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-react-agent-from-scratch.ipynb</code> をmock brainでend-to-endに
+   実行します（API key不要）。最後にscenario score（0〜10の数字）がprintされます。
+   その数字をExcel trackerのWeek 14 sheetに記録してください。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: 五つ目のtool <code>list_carriers</code>（<code>zoro.data</code> からcarrier名、region、
+   on-time rate、fleet sizeを返す）を、適切なJSON schema付きで追加します。tool
+   registryに登録し、それを必要とする新しいscenarioを一つ追加して、traceに正しい
+   （引数なしでの）呼び出しが示されることを確認します。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: <code>OPENAI_API_KEY</code>（または <code>OPENROUTER_API_KEY</code>）をsetし、実際のmodelで
+   10 scenarioを再実行して、scoreをmockと比較します。保存されたtraceを開き、実際の
+   modelとmockが一致しないscenarioを <strong>一つ</strong> 見つけます。<em>なぜか</em>（tool選択、引数
+   format、refusal振る舞い）を説明するmarkdown cellを書きます。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: agent、trace log、そして次を述べる短い <code>README</code> blockをcommitします:
+   10 scenario、最終score、guardrailの正確な閾値（max step、cost cap、refusal policy）。
+   これはprogram最初のinspectable agent artifactです（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/projects/README.md"><code>curriculum/projects/README.md</code></a> で追跡）。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: すべてのcellを上から下へ実行します。mock brainにkeyは不要で、最終cellは
+   <code>FINAL_SCORE</code> を0〜1のfractionとしてprintします。その数字をそのまま記録してください。</li>
+<li><strong>Standard</strong>: <code>TOOLS</code> registryで、既存toolの三部分の形（function、<code>name</code>/<code>description</code>、
+   <code>parameters</code> schema）をまねます。<code>list_carriers</code> は引数を <strong>取らない</strong> ので、
+   <code>required</code> は <code>[]</code> です。<code>expect</code> が <code>list_carriers</code> を名指しするscenarioを追加します。</li>
+<li><strong>Stretch</strong>: <em>同じ</em> scenario IDについて、実際のrunのtraceをmockのものとdiffします。
+   違う <code>tool</code>、違う <code>args</code> 値、あるいはmockがactしたところの <code>refuse</code> を探してください。</li>
+<li><strong>Portfolio</strong>: reviewerは <code>README</code> blockを初見で（前提知識なしで）読みます。10 scenario、score、
+   三つの閾値（<code>max_steps</code>、<code>cost_cap</code>、refusal policy）を、形容詞ではなく具体的な
+   数字で述べてください。</li>
+</ol>
+<h2 id="checklistmanifestjsonexcel-tracker">Checklist（manifest.jsonとExcel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: agent loopとReActを学ぶ（reference/knowledge-base/10-agents-multiagent.md）。</li>
+<li>☐ Tue: tool-calling loopを手で実装する。2つのtool（track shipment、convert units）を配線する。</li>
+<li>☐ Wed: planningとreflectionを追加する。すべてのstepをlogする。traceがdebuggerです。</li>
+<li>☐ Thu: guardrailを追加する: refusal、max step、cost cap。adversarial inputをtestする。</li>
+<li>☐ Fri: Use case: agentが未見の10 scenarioを解く。trace logを公開する。</li>
+<li>☐ Sat: Week 14 quiz（quiz.md）を受け、8/10で合格する。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新する。agentとtraceをcommitする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>

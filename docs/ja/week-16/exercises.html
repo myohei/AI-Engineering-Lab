@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 16: 演習とChecklist</title>
+<meta name="description" content="AI Engineering Lab 日本語ガイド">
+<link rel="stylesheet" href="../style.css">
+
+</head>
+<body>
+<header class="jnav"><div class="wrap">
+  <a class="brand" href="../index.html">AI Engineering Lab <span class="tag">日本語ガイド</span></a>
+  <nav>
+    <a href="../overview.html">概要</a>
+    <a href="../start-here.html">START-HERE</a>
+    <a href="https://github.com/myohei/AI-Engineering-Lab">GitHub</a>
+    <a href="../../index.html">English site</a>
+  </nav>
+</div>
+<div class="wrap subnav"><span class="wk">Week 16</span> <a href="README.html">本文</a> <a href="exercises.html" class="on">演習</a> <a href="quiz.html">クイズ</a><span class="sep">·</span><a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-16/README.md">原文 (EN)</a></div></header>
+<main class="wrap ja">
+<h1 id="week-16-checklist">Week 16: 演習とChecklist</h1>
+<blockquote>
+<p><strong>日本語版</strong> · <a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/week-16/exercises.md">英語版</a> · <a href="README.html">Week 16 README</a> · <a href="quiz.html">クイズ</a></p>
+</blockquote>
+<h2 id="graded-exercises">Graded exercises</h2>
+<ol>
+<li>
+<p><strong>Easy</strong>: <code>notebooks/01-mcp-server-lab.ipynb</code> をend-to-endに実行します（API key不要）。
+   <code>track_shipment</code> のtool-schema JSON（<code>list_tools()</code> が返したもの）をExcel trackerの
+   Week 16 sheetにcopyしてください。</p>
+</li>
+<li>
+<p><strong>Standard</strong>: MCP serverに四つ目のtool <code>get_bol(bol_id)</code> を、<code>zoro.data.bol_samples()</code>
+   をbackendとして追加します。client connectionを再実行し、新しいtoolをprotocol越しに
+   呼びます。その結果が <code>data.bol_samples()</code> の直接呼び出しと一致することを確認します。</p>
+</li>
+<li>
+<p><strong>Stretch</strong>: <code>notebooks/02-multiagent-triage-team.ipynb</code> で、四つ目のspecialist
+   （billing）とそのrouting ruleを追加し、同じ10 ticketでA/Bを再実行し、新しい
+   accuracy/latency/costの数字でarchitecture正当化を書き直します。</p>
+</li>
+<li>
+<p><strong>Portfolio</strong>: MCP server、triage team、そしてA/B report（<code>notebooks/02</code> の出力）を
+   commitします。reportは一つのtableと一段落の正当化からなり、hiring-managerが読める
+   artifactです（<a href="https://github.com/myohei/AI-Engineering-Lab/blob/main/curriculum/projects/README.md"><code>curriculum/projects/README.md</code></a> で追跡）。</p>
+</li>
+</ol>
+<h2 id="hints">Hints</h2>
+<ol>
+<li><strong>Easy</strong>: notebook 01を上から下へ実行します。<code>mcp</code> SDKがあれば <code>ROUND_TRIP_TOOLS</code>
+   の数字は <code>3</code> になるはずです。<code>track_shipment</code> のschemaは、cell [10] がprintした
+   とおりに正確にcopyしてください。</li>
+<li><strong>Standard</strong>: server <em>と</em> <code>MANUAL_SCHEMAS</code> の両方に <code>get_bol(bol_id)</code> を追加します。
+   <code>bol_id</code> は <code>ZRL-10000</code> の形です。clientを再接続し（新しい <code>stdio_client</code> session）、
+   <code>list_tools()</code> が四つ目のtoolを拾うようにし、その結果が <code>data.bol_samples()</code> の
+   直接呼び出しと等しいことをassertします。</li>
+<li><strong>Stretch</strong>: <code>billing</code> specialistは、<code>supervisor_classify</code>、<code>CAT_TO_ROUTE</code>、
+   <code>add_conditional_edges</code> のmapを <em>まとめて</em> 拡張して追加します。同じ10 ticketを
+   再実行し、新しい <code>ACCURACY_DELTA</code> で正当化を書き直します。</li>
+<li><strong>Portfolio</strong>: A/B reportこそがartifactです。table <em>と</em> 正当化paragraphをshipして
+   ください。reviewerが数字とあなたのdecisionを同じ息で見られるように。</li>
+</ol>
+<h2 id="checklistmanifestjsonexcel-tracker">Checklist（manifest.jsonとExcel trackerに対応）</h2>
+<ul>
+<li>☐ Mon: orchestration patternとMCPを学ぶ（knowledge-base/10 + knowledge-base/11）。</li>
+<li>☐ Tue: ZoroLogistics toolをexposeするMCP serverをbuildする。MCP inspectorでtestする。</li>
+<li>☐ Wed: multi-agent triage team（supervisor + 3 specialist）をbuildする。</li>
+<li>☐ Thu: A/B test: 同じ10 taskでmulti-agent vs single agent。qualityとcostを測る。</li>
+<li>☐ Fri: Use case: A/B reportを公開する。architecture decisionを正当化する。</li>
+<li>☐ Sat: Week 16 quiz（quiz.md）を受け、8/10で合格する。scoreをNotesに記録する。</li>
+<li>☐ Milestone: Excel trackerを更新する。teamとMCP serverをcommitする。</li>
+</ul>
+</main>
+<footer class="jfoot"><div class="wrap">
+  <span>AI Engineering Lab 日本語ガイド</span>
+  <span>Developed by Zorost Intelligence AI Lab</span>
+  <span>&copy; 2026 Zorost Intelligence LLC</span>
+</div></footer>
+
+</body>
+</html>
