@@ -59,7 +59,7 @@ AI Engineering Labは、やる気のある初心者が **24週間**（週約10�
    | **Ship** | 金 | ユースケース演習を終え、具体的な成果物を作る |
    | **Reflect** | 金〜日 | 10問quiz（8/10で合格）を受け、trackerを更新する |
 
-6. **用語で迷ったら** [`reference/GLOSSARY.md`](reference/GLOSSARY.md) を調べます。プログラム中のtechnical termが平易な英語で定義されています。日本語版の用語説明は各日本語教材にも併記します。
+6. **用語で迷ったら** [`reference/GLOSSARY.ja.md`](reference/GLOSSARY.ja.md) を調べます。プログラム中のtechnical termが平易な日本語で定義されています（[英語版](reference/GLOSSARY.md)もあります）。
 
 これで準備は完了です。あとはWeek 1が、一つずつ小さなstepに分けて案内します。
 
@@ -72,7 +72,7 @@ AI Engineering Labは、やる気のある初心者が **24週間**（週約10�
 - **`zoro/` + `data/`**: ZoroLogisticsのsynthetic-data toolkit。Week 1で使い方を学び、内部実装に触れる必要はありません。
 - **`reference/skills/agent-skills/`**: AI *agent*（harnessが読み込むskill）に渡す、install可能な手順です。coding agentと開発し始めるWeek 12まで不要です。
 - **`reference/resources/`**: Anthropic、Google、NVIDIA、Hugging Faceなどの無料courseを、補助になる週と対応付けたcatalogです。
-- **`reference/GLOSSARY.md`**: technical termの用語集です。
+- **`reference/GLOSSARY.ja.md`**: technical termの用語集（日本語版）です。英語版は `reference/GLOSSARY.md`。
 - **`ROADMAP.md` / `CHANGELOG.md`**: programの今後と変更履歴です。
 
 ![リポジトリの構成と、最初に開く2つの場所](assets/diagrams/lab-map.png)
@@ -89,7 +89,7 @@ AI Engineering Labは、やる気のある初心者が **24週間**（週約10�
 
 1. **エラーメッセージを全文読み直します。** 最後の行が問題を、上の行が場所を示します。初心者は早く読み止めすぎます。
 2. **その週の `exercises.md` を確認します。** 過去のlearnerが遭遇した失敗向けのヒントがあります。
-3. **用語が分からない場合は [`reference/GLOSSARY.md`](reference/GLOSSARY.md) を検索します。**
+3. **用語が分からない場合は [`reference/GLOSSARY.ja.md`](reference/GLOSSARY.ja.md) を検索します。**
 4. **AI assistantにエラーの説明を頼みます。** 完全なtracebackを貼り、「Python初心者にも分かるように説明して」と聞いてください。Week 12以降はcoding agentを専門的に使いますが、最初から気軽に使って構いません。
 5. **GitHub Issueを開きます。** 週番号、実行した内容、完全なerrorを記載してください。maintainerとほかのlearnerが確認します。
 

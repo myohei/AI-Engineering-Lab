@@ -492,6 +492,7 @@ JA_TEMPLATE = """<!doctype html>
   <nav>
     <a href="{overview}">概要</a>
     <a href="{start}">START-HERE</a>
+    <a href="{glossary}">用語集</a>
     <a href="{github}">GitHub</a>
     <a href="{en}">English site</a>
   </nav>
@@ -532,6 +533,7 @@ def ja_sources() -> list[tuple[str, str]]:
         ("curriculum/README.ja.md", "docs/ja/index.html"),
         ("README.ja.md", "docs/ja/overview.html"),
         ("START-HERE.ja.md", "docs/ja/start-here.html"),
+        ("reference/GLOSSARY.ja.md", "docs/ja/glossary.html"),
     ]
     for w in range(1, 25):
         for src, dst in (("README.ja.md", "README.html"),
@@ -639,6 +641,7 @@ def render_ja() -> JaSite:
             index=_rel(out_rel, "docs/ja/index.html"),
             overview=_rel(out_rel, "docs/ja/overview.html"),
             start=_rel(out_rel, "docs/ja/start-here.html"),
+            glossary=_rel(out_rel, "docs/ja/glossary.html"),
             github=REPO,
             en=_rel(out_rel, "docs/index.html"),
             weeknav=_ja_weeknav(src_rel, out_rel),

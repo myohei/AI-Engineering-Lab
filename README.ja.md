@@ -11,7 +11,7 @@
 **[最初に読む](START-HERE.ja.md)** ·
 [24週間の一覧](curriculum/README.ja.md) ·
 [Reference](reference/) ·
-[Glossary](reference/GLOSSARY.md) ·
+[用語集](reference/GLOSSARY.ja.md) · [英語版](reference/GLOSSARY.md) ·
 [Roadmap](ROADMAP.md)
 
 Zorost Intelligence AI Labが開発 · Washington, DC ·
@@ -110,7 +110,7 @@ AI-Engineering-Lab/
 │   ├── agents/            #   OpenClaw、Hermes、MCPなどのagent pattern
 │   ├── platforms/         #   Azure、Vertex、Bedrock、Databricks
 │   ├── resources/         #   週ごとに対応付けた無料の外部course
-│   └── GLOSSARY.md        #   用語集（現在は英語版）
+│   └── GLOSSARY.ja.md     #   用語集（日本語版）
 ├── zoro/                  # ケーススタディ用のseed済みdata toolkit
 ├── data/                  # 生成したtableの保存先（gitignore対象）
 ├── scripts/               # リポジトリのmaintenanceとcheck
@@ -137,7 +137,7 @@ AI-Engineering-Lab/
 ## 困ったとき
 
 1. エラー全文を読み直します。最後の行が問題を示します。
-2. その週の `exercises.md` のヒントと [glossary](reference/GLOSSARY.md) を確認します。
+2. その週の `exercises.md` のヒントと [用語集](reference/GLOSSARY.ja.md) を確認します。
 3. GitHub issueには、週番号、実行した内容、tracebackを書きます。
 4. report、security、conductに関する連絡は **info@zorost.com** へ送ります。
 

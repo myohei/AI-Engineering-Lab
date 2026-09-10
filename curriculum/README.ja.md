@@ -8,7 +8,7 @@ AI Engineering Labの本編です。Pythonの基礎からproduction lakehouse AI
 
 ![FoundationsからDatabricks capstoneまでの7つのphaseと、各phaseで作るもの](../assets/diagrams/lab-journey.png)
 
-> **初めての方へ:** まず [`START-HERE.ja.md`](../START-HERE.ja.md) を読み、[`reference/GLOSSARY.md`](../reference/GLOSSARY.md) を1つのtabで開いておいてください。technical termは現在、英語の用語集で定義されています。Week 1の日本語ガイドでは重要語を日本語でも説明します。
+> **初めての方へ:** まず [`START-HERE.ja.md`](../START-HERE.ja.md) を読み、[`reference/GLOSSARY.ja.md`](../reference/GLOSSARY.ja.md) を1つのtabで開いておいてください。プログラム中のtechnical termを日本語で定義しています（[英語版](../reference/GLOSSARY.md)）。Week 1の日本語ガイドでは重要語を日本語でも説明します。
 
 ## プログラムの進め方
 
