@@ -59,7 +59,35 @@ AI Engineering Labの本編です。Pythonの基礎からproduction lakehouse AI
 | 23 | Databricks ML & GenAI: Training, Serving, Genie | Databricks Zero to Hero | ML & GenAI |
 | 24 | Databricks Production: DABs, Governance & the Capstone | Databricks Zero to Hero | Production & Capstone |
 
-Week 1は日本語版を用意しています：[`week-01/README.ja.md`](week-01/README.ja.md)、[`exercises.ja.md`](week-01/exercises.ja.md)、[`quiz.ja.md`](week-01/quiz.ja.md)。Notebookも日本語のMarkdownセル版です。Week 2以降の日本語版は、原文との対応を保ちながら順番に追加します。
+Week 1〜24の日本語版を用意しています。Week 1: [`README.ja.md`](week-01/README.ja.md)・[`exercises.ja.md`](week-01/exercises.ja.md)・[`quiz.ja.md`](week-01/quiz.ja.md)（Notebookも日本語のMarkdownセル版）。
+
+Week 2〜24の日本語版（Notebook本体は英語版を使用します）:
+
+| Week | README | 演習 | クイズ |
+|---|---|---|---|
+| 2 | [AIのためのData EngineeringとSQL](week-02/README.ja.md) | [演習](week-02/exercises.ja.md) | [クイズ](week-02/quiz.ja.md) |
+| 3 | [Machine Learningの基礎](week-03/README.ja.md) | [演習](week-03/exercises.ja.md) | [クイズ](week-03/quiz.ja.md) |
+| 4 | [PyTorchで学ぶDeep Learning](week-04/README.ja.md) | [演習](week-04/exercises.ja.md) | [クイズ](week-04/quiz.ja.md) |
+| 5 | [LLMsの仕組み——TokenからTransformerまで](week-05/README.ja.md) | [演習](week-05/exercises.ja.md) | [クイズ](week-05/quiz.ja.md) |
+| 6 | [Prompt EngineeringとContext Window](week-06/README.ja.md) | [演習](week-06/exercises.ja.md) | [クイズ](week-06/quiz.ja.md) |
+| 7 | [RAG、Vector SearchとKnowledge Graph](week-07/README.ja.md) | [演習](week-07/exercises.ja.md) | [クイズ](week-07/quiz.ja.md) |
+| 8 | [Open ModelsとLocal Inference — GPUs、Ollama、llama.cpp](week-08/README.ja.md) | [演習](week-08/exercises.ja.md) | [クイズ](week-08/quiz.ja.md) |
+| 9 | [QuantizationとEfficient Inference](week-09/README.ja.md) | [演習](week-09/exercises.ja.md) | [クイズ](week-09/quiz.ja.md) |
+| 10 | [Fine-Tuning — LoRA、SFTとDPO](week-10/README.ja.md) | [演習](week-10/exercises.ja.md) | [クイズ](week-10/quiz.ja.md) |
+| 11 | [AI SystemのためのEvalとError Analysis](week-11/README.ja.md) | [演習](week-11/exercises.ja.md) | [クイズ](week-11/quiz.ja.md) |
+| 12 | [Coding-Agent Harnesses — Claude Code、Cursor、OpenCode、DSH](week-12/README.ja.md) | [演習](week-12/exercises.ja.md) | [クイズ](week-12/quiz.ja.md) |
+| 13 | [Agentic Coding LoopとSpec-Driven Development](week-13/README.ja.md) | [演習](week-13/exercises.ja.md) | [クイズ](week-13/quiz.ja.md) |
+| 14 | [Agentの基礎 — Loop、Tools & Memory](week-14/README.ja.md) | [演習](week-14/exercises.ja.md) | [クイズ](week-14/quiz.ja.md) |
+| 15 | [Agent Frameworks — LangGraphとState-Graph Model](week-15/README.ja.md) | [演習](week-15/exercises.ja.md) | [クイズ](week-15/quiz.ja.md) |
+| 16 | [Multi-Agent SystemとMCP](week-16/README.ja.md) | [演習](week-16/exercises.ja.md) | [クイズ](week-16/quiz.ja.md) |
+| 17 | [OpenClaw、HermesとAgent Operations](week-17/README.ja.md) | [演習](week-17/exercises.ja.md) | [クイズ](week-17/quiz.ja.md) |
+| 18 | [Azure AI Foundry](week-18/README.ja.md) | [演習](week-18/exercises.ja.md) | [クイズ](week-18/quiz.ja.md) |
+| 19 | [Google Vertex AIとGemini](week-19/README.ja.md) | [演習](week-19/exercises.ja.md) | [クイズ](week-19/quiz.ja.md) |
+| 20 | [AWS BedrockとSageMaker AI](week-20/README.ja.md) | [演習](week-20/exercises.ja.md) | [クイズ](week-20/quiz.ja.md) |
+| 21 | [Databricks Day Zero: Unity Catalogとlakehouse](week-21/README.ja.md) | [演習](week-21/exercises.ja.md) | [クイズ](week-21/quiz.ja.md) |
+| 22 | [Databricks Data Engineering: PySpark、StreamingとLakeflow](week-22/README.ja.md) | [演習](week-22/exercises.ja.md) | [クイズ](week-22/quiz.ja.md) |
+| 23 | [Databricks ML & GenAI: Training、Serving、Genie](week-23/README.ja.md) | [演習](week-23/exercises.ja.md) | [クイズ](week-23/quiz.ja.md) |
+| 24 | [Databricks Production: DABs、GovernanceとCapstone](week-24/README.ja.md) | [演習](week-24/exercises.ja.md) | [クイズ](week-24/quiz.ja.md) |
 
 各週のフォルダー（`curriculum/week-NN/`）は、1つのcomplete lessonです。
 
