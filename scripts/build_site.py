@@ -20,10 +20,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 IMG = DOCS / "assets" / "img"
-REPO = "https://github.com/zorost/AI-Engineering-Lab"
+REPO = "https://github.com/myohei/AI-Engineering-Lab"
 TREE = f"{REPO}/tree/main"
 BLOB = f"{REPO}/blob/main"
 SITE = "https://zorost.com"
+PAGES = "https://myohei.github.io/AI-Engineering-Lab/"
 
 # Phase accent, in program order, matching the diagram palette.
 ACCENT = ["#0E9384", "#4260E8", "#7C4DE0", "#DC3A72", "#E8940C", "#566172", "#F14B21"]
@@ -146,7 +147,7 @@ def course_ld(m: dict) -> str:
             "@type": "CourseInstance",
             "courseMode": "online",
             "courseWorkload": "PT10H",
-            "url": "https://zorost.github.io/AI-Engineering-Lab/",
+            "url": PAGES,
             "courseSchedule": {
                 "@type": "Schedule",
                 "duration": "PT10H",
